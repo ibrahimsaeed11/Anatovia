@@ -17,7 +17,7 @@
 
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['quiz', '🎯'], ['lmq', '📍'], ['exam', '🩺'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['about', 'ℹ️']];
+    const items = [['quiz', '🎯'], ['lmq', '📍'], ['exam', '🩺'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['about', 'ℹ️']];
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p><div class="hub">` +
       items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>';
   });
@@ -177,7 +177,7 @@
     const typeA = {}; for (const r of Q.results) { const a = (typeA[r.type] = typeA[r.type] || { c: 0, n: 0 }); a.n++; if (r.ok) a.c++; }
     const prev = Store.d.hist[Store.d.hist.length - 1];
     const rec = { t: Date.now(), n: total, c: correct, s: pct(correct, total), secs, mode: Q.cfg.mode, sys: Q.cfg.sys, reg: Q.cfg.reg, area, sysA, typeA };
-    Store.d.hist.push(rec); if (Store.d.hist.length > 60) Store.d.hist.shift(); Store.save();
+    Store.d.hist.push(rec); if (Store.d.hist.length > 60) Store.d.hist.shift(); Store.save(); if (A.checkBadges) setTimeout(A.checkBadges, 300);
     const wrongs = Q.results.filter((r) => !r.ok);
     endQuizUI();
     A.modal(() => resultHtml(rec, prev, wrongs));

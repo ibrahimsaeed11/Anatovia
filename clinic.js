@@ -216,6 +216,7 @@
   function finish() {
     Q.done = true; const rs = Q.results, c = rs.filter((r) => r.ok).length, s = pct(c, rs.length), secs = Math.round((Date.now() - Q.t0) / 1000), wrongs = rs.filter((r) => !r.ok);
     let best = s; try { const d = Store.d; d.lmq = d.lmq || { best: 0, runs: 0 }; best = Math.max(d.lmq.best, s); d.lmq.best = best; d.lmq.runs++; Store.save(); } catch (e) {}
+    if (A.logAct) A.logAct(rs.length, c); if (A.checkBadges) A.checkBadges();
     endUI();
     A.modal(() => `<h2>${t('result')}</h2><div class="score-ring"><div><div class="big">${s}%</div><div>${c} / ${rs.length}</div></div><div><b>${t(s >= 90 ? 'g_great' : s >= 70 ? 'g_good' : s >= 50 ? 'g_ok' : 'g_low')}</b><div class="lab">${t('timeTaken')}: ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} · ${T('best', 'الأفضل')} ${best}%</div></div></div>` +
       (wrongs.length ? `<h4>${t('mistakes')}</h4>` + wrongs.map((r) => `<div class="mist" data-act="lmqreview" data-i="${r.l.i}"><span>${esc(lname(r.l))}<small>${esc(name1(P[r.l.bi]))}</small></span><small>${T('show', 'اعرض')}</small></div>`).join('') : `<div class="advice">${t('perfect')}</div>`) +
