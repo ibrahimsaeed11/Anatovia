@@ -41,11 +41,11 @@
     return [(x / w * 0.5 + 0.5) * W, (1 - (y / w * 0.5 + 0.5)) * H];
   }
   function rrect(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
-  function arrow(c, x0, y0, x1, y1, col) {
+  function arrow(c, x0, y0, x1, y1, col, dashed) {
     const a = Math.atan2(y1 - y0, x1 - x0), s = 9;
-    c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.6;
+    c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 1.6; c.setLineDash(dashed ? [5, 4] : []);
     c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1 - Math.cos(a) * s * 0.8, y1 - Math.sin(a) * s * 0.8); c.stroke();
-    c.beginPath(); c.moveTo(x1, y1); c.lineTo(x1 - Math.cos(a - 0.42) * s, y1 - Math.sin(a - 0.42) * s); c.lineTo(x1 - Math.cos(a + 0.42) * s, y1 - Math.sin(a + 0.42) * s); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(x1, y1); c.lineTo(x1 - Math.cos(a - 0.42) * s, y1 - Math.sin(a - 0.42) * s); c.lineTo(x1 - Math.cos(a + 0.42) * s, y1 - Math.sin(a + 0.42) * s); c.closePath(); c.fill(); c.setLineDash([]);
   }
 
   A.afterDraw = () => {
@@ -63,11 +63,12 @@
       const it = x.itemOf[l.bi]; if (!it || !it.visible || it.alpha < 0.3) return;
       const p = [l.p[0] + it.offset[0], l.p[1] + it.offset[1], l.p[2] + it.offset[2]];
       const ex = eye[0] - p[0], ey = eye[1] - p[1], ez = eye[2] - p[2], dl = Math.hypot(ex, ey, ez) || 1;
-      if ((l.n[0] * ex + l.n[1] * ey + l.n[2] * ez) / dl < 0.08) return;           // facing away
+      const back = (l.n[0] * ex + l.n[1] * ey + l.n[2] * ez) / dl < 0.08;           // facing away
+      if (back && !forced) return;
       if (S.cutOn && S.clipTest && S.clipTest(p)) return;
       const s = project(p, vp, W, H); if (!s) return;
       if (s[0] < 6 || s[0] > W - 6 || s[1] < 100 || s[1] > H - 14) return;
-      cand.push({ l, sx: s[0], sy: s[1], forced, d: Math.hypot(s[0] - W / 2, s[1] - H / 2) });
+      cand.push({ l, back, sx: s[0], sy: s[1], forced, d: Math.hypot(s[0] - W / 2, s[1] - H / 2) });
     };
     if (selBone >= 0) (lmByBone.get(selBone) || []).forEach((l) => consider(l, true));
     if (S.lm && x.cam.dist < 1.6) {
@@ -93,13 +94,14 @@
       const sel = q.l.i === S.lmSel, right = q.sx >= W / 2;
       const ax = right ? q.lx : q.lx + q.w, ay = q.ly + 11;
       const col = sel ? '#19e3f2' : (dk ? 'rgba(255,255,255,.88)' : 'rgba(20,30,70,.85)');
-      arrow(c, ax, ay, q.sx, q.sy, col);
+      c.globalAlpha = q.back ? 0.6 : 1; arrow(c, ax, ay, q.sx, q.sy, col, q.back);
       c.fillStyle = sel ? 'rgba(10,60,80,.96)' : (dk ? 'rgba(14,20,44,.88)' : 'rgba(255,255,255,.94)');
       c.strokeStyle = sel ? '#19e3f2' : (dk ? 'rgba(255,255,255,.28)' : 'rgba(20,30,70,.25)'); c.lineWidth = sel ? 2 : 1;
       rrect(c, q.lx, q.ly, q.w, 22, 8); c.fill(); c.stroke();
       c.fillStyle = sel ? '#fff' : (dk ? '#eef1ff' : '#18204a'); c.textAlign = 'center';
       c.fillText(q.txt, q.lx + q.w / 2, q.ly + 11.5, q.w - 10);
       if (sel) { c.strokeStyle = '#19e3f2'; c.lineWidth = 2; c.beginPath(); c.arc(q.sx, q.sy, 9, 0, 6.3); c.stroke(); }
+      c.globalAlpha = 1;
       hits.push({ i: q.l.i, rect: [q.lx, q.ly, q.w, 22], px: q.sx, py: q.sy });
     }
   };
@@ -376,7 +378,7 @@
   }
   A.acts.fn = async () => {
     S.fnOn = !S.fnOn; S.fnSel = null; S.focus = null;
-    if (S.fnOn) { S.layers.brain = 'on'; await A.ensure('brain'); Object.assign(S.layers, { bone: 'ghost', muscle: 'off', vessel: 'off', nerve: 'off', organ: 'off' }); const x = X(); x.cam.flyTo([0, 1.55, 0.08], 0.95, 0.9, 0.15); }
+    if (S.fnOn) { S.layers.brain = 'on'; await A.ensure('brain'); Object.assign(S.layers, { bone: 'ghost', muscle: 'off', vessel: 'off', nerve: 'off', organ: 'off', ligament: 'off' }); const x = X(); x.cam.flyTo([0, 1.55, 0.08], 0.95, 0.9, 0.15); }
     recolorBrain(); fnBar(); refresh(); A.redraw();
   };
   A.acts.fnoff = () => { S.fnOn = false; S.fnSel = null; S.focus = null; recolorBrain(); fnBar(); refresh(); };

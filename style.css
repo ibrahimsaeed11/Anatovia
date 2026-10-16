@@ -50,7 +50,7 @@ canvas:active{cursor:grabbing}
 .chip[data-state="off"]{opacity:.62}
 .chip.active{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 .chip.sep{width:1px;padding:0;background:var(--line);border:0;height:24px;align-self:center}
-.c-bone .dot{color:#e2d3ab}.c-muscle .dot{color:#ff6f62}.c-vessel .dot{color:#6f9bff}.c-organ .dot{color:#f0a94f}.c-nerve .dot{color:#f7d94a}.c-brain .dot{color:#f19aa8}
+.c-bone .dot{color:#e2d3ab}.c-muscle .dot{color:#ff6f62}.c-vessel .dot{color:#6f9bff}.c-organ .dot{color:#f0a94f}.c-nerve .dot{color:#f7d94a}.c-brain .dot{color:#f19aa8}.c-ligament .dot{color:#9bd36a}
 :root[data-theme="light"] .c-bone .dot{color:#b09658}:root[data-theme="light"] .c-vessel .dot{color:#3f6be0}:root[data-theme="light"] .c-muscle .dot{color:#d8402f}:root[data-theme="light"] .c-organ .dot{color:#d98a1e}:root[data-theme="light"] .c-nerve .dot{color:#c9a200}
 .mini{height:34px;min-width:34px;padding:0 10px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:700}
 .explode-bar,.move-bar{position:absolute;inset-inline:12px;top:calc(112px + env(safe-area-inset-top));z-index:5;display:flex;gap:10px;align-items:center;padding:8px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
@@ -200,3 +200,8 @@ h4{margin:16px 0 6px;font-size:13px;letter-spacing:.04em;color:var(--muted);text
 .cut-bar{position:absolute;inset-inline:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:5;padding:10px 12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
 .cut-bar .ct{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
 .cut-bar input[type=range]{width:100%}
+:root[data-theme="light"] .c-ligament .dot{color:#5e9a2c}
+
+/* v5: clinical assessment */
+.tbl{width:100%;border-collapse:collapse;margin:10px 0}.tbl th,.tbl td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:start;font-size:14.5px;vertical-align:top}.tbl th{color:var(--muted);font-weight:600;font-size:13px}
+.exc{padding:11px 13px;margin:9px 0;border-radius:14px;background:var(--surface2);border:1px solid var(--line);line-height:1.5}.exc b{display:block;margin-bottom:2px}.exc .facts{margin:4px 0 8px}.exc .pills{margin-top:8px}

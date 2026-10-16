@@ -3,10 +3,10 @@
 const A = { acts: {} };
 const $ = (id) => document.getElementById(id);
 const P = window.CATALOG;
-const PACK_OF = { bone: ['bones', 'teeth'], muscle: ['muscles'], vessel: ['vessels'], nerve: ['nerves'], brain: ['brain'], organ: ['organs'] };
+const PACK_OF = { bone: ['bones', 'teeth'], muscle: ['muscles'], vessel: ['vessels'], nerve: ['nerves'], brain: ['brain'], organ: ['organs'], ligament: ['ligaments'] };
 const S = {
   lang: 'ar', theme: 'dark',
-  layers: { bone: 'on', muscle: 'off', vessel: 'off', nerve: 'off', brain: 'off', organ: 'off' },
+  layers: { bone: 'on', muscle: 'off', vessel: 'off', nerve: 'off', brain: 'off', organ: 'off', ligament: 'off' },
   region: null, hidden: new Set(), hideStack: [], sel: -1, iso: -1, explode: 0, pulled: new Set(),
   hl: null, moveSet: null, moveId: null, quiz: null, loaded: {}, spin: false,
 };
@@ -41,6 +41,11 @@ function colorFor(e) {
     case 'cart': return [0.56, 0.80, 0.92];
     case 'disc': return [0.36 + h * 0.08, 0.64, 0.82];
     case 'tendon': return [0.96, 0.94, 0.84];
+    case 'lig': return [0.62 + h * 0.1, 0.86, 0.40 + h * 0.08];
+    case 'capsule': return [0.55, 0.80, 0.88];
+    case 'fibro': return [0.30 + h * 0.08, 0.66, 0.84];
+    case 'retin': return [0.98, 0.93, 0.70];
+    case 'bursa': return [0.78, 0.55, 0.90];
     case 'muscle': return [Math.min(1, 0.70 + h * 0.20), 0.18 + h * 0.14, 0.17 + h * 0.08];
     case 'artery': return [0.90, 0.13, 0.17];
     case 'vein': return [0.20, 0.33, 0.84];
@@ -360,7 +365,7 @@ function bindPointer() {
 }
 function tap(x, y) {
   const idx = R.pick(cam, x, y);
-  if (S.quiz && S.quiz.onTap) { S.quiz.onTap(idx); return; }
+  if (S.quiz && S.quiz.onTap) { S.quiz.onTap(idx, x, y); return; }
   if (A.onTap && A.onTap(x, y)) return;
   if (idx >= 0) select(idx, { fly: true }); else if (S.sel >= 0) deselect();
 }

@@ -17,11 +17,11 @@
 
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['quiz', '🎯'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['about', 'ℹ️']];
+    const items = [['quiz', '🎯'], ['lmq', '📍'], ['exam', '🩺'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['about', 'ℹ️']];
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p><div class="hub">` +
       items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>';
   });
-  A.acts.hub = (el) => ({ quiz: openQuizSetup, cards: openCardsSetup, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout })[el.dataset.k]();
+  A.acts.hub = (el) => ({ quiz: openQuizSetup, cards: openCardsSetup, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
 
   /* scope helpers shared by quiz + flashcards */
   const scopeRow = (cfg, act) => {

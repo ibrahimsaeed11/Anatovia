@@ -7,7 +7,7 @@ const STR = {
   loading: { en: 'Loading the model…', ar: 'جارٍ تحميل المجسم…' },
   loadingSys: { en: 'Loading layer…', ar: 'جارٍ تحميل الطبقة…' },
   bone: { en: 'Bones', ar: 'العظام' }, muscle: { en: 'Muscles', ar: 'العضلات' },
-  vessel: { en: 'Vessels', ar: 'الأوعية' }, nerve: { en: 'Nerves', ar: 'الأعصاب' }, brain: { en: 'Brain', ar: 'الدماغ' }, organ: { en: 'Organs', ar: 'الأعضاء' },
+  vessel: { en: 'Vessels', ar: 'الأوعية' }, nerve: { en: 'Nerves', ar: 'الأعصاب' }, brain: { en: 'Brain', ar: 'الدماغ' }, organ: { en: 'Organs', ar: 'الأعضاء' }, ligament: { en: 'Ligaments & tendons', ar: 'الأربطة والأوتار' },
   layers: { en: 'Layers', ar: 'الطبقات' },
   off: { en: 'Hidden', ar: 'مخفي' }, on: { en: 'Shown', ar: 'ظاهر' }, ghost: { en: 'Faded', ar: 'شفاف' },
   regions: { en: 'Regions', ar: 'المناطق' }, allBody: { en: 'Whole body', ar: 'الجسم كله' },
@@ -40,7 +40,7 @@ const STR = {
   side_r: { en: 'Right', ar: 'يمين' }, side_l: { en: 'Left', ar: 'يسار' },
   kind_bone: { en: 'Bone', ar: 'عظمة' }, kind_cart: { en: 'Cartilage', ar: 'غضروف' }, kind_disc: { en: 'Disc', ar: 'قرص' },
   kind_muscle: { en: 'Muscle', ar: 'عضلة' }, kind_tendon: { en: 'Tendon / ligament', ar: 'وتر / رباط' },
-  kind_artery: { en: 'Artery', ar: 'شريان' }, kind_vein: { en: 'Vein', ar: 'وريد' }, kind_nerve: { en: 'Nerve', ar: 'عصب' }, kind_brain: { en: 'Brain structure', ar: 'تركيب دماغي' }, kind_tooth: { en: 'Tooth', ar: 'سنّ' }, kind_organ: { en: 'Organ', ar: 'عضو' },
+  kind_artery: { en: 'Artery', ar: 'شريان' }, kind_vein: { en: 'Vein', ar: 'وريد' }, kind_nerve: { en: 'Nerve', ar: 'عصب' }, kind_brain: { en: 'Brain structure', ar: 'تركيب دماغي' }, kind_tooth: { en: 'Tooth', ar: 'سنّ' }, kind_organ: { en: 'Organ', ar: 'عضو' }, kind_lig: { en: 'Ligament', ar: 'رباط' }, kind_capsule: { en: 'Joint capsule', ar: 'محفظة مفصلية' }, kind_fibro: { en: 'Fibrocartilage', ar: 'غضروف ليفي' }, kind_retin: { en: 'Tendon / fascia', ar: 'وتر / لفافة' }, kind_bursa: { en: 'Bursa', ar: 'جراب' },
   noResults: { en: 'No results', ar: 'لا نتائج' },
   // quiz
   quizSetup: { en: 'Start a quiz', ar: 'ابدأ اختباراً' }, mode: { en: 'Mode', ar: 'النمط' },
@@ -80,8 +80,8 @@ const STR = {
   theme: { en: 'Theme', ar: 'المظهر' }, lang: { en: 'العربية', ar: 'English' },
   installHelp: { en: 'iPhone: Share → Add to Home Screen. Android/PC: browser menu → Install app.', ar: 'آيفون: مشاركة ← إضافة إلى الشاشة الرئيسية. أندرويد/كمبيوتر: قائمة المتصفح ← تثبيت التطبيق.' },
   credits: {
-    en: '3D anatomy data: BodyParts3D © The Database Center for Life Science, licensed under CC BY-SA 2.1 Japan (dbcls.rois.ac.jp/en/). Nerves, brain and teeth: Z-Anatomy (github.com/LluisV/Z-Anatomy, built on the Open Anatomy Project), licensed under CC BY-SA 4.0. Meshes were simplified for mobile and one-sided structures were mirrored. Adaptations of this data must be shared under the same licence (CC BY-SA).',
-    ar: 'بيانات التشريح ثلاثية الأبعاد: BodyParts3D © مركز قواعد بيانات علوم الحياة، بترخيص CC BY-SA 2.1 Japan. الأعصاب والدماغ والأسنان: Z-Anatomy (github.com/LluisV/Z-Anatomy) المبني على مشروع Open Anatomy، بترخيص CC BY-SA 4.0. تم تبسيط المجسمات لتناسب الهاتف وعكس التراكيب أحادية الجانب. يجب مشاركة أي تعديل على هذه البيانات بنفس الترخيص.' },
+    en: '3D anatomy data: BodyParts3D © The Database Center for Life Science, licensed under CC BY-SA 2.1 Japan (dbcls.rois.ac.jp/en/). Nerves, brain, teeth, ligaments and tendons: Z-Anatomy (github.com/LluisV/Z-Anatomy, built on the Open Anatomy Project), licensed under CC BY-SA 4.0. Meshes were simplified for mobile and one-sided structures were mirrored. Adaptations of this data must be shared under the same licence (CC BY-SA).',
+    ar: 'بيانات التشريح ثلاثية الأبعاد: BodyParts3D © مركز قواعد بيانات علوم الحياة، بترخيص CC BY-SA 2.1 Japan. الأعصاب والدماغ والأسنان والأربطة والأوتار: Z-Anatomy (github.com/LluisV/Z-Anatomy) المبني على مشروع Open Anatomy، بترخيص CC BY-SA 4.0. تم تبسيط المجسمات لتناسب الهاتف وعكس التراكيب أحادية الجانب. يجب مشاركة أي تعديل على هذه البيانات بنفس الترخيص.' },
   importantNotes: { en: 'Important notes', ar: 'ملاحظات مهمة' },
   limits: {
     en: 'Educational aid only. Texts are drafts and should be reviewed by a physician/anatomist before publishing. The model shows the trunk vessels only (small peripheral vessels, skin and the eye/ear details are not included), and proportions are those of a standard adult male.',
@@ -89,7 +89,7 @@ const STR = {
   webgl: { en: 'Your browser does not support WebGL, which this app needs.', ar: 'متصفحك لا يدعم WebGL المطلوب لهذا التطبيق.' },
 };
 const REGIONS = ['head', 'neck', 'spine', 'thorax', 'abdomen', 'pelvis', 'upper', 'lower'];
-const SYSTEMS = ['bone', 'muscle', 'vessel', 'nerve', 'brain', 'organ'];
+const SYSTEMS = ['bone', 'muscle', 'vessel', 'nerve', 'brain', 'organ', 'ligament'];
 /* Arabic-insensitive search normalisation */
 function norm(s) {
   return (s || '').toLowerCase().replace(/[ً-ٰٟـ]/g, '').replace(/[إأآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي');
