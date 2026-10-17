@@ -15,11 +15,12 @@
   const repOf = (e) => reps.get(repKey(e));
   const repList = [...reps.values()];
 
+  const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201022424105?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/_ibrahimoffice" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'شاهد أعمالي' : 'See my work'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
     const items = [['quiz', '🎯'], ['lmq', '📍'], ['exam', '🩺'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['about', 'ℹ️']];
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p><div class="hub">` +
-      items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>';
+      items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>'+ `<div class="contact-bar">${contactHtml()}</div>`;
   });
   A.acts.hub = (el) => ({ quiz: openQuizSetup, cards: openCardsSetup, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
 
@@ -336,10 +337,11 @@
 
   /* ───────── ABOUT ───────── */
   function openAbout() {
-    A.modal(() => `<h2>${t('about')}</h2><p class="lead">${t('appName')} — ${t('tagline')}</p>` +
+    A.modal(() => `<div style="text-align:center"><img src="icons/icon-192.png" alt="Anatovia" width="84" height="84" style="border-radius:20px"><h2 style="margin:8px 0 0">Anatovia</h2></div><p class="lead">${t('tagline')}</p>` +
       `<div class="row">${A.deferredPrompt ? `<button class="btn primary" data-act="doinstall">${t('install')}</button>` : ''}<button class="btn" data-act="offline" id="offBtn">${t('offline')}</button></div><p class="lead">${t('installHelp')}</p>` +
+      `<h4>${S.lang === 'ar' ? 'تواصل معنا' : 'Contact us'}</h4>${contactHtml()}` +
       `<h4>${t('importantNotes')}</h4><div class="pt">${t('limits')}</div><h4>BodyParts3D</h4><p class="pn-sum">${t('credits')}</p>` +
-      `<p class="lead" style="font-size:12px">${P.length} parts · v2</p>`);
+      `<p class="lead" style="font-size:12px">${P.length} parts · v7</p>`);
   }
   A.acts.doinstall = async () => { const p = A.deferredPrompt; if (!p) return; p.prompt(); try { await p.userChoice; } catch (e) { /* ignore */ } A.deferredPrompt = null; A.rerenderModal(); };
   A.acts.offline = async (el) => {

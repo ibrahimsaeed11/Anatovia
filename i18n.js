@@ -1,8 +1,8 @@
 /* i18n.js — UI strings (Arabic / English) and small text helpers. */
 'use strict';
 const STR = {
-  appName: { en: 'Anatomy 3D', ar: 'تشريح 3D' },
-  tagline: { en: 'For physiotherapy students', ar: 'لطلاب العلاج الطبيعي' },
+  appName: { en: 'Anatovia', ar: 'Anatovia' },
+  tagline: { en: 'Explore the human body in 3D', ar: 'استكشف جسم الإنسان بالـ 3D' },
   searchPh: { en: 'Search a part…', ar: 'ابحث…' },
   loading: { en: 'Loading the model…', ar: 'جارٍ تحميل المجسم…' },
   loadingSys: { en: 'Loading layer…', ar: 'جارٍ تحميل الطبقة…' },

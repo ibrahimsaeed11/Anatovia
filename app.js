@@ -374,7 +374,7 @@ function tap(x, y) {
 function applyLang() {
   document.documentElement.lang = S.lang; document.documentElement.dir = S.lang === 'ar' ? 'rtl' : 'ltr';
   $('q').placeholder = t('searchPh'); $('lblStudy').textContent = t('study'); $('btnLang').textContent = t('lang');
-  $('hint').textContent = t('tapHint'); $('lblExplodeBar').textContent = t('explode'); document.title = t('appName') + ' · ' + (S.lang === 'ar' ? 'Anatomy 3D' : 'تشريح 3D');
+  $('hint').textContent = t('tapHint'); $('lblExplodeBar').textContent = t('explode'); document.title = 'Anatovia';
   renderChips(); if (S.sel >= 0) renderPanel(); A.rerenderModal(); A.onLang && A.onLang();
 }
 function applyTheme() {
