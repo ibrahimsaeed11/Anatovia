@@ -29,7 +29,7 @@ textarea{width:100%;min-height:110px;background:#0b102e;color:var(--ink);border:
 <div id="login" class="card" hidden>
   <h2>تسجيل الدخول</h2>
   <button class="p" id="gbtn">دخول بحساب Google</button>
-  <p class="mut">لازم تدخل بنفس الإيميل المحدد في القواعد (<span class="code">ibrahim1162006@gmail.com</span>).</p>
+  <p class="mut">لازم تدخل بأحد الإيميلات المحددة في القواعد.</p>
 </div>
 
 <div id="app" hidden>
@@ -70,7 +70,7 @@ textarea{width:100%;min-height:110px;background:#0b102e;color:var(--ink);border:
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const ADMIN = 'ibrahim1162006@gmail.com';
+const ADMINS = ['ibrahim1162006@gmail.com', 'anaselbieli@gmail.com'];
 const $ = (id) => document.getElementById(id);
 const say = (m, k) => { $('msg').textContent = m || ''; $('msg').className = k || ''; };
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -84,7 +84,7 @@ $('out').onclick = () => auth.signOut();
 $('reload').onclick = () => load();
 auth.onAuthStateChanged((u) => {
   if (!u) { $('login').hidden = false; $('app').hidden = true; return; }
-  if (u.email !== ADMIN || !u.emailVerified) { say('هذا الحساب (' + u.email + ') غير مسموح له.', 'bad'); auth.signOut(); return; }
+  if (!ADMINS.includes(u.email) || !u.emailVerified) { say('هذا الحساب (' + u.email + ') غير مسموح له.', 'bad'); auth.signOut(); return; }
   say(''); $('login').hidden = true; $('app').hidden = false; $('who').textContent = u.email; load();
 });
 
