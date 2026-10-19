@@ -1,0 +1,193 @@
+/* account.js — optional account (Firebase Auth) + premium activation codes (Firestore).
+   The app works fully without an account; this only adds sign-in and the premium flag A.isPremium().
+   The Firebase SDK is loaded lazily (only when online and only if the user opened the account page or was signed in before). */
+'use strict';
+(() => {
+  const { S, $, esc } = A;
+  const ar = () => S.lang === 'ar';
+  const T = (en, a) => (ar() ? a : en);
+  const CFG = window.FIREBASE_CONFIG;
+  const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-';
+  const MAXDEV = 2;
+  const LS = 'anatovia_acct', DEV = 'anatovia_dev';
+  const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } } };
+
+  Object.assign(STR, {
+    account: { en: 'Account & Premium', ar: 'الحساب والاشتراك' },
+    accountSub: { en: 'Sign in · activate a premium code', ar: 'تسجيل الدخول · تفعيل كود الاشتراك' },
+  });
+  A.hubExtra = Object.assign(A.hubExtra || {}, { account: () => open() });
+
+  const st = { ready: false, loading: false, err: '', user: null, data: null, authKnown: false, busy: false, msg: '', ok: false, mode: 'in' };
+  let auth = null, db = null, sdkP = null, cache = null;
+  try { cache = JSON.parse(ls.get(LS) || 'null'); } catch (e) { cache = null; }
+  A.acct = { premium: false, email: null, until: 0, limited: false };
+  A.isPremium = () => !!A.acct.premium;
+
+  const devId = () => { let d = ls.get(DEV); if (!d) { d = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); ls.set(DEV, d); } return d; };
+  const fmtDate = (ms) => new Date(ms).toLocaleDateString(ar() ? 'ar-EG' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
+  const untilOf = (d) => (d && d.premiumUntil ? (d.premiumUntil.toMillis ? d.premiumUntil.toMillis() : +d.premiumUntil) : 0);
+
+  /* ───────── derive premium state ───────── */
+  function apply() {
+    let until = 0, email = null, limited = false;
+    if (st.authKnown && st.user && st.data) {
+      email = st.user.email; until = untilOf(st.data);
+      const devs = st.data.devices || [];
+      limited = until > Date.now() && !devs.some((d) => d.id === devId()) && devs.length >= MAXDEV;
+    } else if (st.authKnown && st.user && !st.data && cache && cache.email === st.user.email) {
+      email = cache.email; until = cache.until || 0; limited = !!cache.limited; // fetch failed — keep last known state
+    } else if (!st.authKnown && cache) {
+      email = cache.email; until = cache.until || 0; limited = !!cache.limited; // offline / SDK not loaded
+    }
+    A.acct = { email, until, limited, premium: until > Date.now() && !limited };
+    if (st.authKnown && (st.data || !st.user)) { cache = st.user ? { email, until, limited } : null; ls.set(LS, JSON.stringify(cache)); }
+    refresh();
+  }
+  const refresh = () => { if (A.modalFn === render) A.modal(render); };
+
+  /* ───────── SDK loading ───────── */
+  const loadScript = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('net')); document.head.appendChild(s); });
+  function ensure() {
+    if (!CFG) return Promise.resolve();
+    if (st.ready) return Promise.resolve();
+    if (sdkP) return sdkP;
+    st.loading = true; st.err = ''; refresh();
+    sdkP = (async () => {
+      await loadScript(SDK + 'app-compat.js');
+      await Promise.all([loadScript(SDK + 'auth-compat.js'), loadScript(SDK + 'firestore-compat.js')]);
+      firebase.initializeApp(CFG);
+      auth = firebase.auth(); db = firebase.firestore();
+      st.ready = true;
+      auth.onAuthStateChanged(async (u) => { st.user = u; st.authKnown = true; st.data = null; if (u) await loadUser(); apply(); });
+    })().catch(() => { st.err = 'offline'; sdkP = null; }).finally(() => { st.loading = false; refresh(); });
+    return sdkP;
+  }
+
+  async function loadUser() {
+    const ref = db.collection('users').doc(st.user.uid);
+    try {
+      let s = await ref.get();
+      if (!s.exists) { await ref.set({ email: st.user.email || '', createdAt: firebase.firestore.FieldValue.serverTimestamp(), devices: [] }); s = await ref.get(); }
+      st.data = s.data();
+      const devs = st.data.devices || [];
+      if (untilOf(st.data) > Date.now() && !devs.some((d) => d.id === devId()) && devs.length < MAXDEV) {
+        await ref.update({ devices: firebase.firestore.FieldValue.arrayUnion({ id: devId(), ua: (navigator.platform || '').slice(0, 30), t: Date.now() }) });
+        s = await ref.get(); st.data = s.data();
+      }
+    } catch (e) { st.data = null; }
+  }
+
+  /* ───────── messages ───────── */
+  const ERR = {
+    'auth/invalid-email': ['Invalid e-mail address.', 'البريد الإلكتروني غير صحيح.'],
+    'auth/invalid-credential': ['Wrong e-mail or password.', 'البريد أو كلمة المرور غير صحيحة.'],
+    'auth/wrong-password': ['Wrong e-mail or password.', 'البريد أو كلمة المرور غير صحيحة.'],
+    'auth/user-not-found': ['No account with this e-mail.', 'لا يوجد حساب بهذا البريد.'],
+    'auth/email-already-in-use': ['This e-mail already has an account — sign in instead.', 'هذا البريد مسجّل بالفعل — سجّل الدخول.'],
+    'auth/weak-password': ['Password must be at least 6 characters.', 'كلمة المرور يجب ألا تقل عن 6 أحرف.'],
+    'auth/too-many-requests': ['Too many attempts — try again later.', 'محاولات كثيرة، حاول لاحقاً.'],
+    'auth/network-request-failed': ['No internet connection.', 'لا يوجد اتصال بالإنترنت.'],
+    'auth/popup-closed-by-user': ['Sign-in window was closed.', 'تم إغلاق نافذة تسجيل الدخول.'],
+    'auth/operation-not-allowed': ['This sign-in method is not enabled yet.', 'طريقة الدخول هذه غير مفعّلة بعد.'],
+    'auth/unauthorized-domain': ['This website address is not authorised in Firebase.', 'عنوان الموقع غير مصرّح به في Firebase.'],
+  };
+  const errText = (e) => { const p = ERR[e && e.code]; return p ? T(p[0], p[1]) : T('Something went wrong, try again.', 'حدث خطأ، حاول مرة أخرى.'); };
+  const say = (m, ok) => { st.msg = m || ''; st.ok = !!ok; st.busy = false; refresh(); };
+
+  /* ───────── actions ───────── */
+  async function doAuth(kind) {
+    const email = ($('accEmail') || {}).value, pass = ($('accPass') || {}).value;
+    if (!email || !pass) return say(T('Enter e-mail and password.', 'اكتب البريد وكلمة المرور.'));
+    st.busy = true; st.msg = '';
+    try { if (kind === 'up') await auth.createUserWithEmailAndPassword(email.trim(), pass); else await auth.signInWithEmailAndPassword(email.trim(), pass); st.busy = false; }
+    catch (e) { say(errText(e)); }
+  }
+  async function google() {
+    st.busy = true; st.msg = '';
+    try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); st.busy = false; } catch (e) { say(errText(e)); }
+  }
+  async function reset() {
+    const email = ($('accEmail') || {}).value;
+    if (!email) return say(T('Type your e-mail first.', 'اكتب بريدك أولاً.'));
+    try { await auth.sendPasswordResetEmail(email.trim()); say(T('Reset link sent to your e-mail.', 'تم إرسال رابط إعادة التعيين إلى بريدك.'), true); } catch (e) { say(errText(e)); }
+  }
+  const normCode = (raw) => {
+    const a = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const b = a.length === 12 && a.startsWith('ANAT') ? a.slice(4) : a;
+    return b.length === 8 ? `ANAT-${b.slice(0, 4)}-${b.slice(4)}` : null;
+  };
+  async function redeem() {
+    const code = normCode(($('accCode') || {}).value);
+    if (!code) return say(T('Code looks wrong — format ANAT-XXXX-XXXX.', 'شكل الكود غير صحيح — الصيغة ANAT-XXXX-XXXX.'));
+    st.busy = true; st.msg = '';
+    const cref = db.collection('codes').doc(code), uref = db.collection('users').doc(st.user.uid);
+    try {
+      await db.runTransaction(async (tx) => {
+        const c = await tx.get(cref);
+        if (!c.exists) throw new Error('invalid');
+        if (c.data().used) throw new Error('used');
+        const u = await tx.get(uref);
+        const base = Math.max(untilOf(u.exists ? u.data() : null), Date.now());
+        const until = base + Number(c.data().days || 0) * 864e5;
+        tx.update(cref, { used: true, usedBy: st.user.uid, usedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        tx.update(uref, { premiumUntil: firebase.firestore.Timestamp.fromMillis(until), lastCode: code });
+      });
+      await loadUser(); apply();
+      say(T('Premium activated 🎉', 'تم تفعيل الاشتراك 🎉'), true);
+    } catch (e) {
+      const m = e && e.message;
+      say(m === 'used' ? T('This code was already used.', 'هذا الكود مستخدم من قبل.') : T('Invalid code.', 'الكود غير صحيح.'));
+    }
+  }
+  async function out() { try { await auth.signOut(); } catch (e) { /* ignore */ } st.msg = ''; }
+
+  A.acts.acc = (el) => {
+    const k = el.dataset.k;
+    if (k === 'mode') { st.mode = el.dataset.v; st.msg = ''; refresh(); }
+    else if (k === 'in') doAuth('in'); else if (k === 'up') doAuth('up');
+    else if (k === 'google') google(); else if (k === 'reset') reset();
+    else if (k === 'redeem') redeem(); else if (k === 'out') out(); else if (k === 'retry') { sdkP = null; ensure(); }
+  };
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Enter' || !ev.target.closest || !ev.target.closest('.acc-form')) return;
+    const b = ev.target.closest('.acc-form').querySelector('[data-primary]'); if (b) b.click();
+  });
+
+  /* ───────── view ───────── */
+  const waLink = (text) => `https://wa.me/201022424105?text=${encodeURIComponent(text)}`;
+  const msgBox = () => (st.msg ? `<div class="acc-msg ${st.ok ? 'ok' : 'bad'}">${esc(st.msg)}</div>` : '');
+  function render() {
+    const head = `<h2>${t('account')}</h2>`;
+    if (!CFG) return head + `<p class="lead">${T('Accounts are not set up yet.', 'نظام الحسابات غير مُعدّ بعد.')}</p>`;
+    if (st.loading) return head + `<p class="lead">${T('Loading…', 'جارِ التحميل…')}</p>`;
+    if (!st.ready) {
+      const cached = A.acct.email ? `<p class="lead">${T('Last known account', 'آخر حساب معروف')}: <b dir="ltr">${esc(A.acct.email)}</b> — ${A.acct.premium ? T('Premium until ', 'مشترك حتى ') + fmtDate(A.acct.until) : T('Free', 'مجاني')}</p>` : '';
+      return head + cached + `<p class="lead">${T('An internet connection is needed to sign in or activate a code. The rest of the app works offline.', 'تسجيل الدخول وتفعيل الكود يحتاجان إنترنت. باقي التطبيق يعمل بدون إنترنت.')}</p><button class="btn primary wide" data-act="acc" data-k="retry">${T('Try again', 'حاول مرة أخرى')}</button>`;
+    }
+    if (!st.authKnown) return head + `<p class="lead">${T('Loading…', 'جارِ التحميل…')}</p>`;
+    if (!st.user) {
+      const up = st.mode === 'up';
+      return head + `<p class="lead">${T('Optional — the app is free to use without an account. An account lets you activate Premium.', 'اختياري — التطبيق مجاني بدون حساب. الحساب يتيح لك تفعيل الاشتراك المميز.')}</p>` +
+        `<div class="row"><button class="opt ${up ? '' : 'sel'}" data-act="acc" data-k="mode" data-v="in">${T('Sign in', 'تسجيل الدخول')}</button><button class="opt ${up ? 'sel' : ''}" data-act="acc" data-k="mode" data-v="up">${T('Create account', 'حساب جديد')}</button></div>` +
+        `<div class="acc-form"><input id="accEmail" type="email" dir="ltr" autocomplete="email" placeholder="${T('E-mail', 'البريد الإلكتروني')}"><input id="accPass" type="password" dir="ltr" autocomplete="${up ? 'new-password' : 'current-password'}" placeholder="${T('Password', 'كلمة المرور')}">` +
+        `<button class="btn primary wide" data-primary data-act="acc" data-k="${up ? 'up' : 'in'}" ${st.busy ? 'disabled' : ''}>${up ? T('Create account', 'إنشاء الحساب') : T('Sign in', 'دخول')}</button>` +
+        `<button class="btn wide" data-act="acc" data-k="google" ${st.busy ? 'disabled' : ''}>G&nbsp; ${T('Continue with Google', 'المتابعة بحساب Google')}</button>` +
+        (up ? '' : `<button class="acc-link" data-act="acc" data-k="reset">${T('Forgot password?', 'نسيت كلمة المرور؟')}</button>`) + `</div>${msgBox()}`;
+    }
+    const A_ = A.acct;
+    const badge = A_.premium ? `<span class="acc-badge ok">⭐ ${T('Premium until ', 'مشترك حتى ')}${fmtDate(A_.until)}</span>` : `<span class="acc-badge">${T('Free plan', 'الخطة المجانية')}</span>`;
+    const lim = A_.limited ? `<div class="acc-msg bad">${T('This premium account is already active on 2 other devices. Contact us to change a device.', 'هذا الاشتراك مفعّل بالفعل على جهازين آخرين. تواصل معنا لتغيير أحد الأجهزة.')}</div>` : '';
+    const buy = T('Hello, I want a premium activation code for Anatovia. My e-mail: ', 'السلام عليكم، عايز كود تفعيل اشتراك Anatovia. إيميلي: ') + (A_.email || '');
+    return head + `<div class="acc-card"><b dir="ltr">${esc(A_.email || '')}</b>${badge}</div>${lim}` +
+      `<div class="lab">${T('Activation code', 'كود التفعيل')}</div><div class="acc-form"><input id="accCode" dir="ltr" autocapitalize="characters" autocomplete="off" placeholder="ANAT-XXXX-XXXX"><button class="btn primary wide" data-primary data-act="acc" data-k="redeem" ${st.busy ? 'disabled' : ''}>${T('Activate', 'تفعيل')}</button></div>${msgBox()}` +
+      `<div class="row contact-row" style="margin-top:12px"><a class="btn contact wa" href="${waLink(buy)}" target="_blank" rel="noopener">💬 ${T('Get a code on WhatsApp', 'اطلب كود على واتساب')}</a></div>` +
+      `<div class="row" style="margin-top:14px"><button class="btn danger" data-act="acc" data-k="out">${T('Sign out', 'تسجيل الخروج')}</button></div>`;
+  }
+  const t = (k) => A.t(k);
+
+  function open() { st.msg = ''; A.modal(render); ensure(); }
+
+  apply(); // restore cached premium state immediately (works offline)
+  if (CFG && cache && navigator.onLine) setTimeout(ensure, 1500); // previously signed in → refresh in background
+})();

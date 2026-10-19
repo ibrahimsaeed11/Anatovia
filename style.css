@@ -215,3 +215,12 @@ h4{margin:16px 0 6px;font-size:13px;letter-spacing:.04em;color:var(--muted);text
 
 a.btn.contact{text-decoration:none;display:inline-flex;align-items:center;justify-content:center;flex:1;color:#fff;border:0;font-weight:700}a.btn.wa{background:#1fa855}a.btn.ig{background:linear-gradient(45deg,#f09433,#dc2743 55%,#bc1888)}
 .contact-bar{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}.contact-row{gap:8px}.contact-bar a.btn.contact{padding:9px 12px;font-size:14px}
+
+/* account */
+.acc-form{display:flex;flex-direction:column;gap:9px;margin:10px 0}
+.acc-form input{width:100%;padding:12px 14px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);color:var(--ink);font-size:16px}
+.acc-link{background:none;border:0;color:var(--accent);padding:4px;font-size:14px;align-self:flex-start}
+.acc-card{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);margin:10px 0}
+.acc-badge{align-self:flex-start;padding:3px 12px;border-radius:99px;font-size:13px;font-weight:700;background:var(--surface);border:1px solid var(--line)}
+.acc-badge.ok{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.acc-msg{padding:9px 12px;border-radius:12px;font-size:14px;margin:8px 0}.acc-msg.ok{background:rgba(60,200,120,.18);color:var(--good)}.acc-msg.bad{background:rgba(255,90,110,.16);color:var(--bad)}
