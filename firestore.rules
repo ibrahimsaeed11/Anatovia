@@ -2,10 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Only the owner of Anatovia (verified Google/e-mail account) is admin.
+    // Admins of Anatovia (verified Google accounts only).
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email == 'ibrahim1162006@gmail.com'
+        && request.auth.token.email in ['ibrahim1162006@gmail.com', 'anaselbieli@gmail.com']
         && request.auth.token.email_verified == true;
     }
 
