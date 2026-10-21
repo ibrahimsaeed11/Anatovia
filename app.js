@@ -47,8 +47,8 @@ function colorFor(e) {
     case 'retin': return [0.98, 0.93, 0.70];
     case 'bursa': return [0.78, 0.55, 0.90];
     case 'muscle': return [Math.min(1, 0.70 + h * 0.20), 0.18 + h * 0.14, 0.17 + h * 0.08];
-    case 'artery': return [0.90, 0.13, 0.17];
-    case 'vein': return [0.20, 0.33, 0.84];
+    case 'artery': return /pulmonary|of (left|right) lung|lingular/i.test(e.grp || '') ? [0.24, 0.36, 0.86] : [0.90, 0.13, 0.17];
+    case 'vein': return /pulmonary|of (left|right) lung|lingular/i.test(e.grp || '') ? [0.92, 0.18, 0.20] : [0.20, 0.33, 0.84];
     case 'nerve': return /spinal cord|cauda/i.test(e.grp || '') ? [0.96, 0.93, 0.80] : [0.98, 0.86, 0.22];
     case 'tooth': return [0.97 - h * 0.03, 0.96 - h * 0.03, 0.90 - h * 0.04];
     case 'brain': {
@@ -63,16 +63,30 @@ function colorFor(e) {
     }
     default: {
       const g = e.grp || '';
+      if (/sclera|cornea|vitreous/.test(g)) return [0.96, 0.96, 0.98];
+      if (/iris/.test(g)) return [0.42, 0.55, 0.70];
+      if (/lens/.test(g)) return [0.90, 0.95, 1.0];
+      if (/retina/.test(g)) return [0.86, 0.52, 0.44];
       if (/eyeball/.test(g)) return [0.96, 0.96, 0.98];
+      if (/thyroid/.test(g)) return [0.78, 0.40, 0.36];
+      if (/parathyroid|pineal|pituitary|adenohypo|neurohypo/.test(g)) return [0.95, 0.80, 0.55];
+      if (/tongue|uvula|palate|gingiva|pharynx|nasal cavity|epiglottis/.test(g)) return [0.88, 0.48, 0.46];
+      if (/parotid|sublingual|submandibular/.test(g)) return [0.94, 0.78, 0.46];
+      if (/thymus/.test(g)) return [0.92, 0.80, 0.62];
+      if (/omentum|mesocolon|meso-appendix/.test(g)) return [0.96, 0.86, 0.50];
+      if (/testis|epididym|deferens|seminal|prostate|ejaculatory|penis|corpus/.test(g)) return [0.86, 0.60, 0.56];
+      if (/ureter|renal pelvis|urethra/.test(g)) return [0.92, 0.80, 0.42];
+      if (/papillary/.test(g)) return [0.70, 0.26, 0.28];
+      if (/atrium|ventricle/.test(g)) return [0.74, 0.18, 0.24];
       if (/pituitary/.test(g)) return [0.95, 0.80, 0.55];
       if (/lung|bronch|trachea/.test(g)) return [0.93, 0.62, 0.66];
       if (/heart|valve/.test(g)) return [0.78, 0.20, 0.26];
-      if (/liver/.test(g)) return [0.52, 0.22, 0.14];
-      if (/kidney|adrenal/.test(g)) return [0.62, 0.22, 0.20];
+      if (/liver/.test(g)) return [0.52 + (e.h * 0.1), 0.22, 0.14];
+      if (/kidney|adrenal|suprarenal/.test(g)) return [0.62, 0.22, 0.20];
       if (/spleen/.test(g)) return [0.52, 0.22, 0.40];
       if (/gallbladder/.test(g)) return [0.42, 0.62, 0.30];
       if (/bladder/.test(g)) return [0.92, 0.80, 0.42];
-      if (/stomach|duoden|jejun|ileum|colon|rectum|appendix|esoph|pancreas/.test(g)) return [0.90, 0.58, 0.48];
+      if (/stomach|duoden|jejun|small intestine|ileum|colon|rectum|appendix|esoph|pancreas|taenia|bile duct/.test(g)) return [0.90, 0.58, 0.48];
       return [0.92, 0.74, 0.46];
     }
   }
@@ -134,6 +148,7 @@ function applyState(noRender) {
     let vis = mode !== 'off' && !S.hidden.has(e.i), alpha = 1, pick = true;
     if (vis) {
       if (mode === 'ghost') { alpha = GH; pick = false; }
+      else if (e.sys === 'organ' && /omentum|mesocolon|meso-appendix|^pleura/.test(e.grp || '') && e.i !== S.sel) { alpha = 0.32; pick = false; } // see-through peritoneal sheets
       if (S.region && e.reg !== S.region) { alpha = Math.min(alpha, GH); pick = false; }
       if (S.iso >= 0 && e.i !== S.iso) { alpha = Math.min(alpha, 0.08); pick = false; }
       if (ms && e.sys === 'muscle') {
