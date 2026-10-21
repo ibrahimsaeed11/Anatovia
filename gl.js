@@ -53,9 +53,12 @@ class OrbitCamera {
     const k = 0.0075;
     this.yaw -= dx * k; this.pitch += dy * k;
     this.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, this.pitch));
-    this._vy = -dx * k; this._vp = dy * k;
+    this._vy = -dx * k; this._vp = dy * k; this._t = performance.now();
   }
-  release() { this.vy = this._vy || 0; this.vp = this._vp || 0; this._vy = this._vp = 0; }
+  release() {
+    const fresh = performance.now() - (this._t || 0) < 70, cap = (v) => Math.max(-0.05, Math.min(0.05, v));
+    this.vy = fresh ? cap(this._vy || 0) : 0; this.vp = fresh ? cap(this._vp || 0) : 0; this._vy = this._vp = 0;
+  }
   pan(dx, dy, viewH) {
     this.goal = null;
     const s = (2 * this.dist * Math.tan(this.fov / 2)) / viewH;
@@ -88,8 +91,8 @@ class OrbitCamera {
       this.dist += (this.distGoal - this.dist) * (1 - Math.pow(0.0006, dt)); moving = true;
     }
     if (Math.abs(this.vy) > 1e-4 || Math.abs(this.vp) > 1e-4) {
-      this.yaw += this.vy; this.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, this.pitch + this.vp));
-      const f = Math.pow(0.04, dt); this.vy *= f; this.vp *= f; moving = true;
+      const q = Math.min(dt, 0.05) * 60; this.yaw += this.vy * q; this.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, this.pitch + this.vp * q));
+      const f = Math.pow(0.003, dt); this.vy *= f; this.vp *= f; moving = true;
     }
     if (this.spin && !this.dragging) { this.yaw += dt * 0.5; moving = true; }
     return moving;
