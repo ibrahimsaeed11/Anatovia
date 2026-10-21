@@ -55,8 +55,8 @@
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); hits = [];
-    const selBone = S.sel >= 0 && P[S.sel].k === 'bone' ? S.sel : -1;
-    if (selBone < 0 && !S.lm) return;
+    const selBone = S.lm && S.sel >= 0 && P[S.sel].k === 'bone' ? S.sel : -1;
+    if (selBone < 0 && !S.lm && S.lmSel < 0) return;
     const { vp, eye } = x.cam.matrices();
     let cand = [];
     const consider = (l, forced) => {

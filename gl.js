@@ -95,7 +95,7 @@ class OrbitCamera {
       const q = Math.min(dt, 0.05) * 60; this.yaw += this.vy * q; this.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, this.pitch + this.vp * q));
       const f = Math.pow(0.003, dt); this.vy *= f; this.vp *= f; moving = true;
     }
-    if (this.spin && !this.dragging) { this.yaw += dt * 0.5; moving = true; }
+    if (this.spin && !this.dragging) { this.yaw += dt * 1.0; moving = true; }
     return moving;
   }
   matrices() {
