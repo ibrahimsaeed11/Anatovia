@@ -98,7 +98,7 @@ let raf = 0, lastT = 0;
 function requestRender() { if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(frame); } }
 function frame(now) {
   raf = 0;
-  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000)); lastT = now;
   const m1 = cam.update(dt), m2 = R.animate(dt);
   R.draw(cam);
   if (A.afterDraw) A.afterDraw();
