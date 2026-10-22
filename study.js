@@ -354,4 +354,5 @@
   /* tour.js is injected from here so a stale index.html can never leave the Study button dead */
   Object.assign(STR, { tour: { en: 'How to use', ar: 'شرح الاستخدام' }, tourSub: { en: 'A quick tour of the app', ar: 'جولة سريعة تعرّفك على التطبيق' } });
   if (!window.__tourLoaded) { const sc = document.createElement('script'); sc.src = 'tour.js'; document.body.appendChild(sc); }
+  if (!window.__shareLoaded) { const sc2 = document.createElement('script'); sc2.src = 'share.js'; document.body.appendChild(sc2); }
 })();

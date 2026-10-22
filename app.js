@@ -215,7 +215,7 @@ function renderPanel() {
   if (e.ty) tags.push(`<span class="tag">${L(e.ty)}</span>`);
   let h = `<div class="pn-head"><h2 class="pn-title">${esc(name1(e))}</h2><p class="pn-sub">${esc(name2(e))}</p></div><div class="tags">${tags.join('')}</div>`;
   h += `<div class="actions">
-    <button class="act ${st.learned[id] ? 'on' : ''}" data-act="learn">✓ ${t('learned')}</button>
+    ${A.speakBtn ? A.speakBtn(e) : ''}<button class="act ${st.learned[id] ? 'on' : ''}" data-act="learn">✓ ${t('learned')}</button>
     <button class="act gold ${st.fav[id] ? 'on' : ''}" data-act="fav">★ ${t('fav')}</button>
     <button class="act" data-act="hide">🙈 ${t('hidePart')}</button>
     <button class="act ${S.iso === e.i ? 'on' : ''}" data-act="iso">◎ ${t('isolate')}</button>
