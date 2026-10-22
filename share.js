@@ -61,13 +61,19 @@ if (!window.__shareLoaded) (() => {
     x.fillText('CC BY-SA 2.1 JP / 4.0', W - 14 * k, H + bar * 0.7);
     return c;
   }
-  const toBlob = (c) => new Promise((res) => { try { c.toBlob((b) => res(b), 'image/png'); } catch (e) { res(null); } });
+  const toBlob = (c) => new Promise((res) => {
+    try {
+      let src = c; const MAXW = 1080;                                   // keep the file small (WhatsApp-friendly)
+      if (c.width > MAXW) { src = document.createElement('canvas'); src.width = MAXW; src.height = Math.round(c.height * MAXW / c.width); const q = src.getContext('2d'); q.imageSmoothingQuality = 'high'; q.drawImage(c, 0, 0, src.width, src.height); }
+      src.toBlob((b) => res(b), 'image/jpeg', 0.9);
+    } catch (e) { res(null); }
+  });
   A.acts.snap = async () => {
     let c; try { c = compose(); } catch (e) { return A.toast(T('Could not take the snapshot', 'تعذّر أخذ اللقطة')); }
     const blob = await toBlob(c); if (!blob) return A.toast(T('Could not take the snapshot', 'تعذّر أخذ اللقطة'));
     const e = S.sel >= 0 ? P[S.sel] : null, nm = (e ? (e.baseEn || e.en) : 'anatomy').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'anatomy';
-    const file = new File([blob], `anatovia-${nm}.png`, { type: 'image/png' });
-    const text = T('Anatovia — 3D anatomy in Arabic & English: ', 'Anatovia — التشريح ثلاثي الأبعاد بالعربي والإنجليزي: ') + 'https://' + SITE + '/';
+    const file = new File([blob], `anatovia-${nm}.jpg`, { type: 'image/jpeg' });
+    const text = T('Anatovia — 3D anatomy in Arabic & English', 'Anatovia — التشريح ثلاثي الأبعاد بالعربي والإنجليزي') + '\n\u200E' + 'https://' + SITE + '/';
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Anatovia', text }); return; }
     } catch (err) { if (err && err.name === 'AbortError') return; }
