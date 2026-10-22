@@ -40,7 +40,8 @@
     } else if (!st.authKnown && cache) {
       email = cache.email; until = cache.until || 0; limited = !!cache.limited; // offline / SDK not loaded
     }
-    A.acct = { email, until, limited, premium: until > Date.now() && !limited };
+    const unverified = !!(st.authKnown && st.user && st.user.emailVerified === false);
+    A.acct = { email, until, limited, premium: until > Date.now() && !limited && !unverified, unverified };
     if (st.authKnown && (st.data || !st.user)) { cache = st.user ? { email, until, limited } : null; ls.set(LS, JSON.stringify(cache)); }
     refresh();
   }
@@ -100,7 +101,7 @@
     const email = ($('accEmail') || {}).value, pass = ($('accPass') || {}).value;
     if (!email || !pass) return say(T('Enter e-mail and password.', 'اكتب البريد وكلمة المرور.'));
     st.busy = true; st.msg = '';
-    try { if (kind === 'up') await auth.createUserWithEmailAndPassword(email.trim(), pass); else await auth.signInWithEmailAndPassword(email.trim(), pass); st.busy = false; }
+    try { if (kind === 'up') { const cr = await auth.createUserWithEmailAndPassword(email.trim(), pass); try { await cr.user.sendEmailVerification(); st.sent = Date.now(); } catch (e2) { /* resend button available */ } } else await auth.signInWithEmailAndPassword(email.trim(), pass); st.busy = false; }
     catch (e) { say(errText(e)); }
   }
   async function google() {
@@ -140,6 +141,21 @@
       say(m === 'used' ? T('This code was already used.', 'هذا الكود مستخدم من قبل.') : T('Invalid code.', 'الكود غير صحيح.'));
     }
   }
+  async function resend() {
+    if (!st.user) return;
+    if (st.sent && Date.now() - st.sent < 45000) return say(T('Wait a little before sending again.', 'استنى شوية قبل ما تبعت تاني.'));
+    st.busy = true;
+    try { await st.user.sendEmailVerification(); st.sent = Date.now(); say(T('Verification link sent. Check your inbox and spam folder.', 'بعتنا رابط التحقق. بص في الوارد وفي الرسائل غير المرغوبة (Spam).'), true); } catch (e) { say(errText(e)); }
+  }
+  async function checkVerified() {
+    if (!st.user) return;
+    st.busy = true; refresh();
+    try {
+      await st.user.reload(); await st.user.getIdToken(true);
+      if (st.user.emailVerified) { st.data = null; await loadUser(); st.msg = ''; st.busy = false; apply(); say(T('E-mail verified ✅', 'تم تأكيد البريد ✅'), true); }
+      else say(T('Not verified yet — open the link we sent to your e-mail first.', 'لسه ما اتأكدش — افتح الرابط اللي بعتناه على بريدك الأول.'));
+    } catch (e) { say(errText(e)); }
+  }
   async function out() { try { await auth.signOut(); } catch (e) { /* ignore */ } st.msg = ''; }
 
   A.acts.acc = (el) => {
@@ -148,6 +164,7 @@
     else if (k === 'mode') { st.mode = el.dataset.v; st.msg = ''; refresh(); }
     else if (k === 'in') doAuth('in'); else if (k === 'up') doAuth('up');
     else if (k === 'google') google(); else if (k === 'reset') reset();
+    else if (k === 'resend') resend(); else if (k === 'verified') checkVerified();
     else if (k === 'redeem') redeem(); else if (k === 'out') out(); else if (k === 'retry') { sdkP = null; ensure(); }
   };
   document.addEventListener('keydown', (ev) => {
@@ -191,6 +208,12 @@
         (up ? '' : `<button class="acc-link" data-act="acc" data-k="reset">${T('Forgot password?', 'نسيت كلمة المرور؟')}</button>`) + `</div>${msgBox()}` + plansHtml(false);
     }
     const A_ = A.acct;
+    if (A_.unverified) {
+      return head + `<div class="acc-card"><b dir="ltr">${esc(A_.email || '')}</b><span class="acc-badge">${T('E-mail not verified', 'البريد لسه ما اتأكدش')}</span></div>` +
+        `<p class="lead">${T('We sent a verification link to your e-mail. Open it, then come back and tap the button below. Check the Spam folder if you do not see it.', 'بعتنا رابط تحقق على بريدك. افتحه وبعدين ارجع واضغط الزرار اللي تحت. لو مش لاقيه بص في الرسائل غير المرغوبة (Spam).')}</p>` +
+        `<button class="btn primary wide" data-act="acc" data-k="verified" ${st.busy ? 'disabled' : ''}>${T("I've verified my e-mail", 'أكدت بريدي')}</button>` +
+        `<div class="row" style="margin-top:10px"><button class="btn" data-act="acc" data-k="resend" ${st.busy ? 'disabled' : ''}>${T('Resend the link', 'ابعت الرابط تاني')}</button><button class="btn danger" data-act="acc" data-k="out">${T('Sign out', 'تسجيل الخروج')}</button></div>${msgBox()}`;
+    }
     const badge = A_.premium ? `<span class="acc-badge ok">⭐ ${T('Premium until ', 'مشترك حتى ')}${fmtDate(A_.until)}</span>` : `<span class="acc-badge">${T('Free plan', 'الخطة المجانية')}</span>`;
     const lim = A_.limited ? `<div class="acc-msg bad">${T('This premium account is already active on 2 other devices. Contact us to change a device.', 'هذا الاشتراك مفعّل بالفعل على جهازين آخرين. تواصل معنا لتغيير أحد الأجهزة.')}</div>` : '';
     const pl = PLANS.find((p) => p.m === st.plan) || PLANS[1];
