@@ -69,8 +69,16 @@
     const ref = db.collection('users').doc(st.user.uid);
     try {
       let s = await ref.get();
-      if (!s.exists) { await ref.set({ email: st.user.email || '', createdAt: firebase.firestore.FieldValue.serverTimestamp(), devices: [] }); s = await ref.get(); }
+      const FV = firebase.firestore.FieldValue, prov = (st.user.providerData || []).map((p) => p.providerId).join(','), ver = st.user.emailVerified !== false;
+      if (!s.exists) { await ref.set({ email: st.user.email || '', createdAt: FV.serverTimestamp(), devices: [], provider: prov, verified: ver, lastSeen: FV.serverTimestamp() }); s = await ref.get(); }
       st.data = s.data();
+      { // keep admin-visible info fresh (provider / verified / last seen, at most every 6 h)
+        const d = st.data, ls0 = d.lastSeen && d.lastSeen.toMillis ? d.lastSeen.toMillis() : 0, patch = {};
+        if (d.provider !== prov) patch.provider = prov;
+        if (d.verified !== ver) patch.verified = ver;
+        if (Date.now() - ls0 > 6 * 36e5) patch.lastSeen = FV.serverTimestamp();
+        if (Object.keys(patch).length) { try { await ref.update(patch); s = await ref.get(); st.data = s.data(); } catch (e2) { /* non-critical */ } }
+      }
       const devs = st.data.devices || [];
       if (untilOf(st.data) > Date.now() && !devs.some((d) => d.id === devId()) && devs.length < MAXDEV) {
         await ref.update({ devices: firebase.firestore.FieldValue.arrayUnion({ id: devId(), ua: (navigator.platform || '').slice(0, 30), t: Date.now() }) });

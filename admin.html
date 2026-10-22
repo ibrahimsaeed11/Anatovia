@@ -11,7 +11,7 @@
 h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:0 0 10px}.mut{color:var(--mut)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
 button,select,input{font:inherit;color:inherit;background:#1d2660;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
-button{cursor:pointer;font-weight:700}button.p{background:var(--acc);color:#04201c;border:0}button.d{color:var(--bad)}button:disabled{opacity:.5}
+button{cursor:pointer;font-weight:700}button.p{background:var(--acc);color:#04201c;border:0}button.d{color:var(--bad)}button.s{padding:4px 9px;font-size:12.5px}button:disabled{opacity:.5}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}.stat{background:#1d2660;border-radius:12px;padding:10px;text-align:center}.stat b{display:block;font-size:22px;color:var(--acc)}
 table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:start;vertical-align:middle}th{color:var(--mut)}
@@ -40,7 +40,7 @@ textarea{width:100%;min-height:110px;background:#0b102e;color:var(--ink);border:
   <div class="card">
     <h2>توليد أكواد جديدة</h2>
     <div class="row">
-      <label>المدة <select id="days"><option value="30">شهر (30 يوم)</option><option value="90">3 شهور</option><option value="180">6 شهور</option><option value="365">سنة</option></select></label>
+      <label>المدة <select id="days"><option value="30">شهر — 75 جنيه</option><option value="90" selected>3 شهور — 180 جنيه</option><option value="180">6 شهور — 300 جنيه</option><option value="365">سنة — 450 جنيه</option></select></label>
       <label>العدد <input id="count" type="number" min="1" max="100" value="5" style="width:80px"></label>
       <label>ملاحظة <input id="note" placeholder="اختياري: اسم المشتري" style="width:180px"></label>
       <button class="p" id="gen">ولّد</button>
@@ -60,6 +60,7 @@ textarea{width:100%;min-height:110px;background:#0b102e;color:var(--ink);border:
 
   <div class="card">
     <h2>المستخدمون</h2>
+    <div class="row" style="margin-bottom:8px"><input id="uq" placeholder="ابحث بالإيميل…" style="flex:1;min-width:160px;direction:ltr"><select id="uf"><option value="all">الكل</option><option value="prem">مشتركون</option><option value="free">مجانيون</option><option value="unv">بريد غير مؤكد</option></select></div>
     <div class="tw"><table id="users"></table></div>
   </div>
 </div>
@@ -98,21 +99,34 @@ async function load() {
   } catch (e) { say('خطأ في القراءة: ' + (e.code || e.message) + ' — تأكد أنك نشرت قواعد Firestore.', 'bad'); }
 }
 
+const PRICE = { 30: 75, 90: 180, 180: 300, 365: 450 };
+const DUR = { 30: 'شهر', 90: '3 شهور', 180: '6 شهور', 365: 'سنة' };
+const prov = (u) => (u.provider || '').split(',').filter(Boolean).map((p) => (p.includes('google') ? 'Google' : p.includes('password') ? 'إيميل' : p)).join(' + ') || '—';
+const isOn = (u, now) => u.premiumUntil && u.premiumUntil.toMillis() > now;
 function draw() {
   const now = Date.now();
-  const active = users.filter((u) => u.premiumUntil && u.premiumUntil.toMillis() > now).length;
+  const active = users.filter((u) => isOn(u, now)).length;
+  const unv = users.filter((u) => u.verified === false).length;
   const used = codes.filter((c) => c.used).length;
-  $('stats').innerHTML = [['المستخدمون', users.length], ['مشتركون نشطون', active], ['أكواد غير مستخدمة', codes.length - used], ['أكواد مستخدمة', used]].map(([a, b]) => `<div class="stat"><b>${b}</b>${a}</div>`).join('');
+  const money = codes.filter((c) => c.used).reduce((s, c) => s + (PRICE[c.days] || 0), 0);
+  $('stats').innerHTML = [['المستخدمون', users.length], ['مشتركون نشطون', active], ['بريد غير مؤكد', unv], ['أكواد متاحة', codes.length - used], ['أكواد مستخدمة', used], ['مبيعات تقريبية (جنيه)', money]].map(([a, b]) => `<div class="stat"><b>${b}</b>${a}</div>`).join('');
   const em = Object.fromEntries(users.map((u) => [u.id, u.email]));
   const f = $('cf').value;
   const list = codes.filter((c) => f === 'all' || (f === 'used') === !!c.used);
-  $('codes').innerHTML = '<tr><th>الكود</th><th>المدة</th><th>الحالة</th><th>المستخدم</th><th>ملاحظة</th><th></th></tr>' + (list.map((c) =>
-    `<tr><td class="code">${esc(c.id)}</td><td>${esc(c.days)} يوم</td><td><span class="tag ${c.used ? 'no' : 'ok'}">${c.used ? 'مستخدم ' + fmt(c.usedAt) : 'متاح'}</span></td><td class="code">${esc(em[c.usedBy] || c.usedBy || '')}</td><td>${esc(c.note || '')}</td><td>${c.used ? '' : `<button class="d" data-del="${esc(c.id)}">حذف</button>`}</td></tr>`).join('') || '<tr><td colspan="6" class="mut">لا يوجد</td></tr>');
-  $('users').innerHTML = '<tr><th>الإيميل</th><th>الاشتراك</th><th>الأجهزة</th><th>سجّل</th><th></th></tr>' + (users.map((u) => {
-    const on = u.premiumUntil && u.premiumUntil.toMillis() > now;
-    return `<tr><td class="code">${esc(u.email)}</td><td><span class="tag ${on ? 'ok' : ''}">${on ? 'حتى ' + fmt(u.premiumUntil) : 'مجاني'}</span></td><td>${(u.devices || []).length}</td><td>${fmt(u.createdAt)}</td><td class="row"><button data-grant="${u.id}" data-d="30">+30 يوم</button><button data-reset="${u.id}">صفّر الأجهزة</button>${on ? `<button class="d" data-revoke="${u.id}">إلغاء</button>` : ''}</td></tr>`;
-  }).join('') || '<tr><td colspan="5" class="mut">لا يوجد</td></tr>');
+  $('codes').innerHTML = '<tr><th>الكود</th><th>الباقة</th><th>الحالة</th><th>المستخدم</th><th>ملاحظة</th><th></th></tr>' + (list.map((c) =>
+    `<tr><td class="code">${esc(c.id)}</td><td>${esc(DUR[c.days] || c.days + ' يوم')}${PRICE[c.days] ? ' · ' + PRICE[c.days] + ' جنيه' : ''}</td><td><span class="tag ${c.used ? 'no' : 'ok'}">${c.used ? 'مستخدم ' + fmt(c.usedAt) : 'متاح'}</span></td><td class="code">${esc(em[c.usedBy] || c.usedBy || '')}</td><td>${esc(c.note || '')}</td><td>${c.used ? '' : `<button class="d s" data-del="${esc(c.id)}">حذف</button>`}</td></tr>`).join('') || '<tr><td colspan="6" class="mut">لا يوجد</td></tr>');
+  const q = ($('uq').value || '').trim().toLowerCase(), uf = $('uf').value;
+  const ul = users.filter((u) => (!q || String(u.email || '').toLowerCase().includes(q)) &&
+    (uf === 'all' || (uf === 'prem' && isOn(u, now)) || (uf === 'free' && !isOn(u, now)) || (uf === 'unv' && u.verified === false)));
+  ul.sort((a, b) => (b.createdAt ? b.createdAt.toMillis() : 0) - (a.createdAt ? a.createdAt.toMillis() : 0));
+  $('users').innerHTML = '<tr><th>الإيميل</th><th>الدخول</th><th>الاشتراك</th><th>أجهزة</th><th>آخر كود</th><th>سجّل</th><th>آخر دخول</th><th></th></tr>' + (ul.map((u) => {
+    const on = isOn(u, now);
+    const ver = u.verified === false ? '<span class="tag no">غير مؤكد</span>' : u.verified === true ? '<span class="tag ok">مؤكد</span>' : '';
+    return `<tr><td class="code">${esc(u.email)}</td><td>${esc(prov(u))} ${ver}</td><td><span class="tag ${on ? 'ok' : ''}">${on ? 'حتى ' + fmt(u.premiumUntil) : 'مجاني'}</span></td><td>${(u.devices || []).length}</td><td class="code">${esc(u.lastCode || '')}</td><td>${fmt(u.createdAt)}</td><td>${fmt(u.lastSeen)}</td>` +
+      `<td><div class="row"><select class="gd" data-for="${u.id}"><option value="30">شهر</option><option value="90">3 شهور</option><option value="180">6 شهور</option><option value="365">سنة</option></select><button class="s" data-grant="${u.id}">إضافة</button><button class="s" data-reset="${u.id}">صفّر الأجهزة</button>${on ? `<button class="d s" data-revoke="${u.id}">إلغاء</button>` : ''}</div></td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="mut">لا يوجد</td></tr>');
 }
+$('uq').oninput = draw; $('uf').onchange = draw;
 $('cf').onchange = draw;
 
 const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -133,7 +147,9 @@ document.addEventListener('click', async (ev) => {
     if (b.dataset.del) { if (!confirm('حذف الكود ' + b.dataset.del + '؟')) return; await db.collection('codes').doc(b.dataset.del).delete(); load(); }
     else if (b.dataset.grant) {
       const u = users.find((x) => x.id === b.dataset.grant), cur = u.premiumUntil ? u.premiumUntil.toMillis() : 0;
-      await db.collection('users').doc(u.id).update({ premiumUntil: firebase.firestore.Timestamp.fromMillis(Math.max(cur, Date.now()) + 30 * 864e5) }); load();
+      const days = +document.querySelector('select.gd[data-for="' + u.id + '"]').value;
+      if (!confirm('إضافة ' + (DUR[days] || days + ' يوم') + ' لـ ' + u.email + '؟')) return;
+      await db.collection('users').doc(u.id).update({ premiumUntil: firebase.firestore.Timestamp.fromMillis(Math.max(cur, Date.now()) + days * 864e5) }); load();
     } else if (b.dataset.reset) { await db.collection('users').doc(b.dataset.reset).update({ devices: [] }); load(); }
     else if (b.dataset.revoke) { if (!confirm('إلغاء اشتراك هذا المستخدم؟')) return; await db.collection('users').doc(b.dataset.revoke).update({ premiumUntil: FV.delete() }); load(); }
   } catch (e) { say('فشل: ' + (e.code || e.message), 'bad'); }
