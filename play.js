@@ -76,6 +76,32 @@
       add('anat', 'nerve', [`Nerve supply of ${e.baseEn}?`, `تعصيب: ${e.baseAr}؟`], [e.mu[6], e.mu[7]]);
       if (e.mu[4] && e.mu[4].length < 70) add('anat', 'act', [`Main action of ${e.baseEn}?`, `الحركة الأساسية: ${e.baseAr}؟`], [e.mu[4], e.mu[5]]);
     }
+    /* ── generated from the app's own data (muscles, vessels, organs, nerves, brain, bones) ── */
+    const rg = (r) => [STR[r] ? STR[r].en : r, STR[r] ? STR[r].ar : r];
+    const leak = (e) => { const f = e.baseEn.split(/[\s(]/)[0].toLowerCase(), a = (e.baseAr || '').split(' ')[0]; const s0 = (e.sum[0] || '').toLowerCase(); return (f.length > 3 && s0.includes(f)) || (a.length > 4 && (e.sum[1] || '').includes(a)); };
+    const once = new Set(); const first = (k) => (once.has(k) ? false : (once.add(k), true));
+    const muscSeen = new Set();
+    for (const e of P) {
+      if (e.sys !== 'muscle' || !e.mu || e.side === 'l' || muscSeen.has(e.baseEn)) continue; muscSeen.add(e.baseEn);
+      if (e.mu[0] && e.mu[0].length < 90) add('anat', 'origin', [`Origin of ${e.baseEn}?`, `منشأ ${e.baseAr}؟`], [e.mu[0], e.mu[1]]);
+      if (e.mu[2] && e.mu[2].length < 90) add('anat', 'insertion', [`Insertion of ${e.baseEn}?`, `نقطة انغراس ${e.baseAr}؟`], [e.mu[2], e.mu[3]]);
+    }
+    for (const e of P) {
+      if (!e.sum || e.side === 'l' || !first(e.sys + '|' + e.baseEn)) continue;
+      if (e.sys === 'vessel') {
+        if (/^Branch of/.test(e.sum[0])) continue;
+        if (!/^(Artery of|Vein of)/.test(e.sum[0]) && !leak(e)) add('anat', 'vclue-' + e.k, [`Which ${e.k === 'vein' ? 'vein' : 'artery'}: ${e.sum[0]}`, `أي ${e.k === 'vein' ? 'وريد' : 'شريان'}: ${e.sum[1]}`], [e.baseEn, e.baseAr]);
+      } else if (e.sys === 'organ') {
+        if (['head', 'neck', 'thorax', 'abdomen', 'pelvis'].includes(e.reg)) add('anat', 'oreg', [`In which region is the ${e.baseEn} located?`, `في أي منطقة يقع: ${e.baseAr}؟`], rg(e.reg));
+        if (!leak(e)) add('anat', 'oclue', [`Which organ/structure: ${e.sum[0]}`, `أي عضو/تركيب: ${e.sum[1]}`], [e.baseEn, e.baseAr]);
+      } else if (e.sys === 'nerve' && !leak(e)) {
+        add('anat', 'nclue', [`Which nerve: ${e.sum[0]}`, `أي عصب: ${e.sum[1]}`], [e.baseEn, e.baseAr]);
+      } else if (e.sys === 'brain' && !leak(e)) {
+        add('anat', 'bclue', [`Which brain structure: ${e.sum[0]}`, `أي جزء من الدماغ: ${e.sum[1]}`], [e.baseEn, e.baseAr]);
+      } else if (e.sys === 'bone' && e.k === 'bone' && e.reg && !/vertebra|\brib\b|phalanx|metacarpal|metatarsal|carpal|tarsal|sesamoid/i.test(e.baseEn)) {
+        add('anat', 'breg', [`In which part of the body is the ${e.baseEn}?`, `في أي جزء من الجسم يقع: ${e.baseAr}؟`], rg(e.reg));
+      }
+    }
     const tcount = {}; JOINTS.forEach((j) => j.tests.forEach((t) => { tcount[t[2]] = (tcount[t[2]] || 0) + 1; }));
     JOINTS.forEach((j) => {
       j.rom.forEach((r) => add('exam', 'rom', [`Normal ROM – ${j.en} ${r[0].toLowerCase()}?`, `المدى الطبيعي – ${j.ar}: ${r[1]}؟`], [r[2], r[2]]));
@@ -84,6 +110,7 @@
     });
     return (BANK = B);
   }
+  A.qBank = () => bank();
   /* deterministic set from a seed */
   function makeSet(seed, n, src) {
     const B = bank(), r = rngOf(seed), idx = B.map((_, i) => i).filter((i) => src === 'all' || B[i].src === src);
@@ -214,6 +241,7 @@
     for (const h of d.hist || []) { n += h.n; c += h.c; }
     return { n, c };
   }
+  const sysBest = (sy) => (Store.d.hist || []).some((h) => h.sys === sy && h.s >= 90 && h.n >= 10);
   const BADGES = [
     { id: 'first', i: '🎯', n: ['First answers', 'أول إجابات'], d: ['Answer your first questions', 'أجب عن أول أسئلتك'], ok: () => totals().n >= 1 },
     { id: 'a100', i: '📚', n: ['100 answers', '100 إجابة'], d: ['Answer 100 questions in total', 'أجب عن 100 سؤال إجمالاً'], ok: () => totals().n >= 100 },
@@ -225,6 +253,18 @@
     { id: 'timed', i: '⏱', n: ['Timed exam', 'امتحان بوقت'], d: ['Finish a timed exam', 'أنهِ امتحاناً بوقت'], ok: () => (Store.d.flags || {}).timed },
     { id: 'friend', i: '🤝', n: ['Friendly rival', 'منافس ودود'], d: ['Finish a friend challenge', 'أنهِ تحدياً مع صديق'], ok: () => (Store.d.flags || {}).friend },
     { id: 'lm', i: '📍', n: ['Landmark master', 'خبير المعالم'], d: ['90%+ in the landmark quiz', '90% أو أكثر في اختبار المعالم'], ok: () => ((Store.d.lmq || {}).best || 0) >= 90 },
+    { id: 's14', i: '🔥', n: ['14-day streak', '14 يوم متتالي'], d: ['Study 14 days in a row', 'ذاكر 14 يوم متتالي'], ok: () => Store.streak() >= 14 },
+    { id: 's30', i: '🌋', n: ['30-day streak', 'شهر متواصل'], d: ['Study 30 days in a row', 'ذاكر 30 يوم متتالي'], ok: () => Store.streak() >= 30 },
+    { id: 'a1000', i: '🏅', n: ['1000 answers', '1000 إجابة'], d: ['Answer 1000 questions in total', 'أجب عن 1000 سؤال إجمالاً'], ok: () => totals().n >= 1000 },
+    { id: 'perfect3', i: '💎', n: ['Perfectionist', 'الدقيق'], d: ['Get 100% in 3 different quizzes', 'احصل على 100% في 3 اختبارات'], ok: () => (Store.d.hist || []).filter((h) => h.s === 100 && h.n >= 5).length >= 3 },
+    { id: 'xbone', i: '🦴', n: ['Bone expert', 'خبير العظام'], d: ['90%+ in a 10+ question bones quiz', '90% أو أكثر في اختبار عظام من 10 أسئلة'], ok: () => sysBest('bone') },
+    { id: 'xmuscle', i: '💪', n: ['Muscle expert', 'خبير العضلات'], d: ['90%+ in a 10+ question muscles quiz', '90% أو أكثر في اختبار عضلات من 10 أسئلة'], ok: () => sysBest('muscle') },
+    { id: 'xvessel', i: '🩸', n: ['Vessel expert', 'خبير الأوعية'], d: ['90%+ in a 10+ question vessels quiz', '90% أو أكثر في اختبار أوعية من 10 أسئلة'], ok: () => sysBest('vessel') },
+    { id: 'xnerve', i: '⚡', n: ['Nerve expert', 'خبير الأعصاب'], d: ['90%+ in a 10+ question nerves quiz', '90% أو أكثر في اختبار أعصاب من 10 أسئلة'], ok: () => sysBest('nerve') },
+    { id: 'xorgan', i: '🫀', n: ['Organ expert', 'خبير الأعضاء'], d: ['90%+ in a 10+ question organs quiz', '90% أو أكثر في اختبار أعضاء من 10 أسئلة'], ok: () => sysBest('organ') },
+    { id: 'round', i: '🌍', n: ['All-rounder', 'متعدد المجالات'], d: ['Take quizzes in 4 different systems', 'خض اختبارات في 4 أجهزة مختلفة'], ok: () => new Set((Store.d.hist || []).filter((h) => h.sys && h.sys !== 'all').map((h) => h.sys)).size >= 4 },
+    { id: 'learn50', i: '🧩', n: ['50 learned', 'تعلّمت 50'], d: ['Mark 50 structures as learned', 'علّم 50 تركيباً كمتعلَّم'], ok: () => Object.keys(Store.d.learned || {}).length >= 50 },
+    { id: 'fav10', i: '⭐', n: ['Collector', 'جامع المفضلة'], d: ['Add 10 favourites', 'أضف 10 عناصر للمفضلة'], ok: () => Object.keys(Store.d.fav || {}).length >= 10 },
     { id: 'spinal', i: '🧬', n: ['Spinal expert', 'خبير الأعصاب الشوكية'], d: ['90%+ in the spinal-nerve quiz', '90% أو أكثر في اختبار الأعصاب الشوكية'], ok: () => (Store.d.flags || {}).spinal },
   ];
   function checkBadges() {
