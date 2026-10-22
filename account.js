@@ -18,7 +18,7 @@
   });
   A.hubExtra = Object.assign(A.hubExtra || {}, { account: () => open() });
 
-  const st = { ready: false, loading: false, err: '', user: null, data: null, authKnown: false, busy: false, msg: '', ok: false, mode: 'in' };
+  const st = { ready: false, loading: false, err: '', user: null, data: null, authKnown: false, busy: false, msg: '', ok: false, mode: 'in', plan: 3 };
   let auth = null, db = null, sdkP = null, cache = null;
   try { cache = JSON.parse(ls.get(LS) || 'null'); } catch (e) { cache = null; }
   A.acct = { premium: false, email: null, until: 0, limited: false };
@@ -144,7 +144,8 @@
 
   A.acts.acc = (el) => {
     const k = el.dataset.k;
-    if (k === 'mode') { st.mode = el.dataset.v; st.msg = ''; refresh(); }
+    if (k === 'plan') { st.plan = +el.dataset.v; refresh(); }
+    else if (k === 'mode') { st.mode = el.dataset.v; st.msg = ''; refresh(); }
     else if (k === 'in') doAuth('in'); else if (k === 'up') doAuth('up');
     else if (k === 'google') google(); else if (k === 'reset') reset();
     else if (k === 'redeem') redeem(); else if (k === 'out') out(); else if (k === 'retry') { sdkP = null; ensure(); }
@@ -155,6 +156,20 @@
   });
 
   /* ───────── view ───────── */
+  /* plans — keep in sync with the durations offered in admin.html (30 / 90 / 180 / 365 days) */
+  const PLANS = [
+    { m: 1, days: 30, egp: 75, en: '1 month', ar: 'شهر' },
+    { m: 3, days: 90, egp: 180, en: '3 months', ar: '3 شهور', save: 45 },
+    { m: 6, days: 180, egp: 300, en: '6 months', ar: '6 شهور', save: 150 },
+    { m: 12, days: 365, egp: 450, en: '1 year', ar: 'سنة كاملة', save: 450 },
+  ];
+  const num = (n) => (ar() ? n.toLocaleString('ar-EG') : String(n));
+  const plansHtml = (pick) => `<div class="lab">${T('Choose a plan', 'اختر الباقة')}</div><div class="plans">` + PLANS.map((p) => {
+    const per = Math.round(p.egp / p.m);
+    return `<${pick ? 'button type="button" data-act="acc" data-k="plan" data-v="' + p.m + '"' : 'div'} class="plan ${pick && st.plan === p.m ? 'sel' : ''}"><b>${T(p.en, p.ar)}</b><span class="pr">${num(p.egp)} ${T('EGP', 'جنيه')}</span>` +
+      `<small>${p.m > 1 ? T('≈ ' + per + ' EGP / month', 'حوالي ' + num(per) + ' جنيه في الشهر') : T('Flexible, cancel any time', 'مرن، من غير التزام')}</small>` +
+      (p.save ? `<em>${T('Save ' + p.save + ' EGP', 'وفّر ' + num(p.save) + ' جنيه')}</em>` : '') + `</${pick ? 'button' : 'div'}>`;
+  }).join('') + `</div><p class="tiny plan-note">${T('Pay once, no auto-renewal. You receive an activation code on WhatsApp after payment.', 'الدفع مرة واحدة من غير تجديد تلقائي. بتوصلك كود التفعيل على واتساب بعد الدفع.')}</p>`;
   const waLink = (text) => `https://wa.me/201022424105?text=${encodeURIComponent(text)}`;
   const msgBox = () => (st.msg ? `<div class="acc-msg ${st.ok ? 'ok' : 'bad'}">${esc(st.msg)}</div>` : '');
   function render() {
@@ -173,15 +188,18 @@
         `<div class="acc-form"><input id="accEmail" type="email" dir="ltr" autocomplete="email" placeholder="${T('E-mail', 'البريد الإلكتروني')}"><input id="accPass" type="password" dir="ltr" autocomplete="${up ? 'new-password' : 'current-password'}" placeholder="${T('Password', 'كلمة المرور')}">` +
         `<button class="btn primary wide" data-primary data-act="acc" data-k="${up ? 'up' : 'in'}" ${st.busy ? 'disabled' : ''}>${up ? T('Create account', 'إنشاء الحساب') : T('Sign in', 'دخول')}</button>` +
         `<button class="btn wide" data-act="acc" data-k="google" ${st.busy ? 'disabled' : ''}>G&nbsp; ${T('Continue with Google', 'المتابعة بحساب Google')}</button>` +
-        (up ? '' : `<button class="acc-link" data-act="acc" data-k="reset">${T('Forgot password?', 'نسيت كلمة المرور؟')}</button>`) + `</div>${msgBox()}`;
+        (up ? '' : `<button class="acc-link" data-act="acc" data-k="reset">${T('Forgot password?', 'نسيت كلمة المرور؟')}</button>`) + `</div>${msgBox()}` + plansHtml(false);
     }
     const A_ = A.acct;
     const badge = A_.premium ? `<span class="acc-badge ok">⭐ ${T('Premium until ', 'مشترك حتى ')}${fmtDate(A_.until)}</span>` : `<span class="acc-badge">${T('Free plan', 'الخطة المجانية')}</span>`;
     const lim = A_.limited ? `<div class="acc-msg bad">${T('This premium account is already active on 2 other devices. Contact us to change a device.', 'هذا الاشتراك مفعّل بالفعل على جهازين آخرين. تواصل معنا لتغيير أحد الأجهزة.')}</div>` : '';
-    const buy = T('Hello, I want a premium activation code for Anatovia. My e-mail: ', 'السلام عليكم، عايز كود تفعيل اشتراك Anatovia. إيميلي: ') + (A_.email || '');
+    const pl = PLANS.find((p) => p.m === st.plan) || PLANS[1];
+    const buy = ar()
+      ? `السلام عليكم، عايز أشترك في Anatovia.\nالباقة: ${pl.ar}\nالسعر: ${pl.egp} جنيه\nإيميلي على التطبيق: ${A_.email || ''}`
+      : `Hello, I'd like to subscribe to Anatovia.\nPlan: ${pl.en}\nPrice: ${pl.egp} EGP\nMy e-mail in the app: ${A_.email || ''}`;
     return head + `<div class="acc-card"><b dir="ltr">${esc(A_.email || '')}</b>${badge}</div>${lim}` +
-      `<div class="lab">${T('Activation code', 'كود التفعيل')}</div><div class="acc-form"><input id="accCode" dir="ltr" autocapitalize="characters" autocomplete="off" placeholder="ANAT-XXXX-XXXX"><button class="btn primary wide" data-primary data-act="acc" data-k="redeem" ${st.busy ? 'disabled' : ''}>${T('Activate', 'تفعيل')}</button></div>${msgBox()}` +
-      `<div class="row contact-row" style="margin-top:12px"><a class="btn contact wa" href="${waLink(buy)}" target="_blank" rel="noopener">💬 ${T('Get a code on WhatsApp', 'اطلب كود على واتساب')}</a></div>` +
+      plansHtml(true) + `<div class="row contact-row" style="margin-top:8px"><a class="btn contact wa" href="${waLink(buy)}" target="_blank" rel="noopener">💬 ${T('Subscribe on WhatsApp — ', 'اشترك على واتساب — ')}${T(pl.en, pl.ar)} · ${num(pl.egp)} ${T('EGP', 'جنيه')}</a></div>` +
+      `<div class="lab">${T('Already have a code?', 'عندك كود؟')}</div><div class="acc-form"><input id="accCode" dir="ltr" autocapitalize="characters" autocomplete="off" placeholder="ANAT-XXXX-XXXX"><button class="btn primary wide" data-primary data-act="acc" data-k="redeem" ${st.busy ? 'disabled' : ''}>${T('Activate', 'تفعيل')}</button></div>${msgBox()}` +
       `<div class="row" style="margin-top:14px"><button class="btn danger" data-act="acc" data-k="out">${T('Sign out', 'تسجيل الخروج')}</button></div>`;
   }
   const t = (k) => A.t(k);

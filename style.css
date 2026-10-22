@@ -238,3 +238,13 @@ a.btn.contact{text-decoration:none;display:inline-flex;align-items:center;justif
 .tour-row{display:flex;gap:10px;justify-content:space-between;align-items:center}
 .tour-skip{padding:12px 16px;border-radius:14px;color:var(--muted);font-weight:600}
 .tour-next{flex:1;max-width:240px;padding:13px 18px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:16px}
+
+/* subscription plans */
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0}
+.plan{position:relative;display:flex;flex-direction:column;gap:3px;text-align:start;padding:12px;border-radius:14px;background:var(--surface2);border:2px solid var(--line);color:var(--text)}
+button.plan{cursor:pointer}
+.plan.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--surface2))}
+.plan b{font-size:15px}.plan .pr{font-size:22px;font-weight:800;color:var(--accent)}
+.plan small{color:var(--muted);font-size:12.5px}
+.plan em{font-style:normal;font-size:12px;font-weight:700;color:var(--accent-ink);background:var(--gold);border-radius:99px;padding:1px 9px;align-self:flex-start;margin-top:2px}
+.plan-note{color:var(--muted);margin:6px 0 4px}
