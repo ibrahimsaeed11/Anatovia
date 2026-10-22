@@ -1,6 +1,7 @@
 /* tour.js — first-run guided tour (shown once per device) + "How to use" button in the Study hub. */
 'use strict';
-(() => {
+if (!window.__tourLoaded) (() => {
+  window.__tourLoaded = 1;
   const { S, $, t, esc } = A;
   const ar = () => S.lang === 'ar';
   Object.assign(STR, {

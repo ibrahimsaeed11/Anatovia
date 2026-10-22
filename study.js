@@ -351,4 +351,7 @@
   A.onLang = () => { if (Q && !Q.done && S.quiz) renderQuizBar(); };
   A.quizApi = { startQuiz, get Q() { return Q; }, finishQuiz, clueOf, repList };
   if (window.__anat) window.__anat.study = A.quizApi;
+  /* tour.js is injected from here so a stale index.html can never leave the Study button dead */
+  Object.assign(STR, { tour: { en: 'How to use', ar: 'شرح الاستخدام' }, tourSub: { en: 'A quick tour of the app', ar: 'جولة سريعة تعرّفك على التطبيق' } });
+  if (!window.__tourLoaded) { const sc = document.createElement('script'); sc.src = 'tour.js'; document.body.appendChild(sc); }
 })();
