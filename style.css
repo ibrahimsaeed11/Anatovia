@@ -224,3 +224,17 @@ a.btn.contact{text-decoration:none;display:inline-flex;align-items:center;justif
 .acc-badge{align-self:flex-start;padding:3px 12px;border-radius:99px;font-size:13px;font-weight:700;background:var(--surface);border:1px solid var(--line)}
 .acc-badge.ok{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 .acc-msg{padding:9px 12px;border-radius:12px;font-size:14px;margin:8px 0}.acc-msg.ok{background:rgba(60,200,120,.18);color:var(--good)}.acc-msg.bad{background:rgba(255,90,110,.16);color:var(--bad)}
+
+/* first-run tour */
+.tour{position:fixed;inset:0;z-index:60;background:rgba(5,8,20,.62);display:grid;place-items:end center;backdrop-filter:blur(3px)}
+.tour-card{width:min(460px,100%);background:var(--surface);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));box-shadow:var(--shadow);text-align:center}
+@media (min-width:560px){.tour{place-items:center}.tour-card{border-radius:22px}}
+.tour-em{font-size:44px;line-height:1.1}
+.tour-card h2{margin:8px 0 6px;font-size:22px}
+.tour-card p{margin:0 0 16px;color:var(--muted);line-height:1.7;font-size:15.5px}
+.tour-dots{display:flex;gap:7px;justify-content:center;margin-bottom:16px}
+.tour-dots i{width:8px;height:8px;border-radius:99px;background:var(--line)}
+.tour-dots i.on{width:22px;background:var(--accent)}
+.tour-row{display:flex;gap:10px;justify-content:space-between;align-items:center}
+.tour-skip{padding:12px 16px;border-radius:14px;color:var(--muted);font-weight:600}
+.tour-next{flex:1;max-width:240px;padding:13px 18px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:16px}

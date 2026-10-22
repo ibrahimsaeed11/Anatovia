@@ -18,7 +18,7 @@
   const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201022424105?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/_ibrahimoffice" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'شاهد أعمالي' : 'See my work'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['account', '👤'], ['quiz', '🎯'], ['lmq', '📍'], ['exam', '🩺'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['about', 'ℹ️']];
+    const items = [['account', '👤'], ['quiz', '🎯'], ['lmq', '📍'], ['exam', '🩺'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p><div class="hub">` +
       items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>'+ `<div class="contact-bar">${contactHtml()}</div>`;
   });
