@@ -265,3 +265,8 @@ button.plan{cursor:pointer}
 .pd-t{color:var(--muted);font-size:14px;margin:4px 0 6px;line-height:1.6}
 .plday .row{margin-top:6px}
 .tsteps{margin:6px 0 12px;padding-inline-start:22px;line-height:1.7}.tsteps li{margin:6px 0}.tpos{padding:11px 13px;border-radius:14px;background:rgba(80,200,120,.12);border:1px solid rgba(80,200,120,.4);line-height:1.5;margin:8px 0}.tpos b{display:block;margin-bottom:3px}
+.calc-pt{display:flex;gap:8px;margin:6px 0 10px}.calc-pt input,.calc-pt select{flex:1;min-width:0;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:inherit;font:inherit}
+.calc-tabs{margin-bottom:6px}.calc-t{margin:6px 0}.calc-r{display:grid;grid-template-columns:1fr 62px 62px 52px;gap:6px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}.calc-r small{display:block;opacity:.65;font-size:11.5px;line-height:1.3}
+.calc-r input,.calc-r select{width:100%;padding:8px 4px;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:inherit;font:inherit}.calc-h{font-size:12px;opacity:.7;font-weight:700}.calc-m{grid-template-columns:1fr 84px}
+.calc-pc{text-align:center;font-weight:700}.calc-pc.good{color:#3dbb73}.calc-pc.warn{color:#e5a000}.calc-pc.bad{color:#ef5a66}
+textarea{border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:inherit;font:inherit;padding:10px}

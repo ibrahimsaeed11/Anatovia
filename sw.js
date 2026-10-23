@@ -1,6 +1,6 @@
 /* Service worker: caches the whole app on first visit so it works offline. */
-const VERSION = 'anatovia-v28';
-const FILES = ['./', 'index.html', 'style.css', 'i18n.js', 'catalog.js', 'gl.js', 'packs.js', 'store.js', 'app.js', 'study.js', 'features.js', 'clinic-data.js', 'clinic.js', 'spinal-data.js', 'play.js', 'firebase-config.js', 'account.js', 'tour.js', 'tests.js', 'nerves.js', 'share.js', 'report.js', 'landmarks.js', 'models/bones.js', 'manifest.webmanifest', 'icons/favicon.svg',
+const VERSION = 'anatovia-v29';
+const FILES = ['./', 'index.html', 'style.css', 'i18n.js', 'catalog.js', 'gl.js', 'packs.js', 'store.js', 'app.js', 'study.js', 'features.js', 'clinic-data.js', 'clinic.js', 'spinal-data.js', 'play.js', 'firebase-config.js', 'account.js', 'tour.js', 'tests.js', 'nerves.js', 'calc.js', 'share.js', 'report.js', 'landmarks.js', 'models/bones.js', 'manifest.webmanifest', 'icons/favicon.svg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
