@@ -155,6 +155,11 @@
   A.acts.tqopt = (el) => { if (!G || G.answered) return; const q = G.qs[G.idx]; G.chosen = +el.dataset.k; G.answered = true; G.res.push({ i: q.i, ok: G.chosen === q.c }); drawTQ(); };
   A.acts.tqnext = () => { if (G.idx + 1 >= G.qs.length) finishTQ(); else { G.idx++; G.answered = false; G.chosen = -1; drawTQ(); } };
   A.acts.tqexit = () => { if (G.res.length && !confirm(T('End now? Answered questions are scored.', 'إنهاء الآن؟ سيتم احتساب ما أجبت عنه.'))) return; stopTimer(); if (G.res.length) finishTQ(); else { G = null; A.closeModal(); } };
+  let lastRes = null;
+  const b36 = (v) => Math.max(0, v | 0).toString(36).padStart(2, '0');
+  const mkLink = (seed, n, c) => location.origin + location.pathname + '#c=' + b36(n) + b36(c) + (seed | 0).toString(36);
+  const LRM = '\u200E';
+  const shareText = (c, n) => (ar() ? `جبت ${c} من ${n} في تحدي التشريح 🦴 — تقدر تغلبني؟` : `I scored ${c}/${n} in the anatomy challenge 🦴 — can you beat me?`);
   function finishTQ() {
     if (!G || G.done) return; G.done = true; stopTimer();
     const B = bank(), n = G.qs.length, c = G.res.filter((r) => r.ok).length, s = pct(c, n), secs = Math.round((Date.now() - G.t0) / 1000), cfg = G.cfg;
@@ -165,19 +170,47 @@
     if (cfg.mode === 'spinal' && s >= 90) flag('spinal');
     if (cfg.mode === 'daily') { const d = Store.d; d.daily = { d: today(), s: c, n }; d.dailyDays = d.dailyDays || []; if (!d.dailyDays.includes(today())) d.dailyDays.push(today()); Store.save(); }
     const wrongs = G.qs.filter((q, k) => !(G.res[k] && G.res[k].ok));
-    const link = location.origin + location.pathname + '#ch=' + cfg.seed.toString(36) + '.' + n + '.' + c;
+    const link = mkLink(cfg.seed, n, c), fs = cfg.fs;
+    lastRes = { c, n, s, secs, link, fs: isFinite(fs) ? fs : null };
     const newB = checkBadges();
     A.modal(() => `<h2>${T('Result', 'النتيجة')}</h2><div class="score-ring"><div><div class="big">${s}%</div><div>${c} / ${n}</div></div><div><b>${s >= 90 ? T('Excellent!', 'ممتاز!') : s >= 70 ? T('Good', 'جيد') : s >= 50 ? T('Fair – review more', 'مقبول — راجع أكتر') : T('Needs review', 'يحتاج مراجعة')}</b><div class="lab">${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}${G.limit && G.res.length < n ? ' · ' + T('time ran out', 'انتهى الوقت') : ''}</div></div></div>` +
+      (lastRes.fs != null ? `<div class="advice">${c > lastRes.fs ? '🎉 ' + T('You beat your friend!', 'غلبت صاحبك!') : c === lastRes.fs ? '🤝 ' + T('Tie!', 'تعادل!') : '💪 ' + T('Your friend wins — try again!', 'صاحبك كسب — جرّب تاني!')} <b>(${c} : ${lastRes.fs})</b></div>` : '') +
       (newB.length ? `<div class="advice">🏆 ${T('New badge', 'شارة جديدة')}: ${newB.map((b) => b.i + ' ' + esc(txt(b.n))).join(' · ')}</div>` : '') +
       (wrongs.length ? `<h4>${T('Review', 'للمراجعة')}</h4>` + wrongs.map((q) => `<div class="exc"><div>${esc(txt(B[q.i].q))}</div><b>${esc(txt(B[q.i].a))}</b></div>`).join('') : '') +
-      `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="play">${T('Challenges', 'التحديات')}</button><button class="btn" data-act="tqshare" data-link="${esc(link)}" data-s="${c}" data-n="${n}">🤝 ${T('Challenge a friend', 'تحدَّ صديقك')}</button></div>`);
+      `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="tqcard">📸 ${T('Share my result', 'شارك نتيجتي')}</button></div><div class="row" style="margin-top:8px"><button class="btn" data-act="play">${T('Challenges', 'التحديات')}</button><button class="btn" data-act="tqshare" data-link="${esc(link)}" data-s="${c}" data-n="${n}">🤝 ${T('Challenge a friend', 'تحدَّ صديقك')}</button></div>`);
   }
   A.acts.play = () => openPlay();
   A.acts.tqshare = async (el) => {
     const c = el.dataset.s, n = el.dataset.n, link = el.dataset.link;
-    const text = ar() ? `جبت ${c} من ${n} في تحدي التشريح 🦴 — تقدر تغلبني؟` : `I scored ${c}/${n} in the anatomy challenge 🦴 — can you beat me?`;
-    try { if (navigator.share) { await navigator.share({ title: document.title, text, url: link }); return; } } catch (e) { return; }
-    try { await navigator.clipboard.writeText(text + ' ' + link); A.toast(T('Link copied', 'تم نسخ الرابط')); } catch (e) { prompt(text, link); }
+    const text = shareText(c, n);
+    try { if (navigator.share) { await navigator.share({ title: document.title, text: text + '\n' + LRM + link }); return; } } catch (e) { return; }
+    try { await navigator.clipboard.writeText(text + '\n' + LRM + link); A.toast(T('Link copied', 'تم نسخ الرابط')); } catch (e) { prompt(text, link); }
+  };
+  /* result card (JPEG) to share on WhatsApp / Instagram */
+  function drawCard(r) {
+    const W = 1080, H = 1350, cv = document.createElement('canvas'); cv.width = W; cv.height = H; const x = cv.getContext('2d'), rtl = ar();
+    const FAM = 'system-ui,-apple-system,"Segoe UI",Tahoma,"Noto Naskh Arabic",Arial,sans-serif';
+    const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2a3a8c'); g.addColorStop(1, '#0f1636'); x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const tx = (s, px, py, size, col, b) => { x.font = `${b ? 700 : 500} ${size}px ${FAM}`; x.fillStyle = col; x.textAlign = 'center'; x.textBaseline = 'middle'; x.direction = /[\u0600-\u06FF]/.test(s) ? 'rtl' : 'ltr'; x.fillText(s, px, py, W - 120); };
+    tx('Anatovia', W / 2, 130, 84, '#fff', 1); tx(T('Anatomy challenge', 'تحدّي التشريح'), W / 2, 215, 46, '#b9c4ff');
+    const cx = W / 2, cy = 640, R = 270, p = r.n ? r.c / r.n : 0, col = p >= 0.9 ? '#46d68a' : p >= 0.6 ? '#ffc84a' : '#ff6b78';
+    x.lineWidth = 46; x.lineCap = 'round'; x.strokeStyle = 'rgba(255,255,255,.14)'; x.beginPath(); x.arc(cx, cy, R, 0, Math.PI * 2); x.stroke();
+    if (p > 0) { x.strokeStyle = col; x.beginPath(); x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p); x.stroke(); }
+    tx(`${r.c} / ${r.n}`, cx, cy - 20, 170, '#fff', 1); tx(Math.round(p * 100) + '%', cx, cy + 105, 64, col, 1);
+    let y = 1010;
+    if (r.fs != null) { const msg = r.c > r.fs ? T('I beat my friend! 🎉', 'غلبت صاحبي! 🎉') : r.c === r.fs ? T('Tie with my friend 🤝', 'تعادل مع صاحبي 🤝') : T('My friend won this round 💪', 'صاحبي كسب الجولة 💪'); tx(msg, cx, y, 54, '#fff', 1); tx(`${r.c} : ${r.fs}`, cx, y + 70, 50, '#b9c4ff'); y += 140; }
+    else { tx(T('Can you beat me?', 'تقدر تغلبني؟'), cx, y + 20, 66, '#fff', 1); y += 120; }
+    const m = Math.floor(r.secs / 60) + ':' + String(r.secs % 60).padStart(2, '0'); tx('⏱ ' + m, cx, y, 40, '#b9c4ff');
+    x.fillStyle = 'rgba(255,255,255,.1)'; x.fillRect(0, H - 130, W, 130); tx('ibrahimsaeed11.github.io/Anatovia', cx, H - 65, 40, '#fff', 1);
+    return cv;
+  }
+  A.acts.tqcard = async () => {
+    if (!lastRes) return;
+    const cv = drawCard(lastRes), blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.9)); if (!blob) return A.toast(T('Could not build the card', 'تعذّر إنشاء الصورة'));
+    const text = shareText(lastRes.c, lastRes.n) + '\n' + LRM + lastRes.link, file = new File([blob], 'anatovia-result.jpg', { type: 'image/jpeg' });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = 'anatovia-result.jpg'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
+    try { await navigator.clipboard.writeText(text); } catch (e) { /* ignore */ } A.toast(T('Saved — link copied', 'تم الحفظ — واتنسخ الرابط'));
   };
 
   /* ───────────── challenges hub ───────────── */
@@ -207,12 +240,14 @@
 
   /* open a challenge link (#ch=seed.n.score) */
   function checkHash() {
-    const m = /#ch=([0-9a-z]+)\.(\d+)(?:\.(\d+))?/.exec(location.hash); if (!m) return;
-    const seed = parseInt(m[1], 36), n = Math.min(40, +m[2] || 10), fs = m[3];
+    let seed, n, fs; const h = location.hash;
+    const m2 = /#c=([0-9a-z]{2})([0-9a-z]{2})([0-9a-z]+)/.exec(h), m1 = /#ch=([0-9a-z]+)\.(\d+)(?:\.(\d+))?/.exec(h);
+    if (m2) { n = Math.min(40, parseInt(m2[1], 36) || 10); fs = String(parseInt(m2[2], 36)); seed = parseInt(m2[3], 36); }
+    else if (m1) { seed = parseInt(m1[1], 36); n = Math.min(40, +m1[2] || 10); fs = m1[3]; } else return;
     if (!isFinite(seed)) return;
-    A.modal(() => `<h2>🤝 ${T('A friend challenged you!', 'صديقك يتحداك!')}</h2><p class="lead">${fs ? T(`Your friend scored ${fs} / ${n}. Can you beat it?`, `صديقك جاب ${fs} من ${n}. تقدر تغلبه؟`) : T('Answer the same questions and compare scores.', 'جاوب نفس الأسئلة وقارنوا النتيجة.')}</p><button class="btn primary wide" data-act="chgo" data-seed="${seed}" data-n="${n}">${T('Accept', 'اقبل التحدي')}</button>`);
+    A.modal(() => `<h2>🤝 ${T('A friend challenged you!', 'صديقك يتحداك!')}</h2><p class="lead">${fs ? T(`Your friend scored ${fs} / ${n}. Can you beat it?`, `صديقك جاب ${fs} من ${n}. تقدر تغلبه؟`) : T('Answer the same questions and compare scores.', 'جاوب نفس الأسئلة وقارنوا النتيجة.')}</p><button class="btn primary wide" data-act="chgo" data-seed="${seed}" data-n="${n}" data-fs="${fs == null ? '' : fs}">${T('Accept', 'اقبل التحدي')}</button>`);
   }
-  A.acts.chgo = (el) => { history.replaceState(null, '', location.pathname); startTQ({ mode: 'friend', seed: +el.dataset.seed, n: +el.dataset.n, src: 'all' }); };
+  A.acts.chgo = (el) => { history.replaceState(null, '', location.pathname); startTQ({ mode: 'friend', seed: +el.dataset.seed, n: +el.dataset.n, src: 'all', fs: el.dataset.fs === '' ? NaN : +el.dataset.fs }); };
   setTimeout(checkHash, 900);
 
   /* ───────────── spinal flashcards ───────────── */
