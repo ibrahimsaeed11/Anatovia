@@ -240,7 +240,7 @@
     const need = new Set(rel.map((e) => e.sys));
     for (const s of SYSTEMS) S.layers[s] = need.has(s) ? 'on' : (s === 'bone' ? 'ghost' : 'off');
     for (const s of need) await A.ensure(s); await A.ensure('bone');
-    S.region = null; S.iso = -1; S.moveSet = null; S.hl = new Map(rel.map((e) => [e.i, [1, 0.78, 0.18, 0.7]]));
+    S.region = null; S.iso = -1; S.moveSet = null; S.hl = new Map(rel.map((e) => [e.i, [1, 0.78, 0.18, 0.7]])); S.focus = new Set(rel.map((e) => e.i));
     A.apply(); A.flyToPart(rel[0]);
     const f = findTest(el.dataset.j, el.dataset.n); if (f && A.toast) A.toast('🧪 ' + T(f.x[0], f.x[1]));
   };
