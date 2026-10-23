@@ -96,6 +96,14 @@
     S.quiz = { onTap: onQuizTap }; $('quizBar').hidden = false;
     askQuestion();
   }
+  const SIL_ON = [1, 0.1, 0.85, 0.9]; let silTimer = null;
+  function silentBlink(i) {
+    clearInterval(silTimer); let on = true;
+    silTimer = setInterval(() => {
+      if (!Q || Q.done || Q.cfg.mode !== 'silent' || Q.answered || !Q.qs[Q.idx] || Q.qs[Q.idx].e.i !== i) { clearInterval(silTimer); if (Q && !Q.done && Q.answered && Q.cfg.mode === 'silent') { S.hl = new Map([[i, SIL_ON]]); A.apply(); A.redraw(); } return; }
+      on = !on; S.hl = on ? new Map([[i, SIL_ON]]) : null; A.apply(); A.redraw();
+    }, 420);
+  }
   async function askQuestion() {
     const q = Q.qs[Q.idx]; q.t0 = Date.now(); Q.answered = false; q.opts = null;
     const e = q.e;
@@ -106,7 +114,7 @@
     const target = e;
     q.target = target;
     if (q.type === 'tap') { A.flyRegion(target.reg); }
-    else if (Q.cfg.mode === 'silent') { S.iso = -1; S.hl = new Map([[target.i, [1, 0.78, 0.18, 0.6]]]); A.flyToPart(target); if (A.cam.goal) A.cam.flyTo(A.cam.goal.target, Math.min(3.4, A.cam.goal.dist * 2.6 + 0.4), A.cam.goal.yaw, A.cam.goal.pitch); }
+    else if (Q.cfg.mode === 'silent') { S.iso = -1; S.hl = new Map([[target.i, SIL_ON]]); silentBlink(target.i); A.flyToPart(target); if (A.cam.goal) A.cam.flyTo(A.cam.goal.target, Math.min(3.4, A.cam.goal.dist * 2.6 + 0.4), A.cam.goal.yaw, A.cam.goal.pitch); }
     else { S.iso = target.i; S.hl = new Map([[target.i, [1, 0.78, 0.18, 0.55]]]); A.flyToPart(target); }
     if (q.type !== 'tap') {
       const opts = shuffle([e, ...distractors(e)]); q.opts = opts.map((x) => x.i); q.correctIdx = q.opts.indexOf(e.i);
