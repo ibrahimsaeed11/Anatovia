@@ -54,7 +54,7 @@
         h += j.tests.map((x) => {
           const r = x[6] && uniq(find(x[6][0], x[6][1]))[0];
           return `<div class="exc"><b>${esc(T(x[0], x[1]))}</b><div><span class="tiny">${T('Assesses', 'يفحص')}:</span> ${esc(T(x[2], x[3]))}</div><div><span class="tiny">${T('Positive', 'الإيجابي')}:</span> ${esc(T(x[4], x[5]))}</div>` +
-            (r ? `<div class="pills">${pill('goto', r.i, '◎ ' + name1(r))}</div>` : '') + '</div>';
+            (r ? `<div class="pills">${pill('goto', r.i, '◎ ' + name1(r))}</div>` : '') + (A.testBtn ? A.testBtn(j.id, x[0]) : '') + '</div>';
         }).join('');
       }
       return h + `<p class="tiny">${DISCLAIMER}</p>`;

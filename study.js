@@ -18,7 +18,7 @@
   const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201022424105?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/_ibrahimoffice" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'شاهد أعمالي' : 'See my work'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['account', '👤'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
+    const items = [['account', '👤'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p><div class="hub">` +
       items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>'+ `<div class="contact-bar">${contactHtml()}</div>`;
   });
@@ -37,13 +37,13 @@
   const QC = { mode: 'mix', sys: 'all', reg: 'all', n: 10 };
   function openQuizSetup() {
     A.modal(() => {
-      const modes = ['tap', 'name', 'clue', 'mix', 'ospe'], mn = mistakeIds().size;
-      const pool = quizPool(QC, QC.mode === 'mix' ? 'any' : QC.mode).length;
+      const modes = ['tap', 'name', 'silent', 'clue', 'mix', 'ospe'], mn = mistakeIds().size;
+      const pool = quizPool(QC, QC.mode === 'mix' ? 'any' : QC.mode === 'silent' || QC.mode === 'ospe' ? 'name' : QC.mode).length;
       return `<h2>${t('quizSetup')}</h2><p class="lead">${t('quizSub')}</p>` +
         `<div class="lab">${t('mode')}</div><div class="row">` + modes.map((m) => `<button class="opt ${QC.mode === m ? 'sel' : ''}" data-act="qcfg" data-k="mode" data-v="${m}">${t('m_' + m)}</button>`).join('') + '</div>' +
         scopeRow(QC, 'qcfg') +
         `<div class="lab">${t('length')}</div><div class="row">` + [5, 10, 20].map((n) => `<button class="opt ${QC.n === n ? 'sel' : ''}" data-act="qcfg" data-k="n" data-v="${n}">${n}</button>`).join('') + '</div>' +
-        (QC.mode === 'ospe' ? `<p class="tiny">${TT('Station-style exam: each structure is highlighted, you have 30 seconds to pick its name, then it moves on. No feedback until the end.', 'نظام محطات: يُضاء تركيب وعندك 30 ثانية لاختيار اسمه ثم ينتقل للتالي. لا تظهر الإجابات إلا في النهاية.')}</p>` : '') +
+        (QC.mode === 'silent' ? `<p class="tiny">${TT('The structure stays in context among its neighbours (no isolation, no labels) — identify it from its position and shape.', 'التركيب بيفضل وسط اللي حواليه (من غير عزل ولا تسميات) — اتعرف عليه من مكانه وشكله.')}</p>` : '') + (QC.mode === 'ospe' ? `<p class="tiny">${TT('Station-style exam: each structure is highlighted, you have 30 seconds to pick its name, then it moves on. No feedback until the end.', 'نظام محطات: يُضاء تركيب وعندك 30 ثانية لاختيار اسمه ثم ينتقل للتالي. لا تظهر الإجابات إلا في النهاية.')}</p>` : '') +
         `<button class="btn primary wide" data-act="qstart" ${pool < 4 ? 'disabled' : ''}>${t('start')}</button>` +
         `<button class="btn wide" style="margin-top:8px" data-act="qmistakes" ${mn < 3 ? 'disabled' : ''}>🔁 ${TT('Review my mistakes', 'راجع اللي غلطت فيه')} (${mn})</button>`;
     });
@@ -75,7 +75,7 @@
 
   let Q = null, prevView = null;
   function startQuiz(cfg) {
-    const types = cfg.mode === 'ospe' ? ['name'] : cfg.mode === 'mix' ? ['tap', 'name', 'clue'] : [cfg.mode];
+    const types = cfg.mode === 'ospe' || cfg.mode === 'silent' ? ['name'] : cfg.mode === 'mix' ? ['tap', 'name', 'clue'] : [cfg.mode];
     // build question list
     const list = []; const used = new Set();
     const per = Math.ceil(cfg.n / types.length);
@@ -106,6 +106,7 @@
     const target = e;
     q.target = target;
     if (q.type === 'tap') { A.flyRegion(target.reg); }
+    else if (Q.cfg.mode === 'silent') { S.iso = -1; S.hl = new Map([[target.i, [1, 0.78, 0.18, 0.6]]]); A.flyToPart(target); if (A.cam.goal) A.cam.flyTo(A.cam.goal.target, Math.min(3.4, A.cam.goal.dist * 2.6 + 0.4), A.cam.goal.yaw, A.cam.goal.pitch); }
     else { S.iso = target.i; S.hl = new Map([[target.i, [1, 0.78, 0.18, 0.55]]]); A.flyToPart(target); }
     if (q.type !== 'tap') {
       const opts = shuffle([e, ...distractors(e)]); q.opts = opts.map((x) => x.i); q.correctIdx = q.opts.indexOf(e.i);
@@ -262,6 +263,9 @@
   Object.assign(STR, {
     splan: { en: 'Exam study plan', ar: 'خطة المذاكرة للامتحان' },
     splanSub: { en: 'Pick the exam date, get a daily plan', ar: 'اختر تاريخ الامتحان واحصل على خطة يومية' },
+    tcards: { en: 'Special test cards', ar: 'كروت الاختبارات الخاصة' },
+    tcardsSub: { en: 'Steps, positive result, related muscles on the model', ar: 'الخطوات والنتيجة الإيجابية والعضلات المرتبطة على المجسم' },
+    m_silent: { en: 'Silent image – no labels, in context', ar: 'صورة صامتة – بدون تسميات' },
     m_ospe: { en: 'Practical exam (OSPE) – 30 s per station', ar: 'امتحان عملي (OSPE) – 30 ثانية لكل محطة' },
   });
   const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -486,6 +490,7 @@
   if (window.__anat) window.__anat.study = A.quizApi;
   /* tour.js is injected from here so a stale index.html can never leave the Study button dead */
   Object.assign(STR, { tour: { en: 'How to use', ar: 'شرح الاستخدام' }, tourSub: { en: 'A quick tour of the app', ar: 'جولة سريعة تعرّفك على التطبيق' } });
+  if (!window.__testsLoaded) { const sc4 = document.createElement('script'); sc4.src = 'tests.js'; document.body.appendChild(sc4); }
   if (!window.__tourLoaded) { const sc = document.createElement('script'); sc.src = 'tour.js'; document.body.appendChild(sc); }
   if (!window.__reportLoaded) { const sc3 = document.createElement('script'); sc3.src = 'report.js'; document.body.appendChild(sc3); }
   if (!window.__shareLoaded) { const sc2 = document.createElement('script'); sc2.src = 'share.js'; document.body.appendChild(sc2); }

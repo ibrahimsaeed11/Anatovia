@@ -264,3 +264,4 @@ button.plan{cursor:pointer}
 .pd-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .pd-t{color:var(--muted);font-size:14px;margin:4px 0 6px;line-height:1.6}
 .plday .row{margin-top:6px}
+.tsteps{margin:6px 0 12px;padding-inline-start:22px;line-height:1.7}.tsteps li{margin:6px 0}.tpos{padding:11px 13px;border-radius:14px;background:rgba(80,200,120,.12);border:1px solid rgba(80,200,120,.4);line-height:1.5;margin:8px 0}.tpos b{display:block;margin-bottom:3px}
