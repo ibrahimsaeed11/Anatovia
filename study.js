@@ -319,7 +319,7 @@
         const weak = Object.entries(agg).filter(([, a]) => a.n >= 2).sort((a, b) => a[1].c / a[1].n - b[1].c / b[1].n).slice(0, 3);
         if (weak.length) h += `<div class="advice"><b>${t('focusOn')}:</b> ` + weak.map(([r, a]) => `${t(r)} (${pct(a.c, a.n)}%)`).join(' · ') + '</div>';
       }
-      h += `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="hub" data-k="quiz">${t('quiz')}</button><button class="btn danger" data-act="resetprog">${t('resetProgress')}</button></div>`;
+      h += `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="hub" data-k="quiz">${t('quiz')}</button>${A.reportReady ? `<button class="btn" data-act="report">📄 ${S.lang === 'ar' ? 'تقرير PDF' : 'PDF report'}</button>` : ''}<button class="btn danger" data-act="resetprog">${t('resetProgress')}</button></div>`;
       return h;
     });
   }
@@ -354,5 +354,6 @@
   /* tour.js is injected from here so a stale index.html can never leave the Study button dead */
   Object.assign(STR, { tour: { en: 'How to use', ar: 'شرح الاستخدام' }, tourSub: { en: 'A quick tour of the app', ar: 'جولة سريعة تعرّفك على التطبيق' } });
   if (!window.__tourLoaded) { const sc = document.createElement('script'); sc.src = 'tour.js'; document.body.appendChild(sc); }
+  if (!window.__reportLoaded) { const sc3 = document.createElement('script'); sc3.src = 'report.js'; document.body.appendChild(sc3); }
   if (!window.__shareLoaded) { const sc2 = document.createElement('script'); sc2.src = 'share.js'; document.body.appendChild(sc2); }
 })();

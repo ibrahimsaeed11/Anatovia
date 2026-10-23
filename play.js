@@ -272,6 +272,7 @@
     for (const b of BADGES) if (!d.earned.includes(b.id) && b.ok()) { d.earned.push(b.id); fresh.push(b); }
     if (fresh.length) Store.save(); return fresh;
   }
+  A.badgeInfo = () => { checkBadges(); const e = Store.d.earned || []; return { total: BADGES.length, earned: BADGES.filter((b) => e.includes(b.id)).map((b) => ({ i: b.i, n: txt(b.n) })) }; };
   A.checkBadges = () => { const f = checkBadges(); if (f.length) A.toast('🏆 ' + f.map((b) => b.i + ' ' + txt(b.n)).join(' · '), 4500); };
   function openBadges() {
     checkBadges();
