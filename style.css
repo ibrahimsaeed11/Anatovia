@@ -248,3 +248,19 @@ button.plan{cursor:pointer}
 .plan small{color:var(--muted);font-size:12.5px}
 .plan em{font-style:normal;font-size:12px;font-weight:700;color:var(--accent-ink);background:var(--gold);border-radius:99px;padding:1px 9px;align-self:flex-start;margin-top:2px}
 .plan-note{color:var(--muted);margin:6px 0 4px}
+
+/* OSPE */
+.ospe{display:flex;align-items:center;gap:10px;margin:6px 0 4px}
+.ospe-bar{flex:1;height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.ospe-bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .2s linear}
+.ospe b{min-width:34px;text-align:center;font-size:20px;color:var(--accent)}
+.ospe b.low{color:var(--bad,#d64550)}
+.qopts button.sel{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+/* study plan */
+.pl-date{width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--text);font-size:16px}
+.plday{padding:12px 14px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);margin:8px 0}
+.plday.today{border:2px solid var(--accent)}
+.plday.rev{background:color-mix(in srgb,var(--gold) 12%,var(--surface2))}
+.pd-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pd-t{color:var(--muted);font-size:14px;margin:4px 0 6px;line-height:1.6}
+.plday .row{margin-top:6px}

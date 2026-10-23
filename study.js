@@ -18,11 +18,11 @@
   const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201022424105?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/_ibrahimoffice" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'شاهد أعمالي' : 'See my work'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['account', '👤'], ['quiz', '🎯'], ['lmq', '📍'], ['exam', '🩺'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
+    const items = [['account', '👤'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p><div class="hub">` +
       items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>'+ `<div class="contact-bar">${contactHtml()}</div>`;
   });
-  A.acts.hub = (el) => ({ quiz: openQuizSetup, cards: openCardsSetup, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
+  A.acts.hub = (el) => ({ quiz: openQuizSetup, splan: openPlan, cards: openCardsSetup, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
 
   /* scope helpers shared by quiz + flashcards */
   const scopeRow = (cfg, act) => {
@@ -37,13 +37,15 @@
   const QC = { mode: 'mix', sys: 'all', reg: 'all', n: 10 };
   function openQuizSetup() {
     A.modal(() => {
-      const modes = ['tap', 'name', 'clue', 'mix'];
+      const modes = ['tap', 'name', 'clue', 'mix', 'ospe'], mn = mistakeIds().size;
       const pool = quizPool(QC, QC.mode === 'mix' ? 'any' : QC.mode).length;
       return `<h2>${t('quizSetup')}</h2><p class="lead">${t('quizSub')}</p>` +
         `<div class="lab">${t('mode')}</div><div class="row">` + modes.map((m) => `<button class="opt ${QC.mode === m ? 'sel' : ''}" data-act="qcfg" data-k="mode" data-v="${m}">${t('m_' + m)}</button>`).join('') + '</div>' +
         scopeRow(QC, 'qcfg') +
         `<div class="lab">${t('length')}</div><div class="row">` + [5, 10, 20].map((n) => `<button class="opt ${QC.n === n ? 'sel' : ''}" data-act="qcfg" data-k="n" data-v="${n}">${n}</button>`).join('') + '</div>' +
-        `<button class="btn primary wide" data-act="qstart" ${pool < 4 ? 'disabled' : ''}>${t('start')}</button>`;
+        (QC.mode === 'ospe' ? `<p class="tiny">${TT('Station-style exam: each structure is highlighted, you have 30 seconds to pick its name, then it moves on. No feedback until the end.', 'نظام محطات: يُضاء تركيب وعندك 30 ثانية لاختيار اسمه ثم ينتقل للتالي. لا تظهر الإجابات إلا في النهاية.')}</p>` : '') +
+        `<button class="btn primary wide" data-act="qstart" ${pool < 4 ? 'disabled' : ''}>${t('start')}</button>` +
+        `<button class="btn wide" style="margin-top:8px" data-act="qmistakes" ${mn < 3 ? 'disabled' : ''}>🔁 ${TT('Review my mistakes', 'راجع اللي غلطت فيه')} (${mn})</button>`;
     });
   }
   A.acts.qcfg = (el) => { const k = el.dataset.k; QC[k] = k === 'n' ? +el.dataset.v : el.dataset.v; openQuizSetup(); };
@@ -55,7 +57,7 @@
     return null;
   };
   function quizPool(cfg, type) {
-    return repList.filter((e) => inScope(e, cfg) && (type === 'tap' ? e.r >= 0.014 && e.k !== 'tendon' : type === 'clue' ? !!clueOf(e) : true));
+    return repList.filter((e) => inScope(e, cfg) && (!cfg.only || cfg.only.has(e.id)) && (type === 'tap' ? e.r >= 0.014 && e.k !== 'tendon' : type === 'clue' ? !!clueOf(e) : true));
   }
   function weight(e) { const s = Store.d.srs[e.id]; if (s) return s.b <= 1 ? 3 : 1; return Store.d.learned[e.id] ? 0.5 : 1.4; }
   function sample(pool, n) {
@@ -73,7 +75,7 @@
 
   let Q = null, prevView = null;
   function startQuiz(cfg) {
-    const types = cfg.mode === 'mix' ? ['tap', 'name', 'clue'] : [cfg.mode];
+    const types = cfg.mode === 'ospe' ? ['name'] : cfg.mode === 'mix' ? ['tap', 'name', 'clue'] : [cfg.mode];
     // build question list
     const list = []; const used = new Set();
     const per = Math.ceil(cfg.n / types.length);
@@ -108,12 +110,13 @@
     if (q.type !== 'tap') {
       const opts = shuffle([e, ...distractors(e)]); q.opts = opts.map((x) => x.i); q.correctIdx = q.opts.indexOf(e.i);
     }
-    A.apply(); renderQuizBar();
+    A.apply(); renderQuizBar(); ospeStart();
   }
   function renderQuizBar() {
     const bar = $('quizBar'), q = Q.qs[Q.idx], e = q.e, n = Q.qs.length;
-    let h = `<div class="qtop"><span dir="ltr">${Q.idx + 1} / ${n}</span><span>${t('score')}: <b>${Q.results.filter((r) => r.ok).length}</b></span></div>
-      <div class="qprog"><i style="width:${(Q.idx / n) * 100}%"></i></div>`;
+    let h = `<div class="qtop"><span dir="ltr">${Q.idx + 1} / ${n}</span>${Q.cfg.mode === 'ospe' ? '' : `<span>${t('score')}: <b>${Q.results.filter((r) => r.ok).length}</b></span>`}</div>
+      <div class="qprog"><i style="width:${(Q.idx / n) * 100}%"></i></div>` +
+      (Q.cfg.mode === 'ospe' ? `<div class="ospe"><div class="ospe-bar"><i id="ospeB" style="width:${Q.answered ? 0 : 100}%"></i></div><b id="ospeT">${OSPE_SECS}</b></div>` : '');
     if (q.type === 'tap') {
       h += `<div class="qq">${t('qFind')} <span style="color:var(--gold)">${esc(name1(e))}</span><small>${esc(name2(e))}</small></div>`;
     } else if (q.type === 'name') {
@@ -124,11 +127,14 @@
     if (q.opts) {
       h += '<div class="qopts">' + q.opts.map((i, k) => {
         const x = P[i]; let cls = '';
-        if (Q.answered) { if (k === q.correctIdx) cls = 'ok'; else if (k === q.chosen) cls = 'no'; }
+        if (Q.answered) { if (Q.cfg.mode === 'ospe') cls = k === q.chosen ? 'sel' : ''; else if (k === q.correctIdx) cls = 'ok'; else if (k === q.chosen) cls = 'no'; }
         return `<button type="button" class="${cls}" data-act="qopt" data-k="${k}" ${Q.answered ? 'disabled' : ''}>${esc(base1(x))}</button>`;
       }).join('') + '</div>';
     }
-    if (Q.answered) {
+    if (Q.answered && Q.cfg.mode === 'ospe') {
+      const r = Q.results[Q.results.length - 1];
+      h += `<div class="qfb"><span>${r.timeout ? '⏱ ' + TT('Time is up', 'انتهى الوقت') : '✓ ' + TT('Answer saved', 'تم حفظ إجابتك')}</span></div>`;
+    } else if (Q.answered) {
       const r = Q.results[Q.results.length - 1];
       h += `<div class="qfb ${r.ok ? 'ok' : 'no'}"><span>${r.ok ? '✔ ' + t('correct') : '✘ ' + t('wrong') + ' ' + esc(base1(e)) + (r.tapped ? ` (${S.lang === 'ar' ? 'ضغطت على' : 'you tapped'}: ${esc(r.tapped)})` : '')}</span><button class="btn primary" data-act="qnext">${Q.idx + 1 >= n ? t('finish') : t('next')}</button></div>`;
     } else {
@@ -158,6 +164,7 @@
   A.acts.qopt = (el) => {
     if (!Q || Q.answered) return; const q = Q.qs[Q.idx]; q.chosen = +el.dataset.k;
     record(q.chosen === q.correctIdx, null); renderQuizBar();
+    if (Q.cfg.mode === 'ospe') { ospeStop(); setTimeout(ospeNext, 450); }
   };
   A.acts.qskip = () => {
     if (!Q || Q.answered || !Q.spare.length) return; Q.skips++;
@@ -166,12 +173,13 @@
   A.acts.qnext = () => { if (Q.idx + 1 >= Q.qs.length) finishQuiz(); else { Q.idx++; askQuestion(); } };
   A.acts.qexit = () => { if (Q.results.length >= 3 && !confirm(S.lang === 'ar' ? 'إنهاء الاختبار الآن؟ سيتم احتساب ما أجبت عنه.' : 'End the quiz now? Answered questions will be scored.')) return; if (Q.results.length === 0) { endQuizUI(); return; } finishQuiz(); };
   function endQuizUI() {
+    ospeStop();
     $('quizBar').hidden = true; document.getElementById('app').classList.remove('quiz'); S.quiz = null;
     if (prevView) { Object.assign(S.layers, prevView.layers); S.region = prevView.region; S.hidden = prevView.hidden; S.iso = prevView.iso; S.explode = prevView.explode; S.moveSet = prevView.move; }
     S.hl = null; S.sel = -1; A.apply(); A.cam.reset(); A.redraw();
   }
   function finishQuiz() {
-    Q.done = true; const total = Q.results.length, correct = Q.results.filter((r) => r.ok).length;
+    ospeStop(); Q.done = true; const total = Q.results.length, correct = Q.results.filter((r) => r.ok).length;
     const secs = Math.round((Date.now() - Q.t0) / 1000);
     const area = {}; for (const r of Q.results) { const a = (area[r.reg] = area[r.reg] || { c: 0, n: 0 }); a.n++; if (r.ok) a.c++; }
     const sysA = {}; for (const r of Q.results) { const a = (sysA[r.sys] = sysA[r.sys] || { c: 0, n: 0 }); a.n++; if (r.ok) a.c++; }
@@ -214,6 +222,131 @@
   }
   A.acts.mistake = (el) => { A.closeModal(); A.select(+el.dataset.i); };
   A.acts.qagain = () => openQuizSetup();
+
+
+  /* ───────── OSPE (station exam) ───────── */
+  const TT = (en, a) => (S.lang === 'ar' ? a : en);
+  const OSPE_SECS = 30;
+  let otimer = null;
+  function ospeStop() { if (otimer) { clearInterval(otimer); otimer = null; } }
+  function ospeStart() {
+    ospeStop(); if (!Q || Q.cfg.mode !== 'ospe') return;
+    const t0 = Date.now();
+    otimer = setInterval(() => {
+      if (!Q || Q.answered || Q.done) { ospeStop(); return; }
+      const left = Math.max(0, OSPE_SECS - (Date.now() - t0) / 1000), el = document.getElementById('ospeT'), b = document.getElementById('ospeB');
+      if (el) { el.textContent = Math.ceil(left); el.classList.toggle('low', left <= 8); }
+      if (b) b.style.width = (left / OSPE_SECS) * 100 + '%';
+      if (left <= 0) { ospeStop(); ospeTimeout(); }
+    }, 200);
+  }
+  function ospeTimeout() {
+    if (!Q || Q.answered || Q.done) return;
+    Q.qs[Q.idx].chosen = -1; record(false, null); Q.results[Q.results.length - 1].timeout = true; renderQuizBar();
+    setTimeout(ospeNext, 700);
+  }
+  function ospeNext() {
+    if (!Q || Q.done) return;
+    if (Q.idx + 1 >= Q.qs.length) finishQuiz(); else { Q.idx++; askQuestion(); }
+  }
+
+  /* ───────── review my mistakes ───────── */
+  function mistakeIds() { const s = Store.d.srs; return new Set(repList.filter((e) => s[e.id] && s[e.id].b <= 1).map((e) => e.id)); }
+  A.acts.qmistakes = () => {
+    const ids = mistakeIds();
+    if (ids.size < 3) { A.toast(TT('Not enough mistakes yet', 'لا توجد أخطاء كافية بعد')); return; }
+    A.closeModal(); startQuiz({ mode: 'mix', sys: 'all', reg: 'all', n: Math.min(15, ids.size), only: ids });
+  };
+
+  /* ───────── exam study plan ───────── */
+  Object.assign(STR, {
+    splan: { en: 'Exam study plan', ar: 'خطة المذاكرة للامتحان' },
+    splanSub: { en: 'Pick the exam date, get a daily plan', ar: 'اختر تاريخ الامتحان واحصل على خطة يومية' },
+    m_ospe: { en: 'Practical exam (OSPE) – 30 s per station', ar: 'امتحان عملي (OSPE) – 30 ثانية لكل محطة' },
+  });
+  const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const PL = (() => { const p = Store.d.plan; return { date: (p && p.date) || '', sys: (p && p.sys) || ['bone', 'muscle'], msg: '' }; })();
+  const savePlan = () => { Store.d.plan = { date: PL.date, sys: PL.sys }; Store.save(); };
+  function openPlan() { if (Store.d.plan && Store.d.plan.date && Math.round((new Date(Store.d.plan.date + 'T00:00:00') - new Date(new Date().setHours(0, 0, 0, 0))) / 864e5) >= 2) planView(); else planSetup(); }
+  function planSetup() {
+    A.modal(() => {
+      const tm = new Date(); tm.setDate(tm.getDate() + 2);
+      return `<h2>🗓️ ${t('splan')}</h2><p class="lead">${TT('Tell us when your exam is and what it covers. We split the structures you have not marked as learned across the days left, and keep the last days for revision.', 'قولنا امتحانك امتى وبيغطي إيه. هنوزّع التراكيب اللي لسه ما علّمتها «متعلَّمة» على الأيام المتبقية، ونسيب آخر يومين للمراجعة.')}</p>` +
+        `<div class="lab">${TT('Exam date', 'تاريخ الامتحان')}</div><input type="date" id="plDate" class="pl-date" min="${ymd(tm)}" value="${esc(PL.date)}">` +
+        `<div class="lab">${TT('What does it cover?', 'الامتحان بيغطي إيه؟')}</div><div class="row">` +
+        SYSTEMS.map((s) => `<button class="opt ${PL.sys.includes(s) ? 'sel' : ''}" data-act="plsys" data-v="${s}">${t(s)}</button>`).join('') + '</div>' +
+        (PL.msg ? `<div class="advice">${esc(PL.msg)}</div>` : '') +
+        `<button class="btn primary wide" style="margin-top:12px" data-act="plgo">${TT('Make my plan', 'اعمل الخطة')}</button>`;
+    });
+  }
+  const readDate = () => { const el = document.getElementById('plDate'); if (el && el.value) PL.date = el.value; };
+  A.acts.plsys = (el) => { readDate(); const v = el.dataset.v, i = PL.sys.indexOf(v); if (i >= 0) PL.sys.splice(i, 1); else PL.sys.push(v); planSetup(); };
+  A.acts.plgo = () => {
+    readDate(); PL.msg = '';
+    const days = PL.date ? Math.round((new Date(PL.date + 'T00:00:00') - new Date(new Date().setHours(0, 0, 0, 0))) / 864e5) : -1;
+    if (!PL.date) PL.msg = TT('Pick the exam date first.', 'اختر تاريخ الامتحان أولاً.');
+    else if (days < 2) PL.msg = TT('The exam must be at least 2 days away.', 'لازم يكون الامتحان بعد يومين على الأقل.');
+    else if (!PL.sys.length) PL.msg = TT('Pick at least one system.', 'اختر جهازاً واحداً على الأقل.');
+    if (PL.msg) { planSetup(); return; }
+    savePlan(); planView();
+  };
+  A.acts.pledit = () => planSetup();
+  A.acts.pldel = () => { if (!confirm(TT('Delete the plan?', 'حذف الخطة؟'))) return; delete Store.d.plan; Store.save(); PL.date = ''; PL.msg = ''; planSetup(); };
+  let PLAN = null;
+  function buildPlan() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const D = Math.round((new Date(PL.date + 'T00:00:00') - today) / 864e5);
+    const learned = Store.d.learned || {};
+    const items = [];
+    for (const s of SYSTEMS) if (PL.sys.includes(s)) for (const r of REGIONS) for (const e of repList) if (e.sys === s && e.reg === r && !learned[e.id]) items.push(e);
+    const rev = D >= 5 ? 2 : D >= 3 ? 1 : 0, sd = D - rev, per = Math.max(1, Math.ceil(items.length / sd));
+    const out = [];
+    for (let i = 0; i < D; i++) {
+      const d = new Date(today); d.setDate(d.getDate() + i);
+      if (i < sd) {
+        const part = items.slice(i * per, (i + 1) * per), g = new Map();
+        for (const e of part) { const k = e.sys + '|' + e.reg; g.set(k, (g.get(k) || 0) + 1); }
+        out.push({ d, kind: 'study', ids: part.map((e) => e.id), groups: [...g].map(([k, n]) => ({ sys: k.split('|')[0], reg: k.split('|')[1], n })) });
+      } else out.push({ d, kind: 'rev', ids: [], groups: [] });
+    }
+    const scope = new Set(repList.filter((e) => PL.sys.includes(e.sys)).map((e) => e.id));
+    return { D, per, total: items.length, days: out, scope };
+  }
+  function planView() {
+    PLAN = buildPlan();
+    A.modal(() => {
+      const p = PLAN, loc = S.lang === 'ar' ? 'ar-EG' : 'en-GB';
+      const fd = (d, o) => d.toLocaleDateString(loc, o || { weekday: 'long', day: 'numeric', month: 'short' });
+      let h = `<h2>🗓️ ${t('splan')}</h2><div class="stat3"><div><b>${p.D}</b><small>${TT('days left', 'يوم متبقي')}</small></div><div><b>${p.total}</b><small>${TT('structures to learn', 'تركيب للمذاكرة')}</small></div><div><b>${p.total ? p.per : 0}</b><small>${TT('per day', 'في اليوم')}</small></div></div>`;
+      h += `<p class="lead">${TT('Exam', 'الامتحان')}: <b>${fd(new Date(PL.date + 'T00:00:00'), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</b> · ${PL.sys.map((s) => t(s)).join(' · ')}</p>`;
+      if (p.per > 60) h += `<div class="advice">⚠️ ${TT('That is a heavy daily load. Consider a closer scope or an earlier start.', 'ده حمل يومي تقيل. فكّر تقلّل المواد أو تبدأ بدري.')}</div>`;
+      p.days.forEach((x, i) => {
+        const today = i === 0, lines = x.kind === 'rev' ? TT('Revision day: mixed quiz + your mistakes', 'يوم مراجعة: اختبار شامل + الأخطاء') : (x.groups.length ? x.groups.map((g) => `${t(g.sys)} – ${t(g.reg)} (${g.n})`).join(' · ') : TT('Nothing left to learn ✓', 'مفيش حاجة متبقية ✓'));
+        h += `<div class="plday ${today ? 'today' : ''} ${x.kind}"><div class="pd-h"><b>${today ? TT('Today', 'النهارده') + ' · ' : ''}${fd(x.d)}</b>${x.kind === 'rev' ? '<span class="tag">🔁</span>' : `<small>${x.ids.length}</small>`}</div><div class="pd-t">${esc(lines)}</div>`;
+        if (today || x.kind === 'rev') h += `<div class="row">${x.kind === 'study' && x.ids.length ? `<button class="btn" data-act="plstudy" data-d="${i}">📖 ${TT('Study on the model', 'ذاكر على المجسم')}</button><button class="btn" data-act="plquiz" data-d="${i}">🎯 ${TT('Quiz me', 'اختبرني')}</button>` : ''}${x.kind === 'rev' ? `<button class="btn" data-act="plquiz" data-d="${i}">🎯 ${TT('Full quiz', 'اختبار شامل')}</button><button class="btn" data-act="qmistakes">🔁 ${TT('My mistakes', 'أخطائي')}</button>` : ''}</div>`;
+        h += '</div>';
+      });
+      h += `<div class="row" style="margin-top:14px"><button class="btn" data-act="pledit">${TT('Edit', 'تعديل')}</button><button class="btn danger" data-act="pldel">${TT('Delete plan', 'حذف الخطة')}</button></div>`;
+      return h;
+    });
+  }
+  A.acts.plquiz = (el) => {
+    const x = PLAN && PLAN.days[+el.dataset.d]; if (!x) return;
+    const ids = new Set(x.kind === 'rev' ? PLAN.scope : x.ids);
+    if (ids.size < 4) { A.toast(TT('Not enough structures', 'التراكيب غير كافية')); return; }
+    A.closeModal(); startQuiz({ mode: 'mix', sys: 'all', reg: 'all', n: Math.min(15, ids.size), only: ids });
+  };
+  A.acts.plstudy = async (el) => {
+    const x = PLAN && PLAN.days[+el.dataset.d]; if (!x || !x.ids.length) return;
+    const set = new Set(x.ids), sys = new Set(x.groups.map((g) => g.sys)), regs = new Set(x.groups.map((g) => g.reg));
+    for (const s of SYSTEMS) S.layers[s] = sys.has(s) ? 'on' : 'off';
+    A.closeModal();
+    for (const s of sys) await A.ensure(s);
+    S.hl = new Map(); for (const e of P) if (set.has(repOf(e).id)) S.hl.set(e.i, [0.25, 0.85, 0.5, 0.45]);
+    S.region = regs.size === 1 ? [...regs][0] : null;
+    A.apply(); if (S.region) A.flyRegion(S.region); else A.cam.reset(); A.redraw();
+    A.toast(TT('Highlighted: today\'s structures. Tap each one and mark it learned.', 'اتعلّمت بالأخضر تراكيب النهارده. دوس على كل واحد وعلّمه «متعلَّم».'), 5200);
+  };
 
   /* ───────── FLASHCARDS ───────── */
   const CC = { sys: 'all', reg: 'all' };
