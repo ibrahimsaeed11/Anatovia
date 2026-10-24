@@ -232,10 +232,11 @@
       `<p class="tiny">${T('Draft educational content – confirm with your supervisor / current textbooks.', 'محتوى تعليمي مبدئي — راجعه مع المشرف أو المراجع الحديثة.')}</p>`);
     card.back = back || null;
   }
-  A.acts.tcard = (el) => { const prev = A.modalFn; card(el.dataset.j, el.dataset.n, prev); };
+  A.acts.tcard = (el) => { if (!A.isPremium() && !A.FREE_TESTS.has(el.dataset.n)) return A.paywall('All special-test cards are part of Premium. Free: Neer, Lachman, McMurray, SLR and Trendelenburg.', 'كل كروت الاختبارات الخاصة ضمن النسخة المميزة. المجاني: Neer وLachman وMcMurray وSLR وTrendelenburg.'); const prev = A.modalFn; card(el.dataset.j, el.dataset.n, prev); };
   A.acts.tback = () => { if (card.back) A.modal(card.back); else A.closeModal(); };
   A.acts.tshow = async (el) => {
-    const rel = related(el.dataset.j, el.dataset.n); if (!rel.length) return;
+    const rel = related(el.dataset.j, el.dataset.n).filter((e) => !e.lk || A.isPremium());
+    if (!rel.length) return A.paywall('Showing these structures on the model is part of Premium.', 'عرض التراكيب دي على المجسم ضمن النسخة المميزة.');
     A.closeModal(); S.sel = -1; A.deselect();
     const need = new Set(rel.map((e) => e.sys));
     for (const s of SYSTEMS) S.layers[s] = need.has(s) ? 'on' : (s === 'bone' ? 'ghost' : 'off');
@@ -249,7 +250,7 @@
       let h = `<h2>🧪 ${T('Special test cards', 'كروت الاختبارات الخاصة')}</h2><p class="lead">${T('Steps, positive result and the related structures on the 3D model', 'الخطوات والنتيجة الإيجابية والتراكيب المرتبطة على المجسم')}</p>`;
       for (const j of window.JOINTS || []) {
         const ts = j.tests.filter((x) => TC[j.id + '|' + x[0]]); if (!ts.length) continue;
-        h += `<div class="mgroup">${esc(T(j.en, j.ar))}</div><div class="row">` + ts.map((x) => `<button class="opt" data-act="tcard" data-j="${j.id}" data-n="${esc(x[0])}">${esc(T(x[0], x[1]))}</button>`).join('') + '</div>';
+        h += `<div class="mgroup">${esc(T(j.en, j.ar))}</div><div class="row">` + ts.map((x) => `<button class="opt" data-act="tcard" data-j="${j.id}" data-n="${esc(x[0])}">${!A.isPremium() && !A.FREE_TESTS.has(x[0]) ? '🔒 ' : ''}${esc(T(x[0], x[1]))}</button>`).join('') + '</div>';
       }
       return h;
     });

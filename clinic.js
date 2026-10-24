@@ -52,6 +52,7 @@
         }).join('') + `<button type="button" class="btn wide" data-act="mmtscale">${T('Grading scale 0–5', 'تدريج 0–5')}</button>`;
       } else {
         h += j.tests.map((x) => {
+          if (!A.isPremium() && !(A.FREE_TESTS && A.FREE_TESTS.has(x[0]))) return `<div class="exc" data-act="pwtest"><b>🔒 ${esc(T(x[0], x[1]))}</b><div class="tiny">${T('Part of Premium', 'ضمن النسخة المميزة')}</div></div>`;
           const r = x[6] && uniq(find(x[6][0], x[6][1]))[0];
           return `<div class="exc"><b>${esc(T(x[0], x[1]))}</b><div><span class="tiny">${T('Assesses', 'يفحص')}:</span> ${esc(T(x[2], x[3]))}</div><div><span class="tiny">${T('Positive', 'الإيجابي')}:</span> ${esc(T(x[4], x[5]))}</div>` +
             (r ? `<div class="pills">${pill('goto', r.i, '◎ ' + name1(r))}</div>` : '') + (A.testBtn ? A.testBtn(j.id, x[0]) : '') + '</div>';
@@ -60,6 +61,7 @@
       return h + `<p class="tiny">${DISCLAIMER}</p>`;
     });
   }
+  A.acts.pwtest = () => A.paywall('All special tests are part of Premium. Free: Neer, Lachman, McMurray, SLR and Trendelenburg.', 'كل الاختبارات الخاصة ضمن النسخة المميزة. المجاني: Neer وLachman وMcMurray وSLR وTrendelenburg.');
   A.acts.exj = (el) => { EXS.j = el.dataset.j || null; EXS.tab = 'rom'; openExam(); };
   A.acts.extab = (el) => { EXS.tab = el.dataset.k; openExam(); };
   A.acts.mmtscale = () => A.modal(() => `<h2>${T('Manual muscle testing (Oxford / Kendall)', 'اختبار القوة العضلية اليدوي')}</h2><table class="tbl">` +

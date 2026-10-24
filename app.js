@@ -146,6 +146,7 @@ function applyState(noRender) {
     const it = itemOf[e.i]; if (!it) continue;
     const mode = S.layers[e.sys];
     let vis = mode !== 'off' && !S.hidden.has(e.i), alpha = 1, pick = true;
+    if (e.lk && !(A.isPremium && A.isPremium())) vis = false;   // Premium-only structures stay hidden for free users
     if (vis) {
       if (mode === 'ghost') { alpha = GH; pick = false; }
       else if (e.sys === 'organ' && /omentum|mesocolon|meso-appendix|^pleura/.test(e.grp || '') && e.i !== S.sel) { alpha = 0.32; pick = false; } // see-through peritoneal sheets
@@ -195,6 +196,7 @@ async function reveal(e) {
 A.reveal = reveal;
 async function select(i, opts = {}) {
   const e = P[i]; if (!e) return;
+  if (e.lk && !(A.isPremium && A.isPremium())) { if (A.paywall) A.paywall('This structure is part of Premium (vessels, nerves, brain, organs, ligaments and small muscles).', 'التركيب ده ضمن النسخة المميزة (الأوعية والأعصاب والمخ والأعضاء والأربطة والعضلات الصغيرة).'); return; }
   if (opts.reveal !== false) await reveal(e);
   S.sel = i; Store.touchDay();
   applyState();
@@ -260,7 +262,7 @@ const ICON = {
 };
 function renderChips() {
   const nav = $('chips'); let h = '';
-  for (const s of SYSTEMS) h += `<button class="chip c-${s}" data-act="layer" data-s="${s}" data-state="${S.layers[s]}"><span class="dot"></span>${t(s)}</button>`;
+  for (const s of SYSTEMS) h += `<button class="chip c-${s}" data-act="layer" data-s="${s}" data-state="${S.layers[s]}"><span class="dot"></span>${t(s)}${A.PAID_SYS && A.PAID_SYS.has(s) && !(A.isPremium && A.isPremium()) ? ' 🔒' : ''}</button>`;
   h += '<span class="chip sep"></span>';
   h += `<button class="chip ${S.region ? 'active' : ''}" data-act="regions">${ICON.regions}${S.region ? t(S.region) : t('regions')}</button>`;
   h += `<button class="chip ${S.explode > 0 ? 'active' : ''}" data-act="explode">${ICON.explode}${t('explode')}</button>`;
@@ -273,6 +275,8 @@ function renderChips() {
 }
 A.acts.layer = async (el) => {
   const s = el.dataset.s, order = ['on', 'ghost', 'off'];
+  if (A.PAID_SYS && A.PAID_SYS.has(s) && !(A.isPremium && A.isPremium()) && S.layers[s] === 'off') { A.paywall('Vessels, nerves, brain, organs and ligaments are part of Premium.', 'الأوعية والأعصاب والمخ والأعضاء والأربطة ضمن النسخة المميزة.'); return; }
+  if (s === 'muscle' && S.layers[s] === 'off' && !(A.isPremium && A.isPremium()) && !Store.d.mwarn) { Store.d.mwarn = 1; Store.save(); A.toast(S.lang === 'ar' ? 'العضلات الصغيرة (الوجه واليد والقدم والعمود الفقري العميقة) للمشتركين' : 'Small muscles (face, hand, foot, deep spine) are Premium', 3500); }
   S.layers[s] = order[(order.indexOf(S.layers[s]) + 1) % 3];
   if (S.layers[s] !== 'off') await ensure(s);
   applyState();

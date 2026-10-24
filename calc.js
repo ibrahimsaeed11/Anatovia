@@ -57,7 +57,7 @@ if (!window.__calcLoaded) (() => {
       return h;
     });
   }
-  A.acts.calcj = (el) => { st().j = el.dataset.id; Store.save(); open(); };
+  A.acts.calcj = (el) => { if (!A.isPremium() && el.dataset.id !== A.FREE_JOINT) return A.paywall('Only the shoulder is free in the calculator. All joints are part of Premium.', 'في الحاسبة الكتف بس مجاني. باقي المفاصل ضمن النسخة المميزة.'); st().j = el.dataset.id; Store.save(); open(); };
   A.acts.calcclear = () => { if (!confirm(T('Clear all the entered data?', 'مسح كل البيانات المدخلة؟'))) return; Store.d.calc = blank(); Store.save(); open(); };
   document.addEventListener('input', (ev) => {
     const el = ev.target; if (!el.dataset || !el.dataset.calc || !el.closest('#modalBody')) return;
@@ -170,6 +170,7 @@ if (!window.__calcLoaded) (() => {
   }
   let last = null;
   A.acts.calcpdf = async () => {
+    if (!A.isPremium()) return A.paywall('Exporting the assessment PDF is part of Premium.', 'تصدير ملف PDF للتقييم ضمن النسخة المميزة.');
     const cvs = renderPages();
     if (!cvs) return A.toast(T('Enter at least one measurement first', 'أدخل قياس واحد على الأقل الأول'));
     A.toast(T('Preparing the PDF…', 'جارِ تجهيز الملف…'), 1500);

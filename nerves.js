@@ -102,12 +102,13 @@
   function list() {
     A.modal(() => {
       let h = `<h2>🗺️ ${T('Peripheral nerve map', 'خريطة الأعصاب المحيطية')}</h2><p class="lead">${T('Pick a nerve to see what weakens and where sensation is lost if it is cut', 'اختار عصب وشوف إيه اللي يضعف ومكان فقدان الإحساس لو اتقطع')}</p>`;
-      for (const g of Object.keys(REG)) h += `<div class="mgroup">${esc(T(...REG[g]))}</div><div class="row">` + NERVES.filter((n) => n.reg === g).map((n) => `<button class="opt" data-act="nopen" data-id="${n.id}">${esc(T(n.en, n.ar))}</button>`).join('') + '</div>';
+      for (const g of Object.keys(REG)) h += `<div class="mgroup">${esc(T(...REG[g]))}</div><div class="row">` + NERVES.filter((n) => n.reg === g).map((n) => `<button class="opt" data-act="nopen" data-id="${n.id}">${!A.isPremium() && n.id !== A.FREE_NERVE ? '🔒 ' : ''}${esc(T(n.en, n.ar))}</button>`).join('') + '</div>';
       return h + `<p class="tiny">${T('Draft educational content – confirm with your supervisor / current textbooks.', 'محتوى تعليمي مبدئي — راجعه مع المشرف أو المراجع الحديثة.')}</p>`;
     });
   }
   A.acts.nopen = (el) => {
     const n = NERVES.find((x) => x.id === el.dataset.id); if (!n) return;
+    if (!A.isPremium() && n.id !== A.FREE_NERVE) return A.paywall('The full nerve map is part of Premium. Free sample: the median nerve at the wrist.', 'خريطة الأعصاب كاملة ضمن النسخة المميزة. العينة المجانية: العصب الأوسط عند الرسغ.');
     const pt = parts(n);
     A.modal(() => `<h2>⚡ ${esc(T(n.en, n.ar))}</h2><p class="lead">${esc(n.roots)} · ${T('Injury', 'سبب الإصابة')}: ${esc(T(n.siteEn, n.siteAr))}</p>` +
       `<h4>💪 ${T('If cut — muscles that weaken', 'لو اتقطع — العضلات اللي تضعف')}</h4>` +
@@ -121,6 +122,7 @@
   A.acts.nlist = list;
   A.acts.nshow = async (el) => {
     const n = NERVES.find((x) => x.id === el.dataset.id); if (!n) return;
+    if (!A.isPremium()) return A.paywall('Showing the nerve and its muscles on the 3D model is part of Premium.', 'عرض العصب وعضلاته على المجسم ضمن النسخة المميزة.');
     const pt = parts(n); A.closeModal(); S.sel = -1; A.deselect();
     const need = new Set(['nerve', pt.mus.length ? 'muscle' : null].filter(Boolean));
     for (const s of SYSTEMS) S.layers[s] = need.has(s) ? 'on' : (s === 'bone' ? 'ghost' : 'off');

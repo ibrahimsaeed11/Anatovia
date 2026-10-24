@@ -103,13 +103,15 @@ const PRICE = { 30: 75, 90: 180, 180: 300, 365: 450 };
 const DUR = { 30: 'شهر', 90: '3 شهور', 180: '6 شهور', 365: 'سنة' };
 const prov = (u) => (u.provider || '').split(',').filter(Boolean).map((p) => (p.includes('google') ? 'Google' : p.includes('password') ? 'إيميل' : p)).join(' + ') || '—';
 const isOn = (u, now) => u.premiumUntil && u.premiumUntil.toMillis() > now;
+const isTrial = (u) => u.trialUsed && !u.lastCode;
 function draw() {
   const now = Date.now();
-  const active = users.filter((u) => isOn(u, now)).length;
+  const active = users.filter((u) => isOn(u, now) && !isTrial(u)).length;
+  const trials = users.filter((u) => isOn(u, now) && isTrial(u)).length, trialsAll = users.filter((u) => u.trialUsed).length;
   const unv = users.filter((u) => u.verified === false).length;
   const used = codes.filter((c) => c.used).length;
   const money = codes.filter((c) => c.used).reduce((s, c) => s + (PRICE[c.days] || 0), 0);
-  $('stats').innerHTML = [['المستخدمون', users.length], ['مشتركون نشطون', active], ['بريد غير مؤكد', unv], ['أكواد متاحة', codes.length - used], ['أكواد مستخدمة', used], ['مبيعات تقريبية (جنيه)', money]].map(([a, b]) => `<div class="stat"><b>${b}</b>${a}</div>`).join('');
+  $('stats').innerHTML = [['المستخدمون', users.length], ['مشتركون نشطون', active], ['في التجربة الآن', trials], ['أخدوا تجربة', trialsAll], ['بريد غير مؤكد', unv], ['أكواد متاحة', codes.length - used], ['أكواد مستخدمة', used], ['مبيعات تقريبية (جنيه)', money]].map(([a, b]) => `<div class="stat"><b>${b}</b>${a}</div>`).join('');
   const em = Object.fromEntries(users.map((u) => [u.id, u.email]));
   const f = $('cf').value;
   const list = codes.filter((c) => f === 'all' || (f === 'used') === !!c.used);
@@ -122,7 +124,7 @@ function draw() {
   $('users').innerHTML = '<tr><th>الإيميل</th><th>الدخول</th><th>الاشتراك</th><th>أجهزة</th><th>آخر كود</th><th>سجّل</th><th>آخر دخول</th><th></th></tr>' + (ul.map((u) => {
     const on = isOn(u, now);
     const ver = u.verified === false ? '<span class="tag no">غير مؤكد</span>' : u.verified === true ? '<span class="tag ok">مؤكد</span>' : '';
-    return `<tr><td class="code">${esc(u.email)}</td><td>${esc(prov(u))} ${ver}</td><td><span class="tag ${on ? 'ok' : ''}">${on ? 'حتى ' + fmt(u.premiumUntil) : 'مجاني'}</span></td><td>${(u.devices || []).length}</td><td class="code">${esc(u.lastCode || '')}</td><td>${fmt(u.createdAt)}</td><td>${fmt(u.lastSeen)}</td>` +
+    return `<tr><td class="code">${esc(u.email)}</td><td>${esc(prov(u))} ${ver}</td><td><span class="tag ${on ? 'ok' : ''}">${on ? (isTrial(u) ? 'تجربة حتى ' : 'حتى ') + fmt(u.premiumUntil) : (u.trialUsed ? 'مجاني (خلّص التجربة)' : 'مجاني')}</span></td><td>${(u.devices || []).length}</td><td class="code">${esc(u.lastCode || '')}</td><td>${fmt(u.createdAt)}</td><td>${fmt(u.lastSeen)}</td>` +
       `<td><div class="row"><select class="gd" data-for="${u.id}"><option value="30">شهر</option><option value="90">3 شهور</option><option value="180">6 شهور</option><option value="365">سنة</option></select><button class="s" data-grant="${u.id}">إضافة</button><button class="s" data-reset="${u.id}">صفّر الأجهزة</button>${on ? `<button class="d s" data-revoke="${u.id}">إلغاء</button>` : ''}</div></td></tr>`;
   }).join('') || '<tr><td colspan="8" class="mut">لا يوجد</td></tr>');
 }

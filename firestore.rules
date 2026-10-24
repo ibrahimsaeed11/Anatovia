@@ -23,19 +23,49 @@ service cloud.firestore {
         && request.resource.data.premiumUntil <= base + duration.value(get(codePath).data.days, 'd') + duration.value(1, 'd');
     }
 
+    // One free 3-day trial: needs a verified e-mail, never used before, not currently premium,
+    // and a brand-new /trials/{deviceId} document created in the SAME write (one trial per device).
+    function trialOk() {
+      let dev = request.resource.data.get('trialDev', '');
+      let tpath = /databases/$(database)/documents/trials/$(dev);
+      return verified()
+        && resource.data.get('trialUsed', false) == false
+        && request.resource.data.get('trialUsed', false) == true
+        && resource.data.get('premiumUntil', request.time) <= request.time
+        && request.resource.data.premiumUntil is timestamp
+        && request.resource.data.premiumUntil <= request.time + duration.value(4, 'd')
+        && request.resource.data.trialAt == request.time
+        && dev is string && dev.size() > 5
+        && !exists(tpath) && existsAfter(tpath);
+    }
+
+    // Premium actions need a verified e-mail (Google accounts are always verified).
+    function verified() { return request.auth.token.email_verified == true; }
+
     match /users/{uid} {
       allow get: if request.auth != null && request.auth.uid == uid;
       allow get, list: if isAdmin();
 
       allow create: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'devices'])
+        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'devices', 'provider', 'verified', 'lastSeen'])
         && request.resource.data.devices.size() <= 2;
 
       allow update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'devices', 'premiumUntil', 'lastCode'])
+        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'devices', 'premiumUntil', 'lastCode', 'provider', 'verified', 'lastSeen', 'trialUsed', 'trialAt', 'trialDev'])
         && request.resource.data.devices.size() <= 2
-        && (request.resource.data.get('premiumUntil', null) == resource.data.get('premiumUntil', null) || redeemOk());
+        && (resource.data.get('trialUsed', false) == false || request.resource.data.get('trialUsed', false) == true)
+        && (request.resource.data.get('premiumUntil', null) == resource.data.get('premiumUntil', null) || (verified() && redeemOk()) || trialOk());
 
+      allow update, delete: if isAdmin();
+    }
+
+    match /trials/{dev} {
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
+      allow create: if request.auth != null && verified()
+        && request.resource.data.keys().hasOnly(['uid', 'at'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.at == request.time;
       allow update, delete: if isAdmin();
     }
 
@@ -44,7 +74,7 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isAdmin() && request.resource.data.used == false;
       allow update: if isAdmin() || (
-        request.auth != null
+        request.auth != null && verified()
         && resource.data.used == false
         && request.resource.data.used == true
         && request.resource.data.usedBy == request.auth.uid

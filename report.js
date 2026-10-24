@@ -165,6 +165,7 @@ if (!window.__reportLoaded) (() => {
   }
 
   A.acts.report = async () => {
+    if (!A.isPremium()) return A.paywall('The progress report PDF is part of Premium.', 'تقرير التقدم PDF ضمن النسخة المميزة.');
     A.toast(T('Preparing the report…', 'جارِ تجهيز التقرير…'), 1500);
     try { await build(); } catch (e) { return A.toast(T('Could not build the report', 'تعذّر إنشاء التقرير')); }
     A.modal(() => `<h2>📄 ${T('Progress report', 'تقرير التقدّم')}</h2><p class="lead">${T('Show it to your doctor or keep it for yourself.', 'اعرضه على الدكتور أو احتفظ به لنفسك.')}</p>` +

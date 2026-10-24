@@ -330,7 +330,7 @@
         <p class="tiny">${T('Educational draft – to be reviewed by a physician/physiotherapist.', 'مسودة تعليمية – تحتاج مراجعة طبيب/أخصائي علاج طبيعي.')}</p>`;
     });
   };
-  A.acts.cases = () => A.openCases();
+  A.acts.cases = () => (A.isPremium() ? A.openCases() : A.paywall('Clinical cases are part of Premium.', 'الحالات السريرية ضمن النسخة المميزة.'));
   A.acts.caseshow = async (el) => {
     const c = CASES.find((q) => q.id === el.dataset.id); A.closeModal();
     await needLayers(['nerve', 'muscle']); S.layers.bone = 'ghost';
@@ -377,6 +377,7 @@
     if (S.fnOn) b.innerHTML = Object.entries(FN).map(([k, f]) => `<button class="fn ${S.fnSel === k ? 'on' : ''}" data-act="fnpick" data-k="${k}"><i style="background:rgb(${f.c.map((v) => Math.round(v * 255)).join(',')})"></i>${esc(T(f.en, f.ar))}</button>`).join('') + `<button class="fn x" data-act="fnoff">✕</button>`;
   }
   A.acts.fn = async () => {
+    if (!A.isPremium() && !S.fnOn) return A.paywall('The brain function map is part of Premium.', 'خريطة وظائف المخ ضمن النسخة المميزة.');
     S.fnOn = !S.fnOn; S.fnSel = null; S.focus = null;
     if (S.fnOn) { S.layers.brain = 'on'; await A.ensure('brain'); Object.assign(S.layers, { bone: 'ghost', muscle: 'off', vessel: 'off', nerve: 'off', organ: 'off', ligament: 'off' }); const x = X(); x.cam.flyTo([0, 1.55, 0.08], 0.95, 0.9, 0.15); }
     recolorBrain(); fnBar(); refresh(); A.redraw();

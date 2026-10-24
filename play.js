@@ -232,7 +232,7 @@
     startTQ({ mode: 'daily', seed: today(), n: 5, src: 'all' });
   };
   const TC = { n: 20 };
-  A.acts.ptimed = () => A.modal(() => `<h2>⏱ ${T('Timed exam', 'امتحان بوقت')}</h2><p class="lead">${T('Questions from anatomy, exam and spinal tables. Unanswered questions count as wrong when time ends.', 'أسئلة من التشريح والفحص والأعصاب الشوكية. الأسئلة غير المجابة تُحتسب خطأ عند انتهاء الوقت.')}</p><div class="row">` +
+  A.acts.ptimed = () => !A.isPremium() ? A.paywall('The timed exam is part of Premium. Free: daily and friend challenges.', 'الامتحان بوقت ضمن النسخة المميزة. المجاني: تحدّي اليوم وتحدّي الصديق.') : A.modal(() => `<h2>⏱ ${T('Timed exam', 'امتحان بوقت')}</h2><p class="lead">${T('Questions from anatomy, exam and spinal tables. Unanswered questions count as wrong when time ends.', 'أسئلة من التشريح والفحص والأعصاب الشوكية. الأسئلة غير المجابة تُحتسب خطأ عند انتهاء الوقت.')}</p><div class="row">` +
     [10, 20, 40].map((n) => `<button class="opt ${TC.n === n ? 'sel' : ''}" data-act="ptn" data-n="${n}">${n} · ${Math.round(n / 2)} ${T('min', 'د')}</button>`).join('') + `</div><button class="btn primary wide" data-act="ptstart">${T('Start', 'ابدأ')}</button>`);
   A.acts.ptn = (el) => { TC.n = +el.dataset.n; A.acts.ptimed(); };
   A.acts.ptstart = () => startTQ({ mode: 'timed', seed: (Math.random() * 1e9) | 0, n: TC.n, src: 'all', limit: TC.n * 30 });

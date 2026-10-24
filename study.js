@@ -19,10 +19,14 @@
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
     const items = [['account', '👤'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
-    return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p><div class="hub">` +
+    const ac = A.acct || {}, dl = Math.max(0, Math.ceil(((ac.until || 0) - Date.now()) / 864e5));
+    const trialBar = ac.trial ? `<div class="advice">🎁 ${TT('Free trial — ' + dl + ' day(s) left', 'التجربة المجانية — باقي ' + dl + ' يوم')}</div>` : !ac.premium ? `<button type="button" class="btn wide" style="margin-bottom:10px" data-act="pwacc">🎁 ${TT('Try Premium free for 3 days', 'جرّب النسخة المميزة 3 أيام مجانًا')}</button>` : '';
+    return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p>${trialBar}<div class="hub">` +
       items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>'+ `<div class="contact-bar">${contactHtml()}</div>`;
   });
-  A.acts.hub = (el) => ({ quiz: openQuizSetup, splan: openPlan, cards: openCardsSetup, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
+  const HUB_PAID = { splan: ['Study plan is part of Premium.', 'خطة المذاكرة ضمن النسخة المميزة.'], spinal: ['Spinal nerve tables are part of Premium.', 'جداول الأعصاب الشوكية ضمن النسخة المميزة.'] };
+  A.acts.hub = (el) => { const g = HUB_PAID[el.dataset.k]; if (g && !A.isPremium()) return A.paywall(g[0], g[1]); return hubGo(el); };
+  const hubGo = (el) => ({ quiz: openQuizSetup, splan: openPlan, cards: openCardsSetup, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
 
   /* scope helpers shared by quiz + flashcards */
   const scopeRow = (cfg, act) => {
@@ -36,11 +40,13 @@
   /* ───────── QUIZ ───────── */
   const QC = { mode: 'mix', sys: 'all', reg: 'all', n: 10 };
   function openQuizSetup() {
+    if (!A.isPremium() && ['clue', 'mix', 'silent', 'ospe'].includes(QC.mode)) QC.mode = 'tap';
     A.modal(() => {
       const modes = ['tap', 'name', 'silent', 'clue', 'mix', 'ospe'], mn = mistakeIds().size;
       const pool = quizPool(QC, QC.mode === 'mix' ? 'any' : QC.mode === 'silent' || QC.mode === 'ospe' ? 'name' : QC.mode).length;
       return `<h2>${t('quizSetup')}</h2><p class="lead">${t('quizSub')}</p>` +
-        `<div class="lab">${t('mode')}</div><div class="row">` + modes.map((m) => `<button class="opt ${QC.mode === m ? 'sel' : ''}" data-act="qcfg" data-k="mode" data-v="${m}">${t('m_' + m)}</button>`).join('') + '</div>' +
+        `<div class="lab">${t('mode')}</div><div class="row">` + modes.map((m) => `<button class="opt ${QC.mode === m ? 'sel' : ''}" data-act="qcfg" data-k="mode" data-v="${m}">${t('m_' + m)}${PAID_MODES.includes(m) && !A.isPremium() ? ' 🔒' : ''}</button>`).join('') + '</div>' +
+        (A.isPremium() ? '' : `<p class="tiny">${TT('Free plan: ' + Math.max(0, A.FREE_Q - fq().n) + ' of ' + A.FREE_Q + ' questions left today.', 'الخطة المجانية: باقي ' + Math.max(0, A.FREE_Q - fq().n) + ' من ' + A.FREE_Q + ' أسئلة النهارده.')}</p>`) +
         scopeRow(QC, 'qcfg') +
         `<div class="lab">${t('length')}</div><div class="row">` + [5, 10, 20].map((n) => `<button class="opt ${QC.n === n ? 'sel' : ''}" data-act="qcfg" data-k="n" data-v="${n}">${n}</button>`).join('') + '</div>' +
         (QC.mode === 'silent' ? `<p class="tiny">${TT('The structure stays in context among its neighbours (no isolation, no labels) — identify it from its position and shape.', 'التركيب بيفضل وسط اللي حواليه (من غير عزل ولا تسميات) — اتعرف عليه من مكانه وشكله.')}</p>` : '') + (QC.mode === 'ospe' ? `<p class="tiny">${TT('Station-style exam: each structure is highlighted, you have 30 seconds to pick its name, then it moves on. No feedback until the end.', 'نظام محطات: يُضاء تركيب وعندك 30 ثانية لاختيار اسمه ثم ينتقل للتالي. لا تظهر الإجابات إلا في النهاية.')}</p>` : '') +
@@ -48,7 +54,9 @@
         `<button class="btn wide" style="margin-top:8px" data-act="qmistakes" ${mn < 3 ? 'disabled' : ''}>🔁 ${TT('Review my mistakes', 'راجع اللي غلطت فيه')} (${mn})</button>`;
     });
   }
-  A.acts.qcfg = (el) => { const k = el.dataset.k; QC[k] = k === 'n' ? +el.dataset.v : el.dataset.v; openQuizSetup(); };
+  const PAID_MODES = ['clue', 'mix', 'silent', 'ospe'];
+  const fq = () => { const d = Store.d, k = new Date().toDateString(); if (!d.fq || d.fq.d !== k) d.fq = { d: k, n: 0 }; return d.fq; };
+  A.acts.qcfg = (el) => { const k = el.dataset.k; if (k === 'mode' && PAID_MODES.includes(el.dataset.v) && !A.isPremium()) return A.paywall('This quiz mode is part of Premium. Free: tap & name quizzes.', 'وضع الاختبار ده ضمن النسخة المميزة. المجاني: اختبار «اضغط» و«اسم».');  QC[k] = k === 'n' ? +el.dataset.v : el.dataset.v; openQuizSetup(); };
   A.acts.qstart = () => { A.closeModal(); startQuiz({ ...QC }); };
 
   const clueOf = (e) => {
@@ -57,7 +65,7 @@
     return null;
   };
   function quizPool(cfg, type) {
-    return repList.filter((e) => inScope(e, cfg) && (!cfg.only || cfg.only.has(e.id)) && (type === 'tap' ? e.r >= 0.014 && e.k !== 'tendon' : type === 'clue' ? !!clueOf(e) : true));
+    return repList.filter((e) => inScope(e, cfg) && (!cfg.only || cfg.only.has(e.id)) && (!e.lk || A.isPremium()) && (type === 'tap' ? e.r >= 0.014 && e.k !== 'tendon' : type === 'clue' ? !!clueOf(e) : true));
   }
   function weight(e) { const s = Store.d.srs[e.id]; if (s) return s.b <= 1 ? 3 : 1; return Store.d.learned[e.id] ? 0.5 : 1.4; }
   function sample(pool, n) {
@@ -75,6 +83,12 @@
 
   let Q = null, prevView = null;
   function startQuiz(cfg) {
+    if (!A.isPremium()) {
+      if (PAID_MODES.includes(cfg.mode) || cfg.only) return A.paywall('This quiz option is part of Premium.', 'الخيار ده ضمن النسخة المميزة.');
+      const left = A.FREE_Q - fq().n;
+      if (left < 3) return A.paywall('You finished today\'s free quiz questions (' + A.FREE_Q + '). Come back tomorrow or go Premium for unlimited quizzes.', 'خلّصت أسئلة الكويز المجانية النهارده (' + A.FREE_Q + '). ارجع بكرة أو اشترك لكويز بلا حد.');
+      cfg = { ...cfg, n: Math.min(cfg.n, left) };
+    }
     const types = cfg.mode === 'ospe' || cfg.mode === 'silent' ? ['name'] : cfg.mode === 'mix' ? ['tap', 'name', 'clue'] : [cfg.mode];
     // build question list
     const list = []; const used = new Set();
@@ -156,6 +170,7 @@
     const q = Q.qs[Q.idx], e = q.e;
     Q.results.push({ i: e.i, id: repOf(e).id, ok, type: q.type, sys: e.sys, reg: e.reg, ms: Date.now() - q.t0, tapped });
     Q.answered = true;
+    if (!A.isPremium()) { fq().n++; Store.save(); }
     // spaced repetition feedback
     const s = Store.d.srs, id = repOf(e).id, cur = s[id];
     if (!ok) s[id] = { b: 0, d: dayNo() }; else if (cur) s[id] = { b: Math.min(6, cur.b + 1), d: dayNo() + INTERVALS[Math.min(6, cur.b + 1)] };
@@ -369,7 +384,7 @@
   let deck = null;
   function buildDeck() {
     const today = dayNo(), srs = Store.d.srs;
-    const pool = repList.filter((e) => inScope(e, CC));
+    const pool = repList.filter((e) => inScope(e, CC) && (!e.lk || A.isPremium()));
     const due = pool.filter((e) => srs[e.id] && srs[e.id].d <= today);
     const fresh = shuffle(pool.filter((e) => !srs[e.id])).slice(0, 10);
     return { due, fresh };

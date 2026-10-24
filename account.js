@@ -23,6 +23,14 @@
   try { cache = JSON.parse(ls.get(LS) || 'null'); } catch (e) { cache = null; }
   A.acct = { premium: false, email: null, until: 0, limited: false };
   A.isPremium = () => !!A.acct.premium;
+  /* ── free / paid split ── */
+  const MUS_PAID = /^(Frontalis|Occipitalis|Corrugator|Orbicularis|Procerus|Nasalis|Depressor|Levator labii|Levator anguli|Zygomaticus|Risorius|Buccinator|Mentalis|Platysma|Temporoparietalis|Epicranial|Lateral pterygoid|Medial pterygoid|Digastric|Mylohyoid|Geniohyoid|Stylohyoid|Sternohyoid|Sternothyroid|Thyrohyoid|Omohyoid|Rotators|Interspinales|Intertransversarii|Multifidus|Semispinalis|Levatores costarum|Obliquus capitis|Rectus capitis|Longus capitis|Longus colli|Spinalis|Serratus posterior|Coccygeus|Iliococcygeus|Pubococcygeus|Puborectalis|External anal|Tendinous arch|Pyramidalis|Linea alba|Intermediate tendon|Abductor pollicis brevis|Opponens|Flexor pollicis brevis|Adductor pollicis|Palmaris brevis|Lumbricals|Dorsal interossei|Palmar interossei|Plantar interossei|Abductor digiti|Flexor digiti|Abductor hallucis|Adductor hallucis|Flexor hallucis brevis|Flexor digitorum brevis|Extensor digitorum brevis|Extensor hallucis brevis|Flexor accessorius)/;
+  A.PAID_SYS = new Set(['vessel', 'nerve', 'brain', 'organ', 'ligament']);
+  A.FREE_TESTS = new Set(['Neer impingement', 'Lachman', 'McMurray', 'Straight leg raise (Lasègue)', 'Trendelenburg']);
+  A.FREE_NERVE = 'median_wrist'; A.FREE_JOINT = 'shoulder'; A.FREE_Q = 10;
+  A.lockOf = (e) => (e.sys === 'bone' ? false : e.sys === 'muscle' ? MUS_PAID.test(e.baseEn) : true);
+  try { (A.P || []).forEach((e) => { e.lk = A.lockOf(e); }); } catch (e) { /* ignore */ }
+  A.locked = (e) => !!(e && e.lk && !A.isPremium());
 
   const devId = () => { let d = ls.get(DEV); if (!d) { d = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); ls.set(DEV, d); } return d; };
   const fmtDate = (ms) => new Date(ms).toLocaleDateString(ar() ? 'ar-EG' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -30,20 +38,23 @@
 
   /* ───────── derive premium state ───────── */
   function apply() {
-    let until = 0, email = null, limited = false;
+    let until = 0, email = null, limited = false, tu = false, tl = false;
     if (st.authKnown && st.user && st.data) {
-      email = st.user.email; until = untilOf(st.data);
+      email = st.user.email; until = untilOf(st.data); tu = !!st.data.trialUsed; tl = tu && !st.data.lastCode;
       const devs = st.data.devices || [];
       limited = until > Date.now() && !devs.some((d) => d.id === devId()) && devs.length >= MAXDEV;
     } else if (st.authKnown && st.user && !st.data && cache && cache.email === st.user.email) {
-      email = cache.email; until = cache.until || 0; limited = !!cache.limited; // fetch failed — keep last known state
+      email = cache.email; until = cache.until || 0; limited = !!cache.limited; tu = !!cache.tu; tl = !!cache.tl; // fetch failed — keep last known state
     } else if (!st.authKnown && cache) {
-      email = cache.email; until = cache.until || 0; limited = !!cache.limited; // offline / SDK not loaded
+      email = cache.email; until = cache.until || 0; limited = !!cache.limited; tu = !!cache.tu; tl = !!cache.tl; // offline / SDK not loaded
     }
     const unverified = !!(st.authKnown && st.user && st.user.emailVerified === false);
-    A.acct = { email, until, limited, premium: until > Date.now() && !limited && !unverified, unverified };
-    if (st.authKnown && (st.data || !st.user)) { cache = st.user ? { email, until, limited } : null; ls.set(LS, JSON.stringify(cache)); }
+    const prem = until > Date.now() && !limited && !unverified;
+    A.acct = { email, until, limited, premium: prem, unverified, trialUsed: tu, trial: prem && tl };
+    if (st.authKnown && (st.data || !st.user)) { cache = st.user ? { email, until, limited, tu, tl } : null; ls.set(LS, JSON.stringify(cache)); }
     refresh();
+    try { if (A.apply) A.apply(); } catch (e) { /* scene not ready yet */ }
+    try { if (A.acct.trial && A.acct.until - Date.now() < 864e5 && ls.get('anatovia_tw') !== new Date().toDateString()) { ls.set('anatovia_tw', new Date().toDateString()); setTimeout(() => A.toast && A.toast(T('⏳ Your free trial ends within a day', '⏳ التجربة المجانية هتخلص خلال يوم')), 2500); } } catch (e) { /* ignore */ }
   }
   const refresh = () => { if (A.modalFn === render) A.modal(render); };
 
@@ -121,6 +132,32 @@
     if (!email) return say(T('Type your e-mail first.', 'اكتب بريدك أولاً.'));
     try { await auth.sendPasswordResetEmail(email.trim()); say(T('Reset link sent to your e-mail.', 'تم إرسال رابط إعادة التعيين إلى بريدك.'), true); } catch (e) { say(errText(e)); }
   }
+  /* ───────── 3-day free trial (once per account and once per device) ───────── */
+  async function startTrial() {
+    if (!st.user || A.acct.unverified) return say(T('Sign in and verify your e-mail first.', 'سجّل دخولك وأكّد بريدك الأول.'));
+    st.busy = true; st.msg = '';
+    const uref = db.collection('users').doc(st.user.uid), tref = db.collection('trials').doc(devId());
+    try {
+      await db.runTransaction(async (tx) => {
+        const [t0, u] = await Promise.all([tx.get(tref), tx.get(uref)]);
+        if (t0.exists) throw new Error('dev');
+        const d = u.exists ? u.data() : {};
+        if (d.trialUsed) throw new Error('used');
+        if (untilOf(d) > Date.now()) throw new Error('active');
+        tx.set(tref, { uid: st.user.uid, at: firebase.firestore.FieldValue.serverTimestamp() });
+        tx.update(uref, { premiumUntil: firebase.firestore.Timestamp.fromMillis(Date.now() + 3 * 864e5), trialUsed: true, trialAt: firebase.firestore.FieldValue.serverTimestamp(), trialDev: devId() });
+      });
+      await loadUser(); st.busy = false; apply();
+      if (A.modalFn !== render) A.closeModal();
+      A.toast(T('🎁 Free trial started — 3 days of Premium', '🎁 بدأت التجربة المجانية — 3 أيام مميزة'), 3500);
+      say(T('Free trial started 🎉', 'بدأت التجربة المجانية 🎉'), true);
+    } catch (e) {
+      st.busy = false; const m = e && e.message;
+      say(m === 'dev' ? T('A free trial was already used on this device.', 'التجربة المجانية اتاخدت قبل كده على الجهاز ده.') : m === 'used' ? T('You already used your free trial.', 'انت استخدمت التجربة المجانية قبل كده.') : m === 'active' ? T('You already have an active subscription.', 'عندك اشتراك شغال بالفعل.') : T('Could not start the trial. Check your connection.', 'تعذّر بدء التجربة. اتأكد من الإنترنت.'));
+      if (A.modalFn !== render) A.toast(st.msg, 3500);
+    }
+  }
+  A.startTrial = startTrial;
   const normCode = (raw) => {
     const a = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const b = a.length === 12 && a.startsWith('ANAT') ? a.slice(4) : a;
@@ -173,6 +210,7 @@
     else if (k === 'in') doAuth('in'); else if (k === 'up') doAuth('up');
     else if (k === 'google') google(); else if (k === 'reset') reset();
     else if (k === 'resend') resend(); else if (k === 'verified') checkVerified();
+    else if (k === 'trial') startTrial();
     else if (k === 'redeem') redeem(); else if (k === 'out') out(); else if (k === 'retry') { sdkP = null; ensure(); }
   };
   document.addEventListener('keydown', (ev) => {
@@ -222,13 +260,14 @@
         `<button class="btn primary wide" data-act="acc" data-k="verified" ${st.busy ? 'disabled' : ''}>${T("I've verified my e-mail", 'أكدت بريدي')}</button>` +
         `<div class="row" style="margin-top:10px"><button class="btn" data-act="acc" data-k="resend" ${st.busy ? 'disabled' : ''}>${T('Resend the link', 'ابعت الرابط تاني')}</button><button class="btn danger" data-act="acc" data-k="out">${T('Sign out', 'تسجيل الخروج')}</button></div>${msgBox()}`;
     }
-    const badge = A_.premium ? `<span class="acc-badge ok">⭐ ${T('Premium until ', 'مشترك حتى ')}${fmtDate(A_.until)}</span>` : `<span class="acc-badge">${T('Free plan', 'الخطة المجانية')}</span>`;
+    const badge = A_.premium ? `<span class="acc-badge ok">${A_.trial ? '🎁 ' + T('Free trial until ', 'تجربة مجانية حتى ') : '⭐ ' + T('Premium until ', 'مشترك حتى ')}${fmtDate(A_.until)}</span>` : `<span class="acc-badge">${T('Free plan', 'الخطة المجانية')}</span>`;
     const lim = A_.limited ? `<div class="acc-msg bad">${T('This premium account is already active on 2 other devices. Contact us to change a device.', 'هذا الاشتراك مفعّل بالفعل على جهازين آخرين. تواصل معنا لتغيير أحد الأجهزة.')}</div>` : '';
     const pl = PLANS.find((p) => p.m === st.plan) || PLANS[1];
     const buy = ar()
       ? `السلام عليكم، عايز أشترك في Anatovia.\nالباقة: ${pl.ar}\nالسعر: ${pl.egp} جنيه\nإيميلي على التطبيق: ${A_.email || ''}`
       : `Hello, I'd like to subscribe to Anatovia.\nPlan: ${pl.en}\nPrice: ${pl.egp} EGP\nMy e-mail in the app: ${A_.email || ''}`;
-    return head + `<div class="acc-card"><b dir="ltr">${esc(A_.email || '')}</b>${badge}</div>${lim}` +
+    const trialCard = (!A_.premium && !A_.trialUsed && !A_.limited) ? `<div class="advice" style="margin:10px 0">🎁 <b>${T('Try Premium free for 3 days', 'جرّب النسخة المميزة 3 أيام مجانًا')}</b><div class="tiny">${T('One time per account — no payment needed.', 'مرة واحدة لكل حساب — من غير دفع.')}</div><button class="btn primary wide" style="margin-top:8px" data-act="acc" data-k="trial" ${st.busy ? 'disabled' : ''}>${T('Start my free trial', 'ابدأ تجربتي المجانية')}</button></div>` : '';
+    return head + `<div class="acc-card"><b dir="ltr">${esc(A_.email || '')}</b>${badge}</div>${lim}${msgBox()}` + trialCard +
       plansHtml(true) + `<div class="row contact-row" style="margin-top:8px"><a class="btn contact wa" href="${waLink(buy)}" target="_blank" rel="noopener">💬 ${T('Subscribe on WhatsApp — ', 'اشترك على واتساب — ')}${T(pl.en, pl.ar)} · ${num(pl.egp)} ${T('EGP', 'جنيه')}</a></div>` +
       `<div class="lab">${T('Already have a code?', 'عندك كود؟')}</div><div class="acc-form"><input id="accCode" dir="ltr" autocapitalize="characters" autocomplete="off" placeholder="ANAT-XXXX-XXXX"><button class="btn primary wide" data-primary data-act="acc" data-k="redeem" ${st.busy ? 'disabled' : ''}>${T('Activate', 'تفعيل')}</button></div>${msgBox()}` +
       `<div class="row" style="margin-top:14px"><button class="btn danger" data-act="acc" data-k="out">${T('Sign out', 'تسجيل الخروج')}</button></div>`;
@@ -236,6 +275,23 @@
   const t = (k) => A.t(k);
 
   function open() { st.msg = ''; A.modal(render); ensure(); }
+  A.openAccount = open;
+  /* paywall shown when a free user taps a Premium feature */
+  A.paywall = (en, a) => {
+    ensure();
+    A.modal(() => {
+      const u = A.acct, signed = !!(st.user || u.email);
+      let cta;
+      if (u.premium) cta = '';
+      else if (!signed) cta = `<button class="btn primary wide" data-act="pwacc" data-m="up">🎁 ${T('Create a free account & start the 3-day trial', 'اعمل حساب مجاني وابدأ تجربة 3 أيام')}</button><button class="btn wide" style="margin-top:8px" data-act="pwacc" data-m="in">${T('I already have an account', 'عندي حساب بالفعل')}</button>`;
+      else if (u.unverified) cta = `<button class="btn primary wide" data-act="pwacc">✉️ ${T('Verify your e-mail to start the trial', 'أكّد بريدك علشان تبدأ التجربة')}</button>`;
+      else if (!u.trialUsed && !u.limited) cta = `<button class="btn primary wide" data-act="acc" data-k="trial">🎁 ${T('Start my free trial — 3 days', 'ابدأ تجربتي المجانية — 3 أيام')}</button>`;
+      else cta = `<button class="btn primary wide" data-act="pwacc">⭐ ${T('See plans & subscribe', 'شوف الباقات واشترك')}</button>`;
+      return `<h2>🔒 ${T('Premium feature', 'ميزة للمشتركين')}</h2><p class="lead">${esc(T(en || 'This feature is part of Premium.', a || 'الميزة دي ضمن النسخة المميزة.'))}</p>` + cta +
+        `<p class="tiny" style="margin-top:10px">${T('Free: all bones, main muscles, 3D, daily & friend challenges, 5 special tests, 10 quiz questions a day.', 'المجاني: كل العظام والعضلات الأساسية و3D والتحديات و5 اختبارات خاصة و10 أسئلة كويز في اليوم.')}</p>`;
+    });
+  };
+  A.acts.pwacc = (el) => { if (el && el.dataset && el.dataset.m) st.mode = el.dataset.m; open(); };
 
   apply(); // restore cached premium state immediately (works offline)
   if (CFG && cache && navigator.onLine) setTimeout(ensure, 1500); // previously signed in → refresh in background
