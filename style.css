@@ -270,3 +270,5 @@ button.plan{cursor:pointer}
 .calc-r input,.calc-r select{width:100%;padding:8px 4px;text-align:center;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:inherit;font:inherit}.calc-h{font-size:12px;opacity:.7;font-weight:700}.calc-m{grid-template-columns:1fr 84px}
 .calc-pc{text-align:center;font-weight:700}.calc-pc.good{color:#3dbb73}.calc-pc.warn{color:#e5a000}.calc-pc.bad{color:#ef5a66}
 textarea{border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:inherit;font:inherit;padding:10px}
+#updBar{position:fixed;bottom:calc(64px + env(safe-area-inset-bottom));white-space:nowrap;left:50%;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:4px;background:#4457e8;color:#fff;border-radius:999px;padding:4px 6px;box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 24px)}
+#updBar button{background:none;border:0;color:#fff;font:inherit;font-size:14px;font-weight:700;padding:8px 12px;cursor:pointer}#updBar .upd-x{opacity:.75;padding:8px 10px}

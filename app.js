@@ -432,7 +432,29 @@ async function boot() {
   Store.touchDay();
   setTimeout(() => $('hint').classList.add('off'), 6000);
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); A.deferredPrompt = e; });
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    let want = false;
+    navigator.serviceWorker.register('sw.js').then((reg) => {
+      const bar = () => {
+        if (!navigator.serviceWorker.controller || document.getElementById('updBar')) return;   // first install → nothing to update
+        const ar = S.lang === 'ar', b = document.createElement('div'); b.id = 'updBar'; b.setAttribute('role', 'status');
+        b.innerHTML = `<button type="button" class="upd-go">🔄 ${ar ? 'في تحديث جديد — اضغط للتحديث' : 'New update — tap to refresh'}</button><button type="button" class="upd-x" aria-label="close">✕</button>`;
+        b.querySelector('.upd-go').onclick = () => {
+          want = true; const w = reg.waiting;
+          if (w) w.postMessage({ type: 'SKIP_WAITING' }); else location.reload();
+          setTimeout(() => location.reload(), 4000);                                        // safety net
+        };
+        b.querySelector('.upd-x').onclick = () => b.remove();
+        document.body.appendChild(b);
+      };
+      if (reg.waiting) bar();
+      reg.addEventListener('updatefound', () => { const w = reg.installing; if (w) w.addEventListener('statechange', () => { if (w.state === 'installed') bar(); }); });
+      const chk = () => { try { reg.update().catch(() => {}); } catch (e) { /* ignore */ } };
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) chk(); });
+      setInterval(chk, 30 * 60 * 1000);
+      navigator.serviceWorker.addEventListener('controllerchange', () => { if (want) location.reload(); });
+    }).catch(() => {});
+  }
   window.__anat = { A, S, P, cam, R, itemOf, study: A.quizApi };
   window.__ready = true;
 }

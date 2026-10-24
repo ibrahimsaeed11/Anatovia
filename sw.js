@@ -1,11 +1,12 @@
 /* Service worker: caches the whole app on first visit so it works offline. */
-const VERSION = 'anatovia-v31';
+const VERSION = 'anatovia-v32';
 const FILES = ['./', 'index.html', 'style.css', 'i18n.js', 'catalog.js', 'gl.js', 'packs.js', 'store.js', 'app.js', 'study.js', 'features.js', 'clinic-data.js', 'clinic.js', 'spinal-data.js', 'play.js', 'firebase-config.js', 'account.js', 'tour.js', 'tests.js', 'nerves.js', 'calc.js', 'share.js', 'report.js', 'landmarks.js', 'models/bones.js', 'manifest.webmanifest', 'icons/favicon.svg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)));   // no skipWaiting: the page shows an "update available" bar and activates us on tap
 });
+self.addEventListener('message', (e) => { if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting(); });
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
