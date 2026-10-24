@@ -109,7 +109,15 @@ async function loadBoard() {
   try {
     const wk = $('bwk').value, q = await db.collection('weeks').doc(wk).collection('scores').orderBy('pts', 'desc').limit(20).get();
     const em = Object.fromEntries(users.map((u) => [u.id, u.email]));
-    $('btable').innerHTML = '<tr><th>#</th><th>الاسم المستعار</th><th>الإيميل</th><th>نقاط</th><th>إجابات</th><th></th></tr>' + (q.docs.map((d, i) => { const r = d.data(); return `<tr><td>${['🥇', '🥈', '🥉'][i] || i + 1}</td><td>${esc(r.name)}</td><td class="code">${esc(em[r.uid] || r.uid)}</td><td>${r.pts}</td><td>${r.c}/${r.q}</td><td><button class="s d" data-bdel="${esc(wk + '/' + d.id)}">حذف</button></td></tr>`; }).join('') || '<tr><td colspan="6">مفيش بيانات</td></tr>');
+    let gifts = {}; try { (await db.collection('gifts').get()).docs.forEach((g) => { gifts[g.id] = true; }); } catch (e) { /* rules not published yet */ }
+    const prize = (n) => ($('p' + n).value || '').trim();
+    $('btable').innerHTML = '<tr><th>#</th><th>الاسم المستعار</th><th>الإيميل</th><th>نقاط</th><th>إجابات</th><th>تواصل</th><th>الهدية</th><th></th></tr>' + (q.docs.map((d, i) => {
+      const r = d.data(), rk = i + 1, mail = em[r.uid] || '', top = rk <= 3, done = !!gifts[wk + '_' + d.id];
+      const body = `السلام عليكم يا ${r.name}،\nمبروك! جبت المركز ${rk} في متصدري Anatovia (أسبوع ${wk}). 🏅\n` + (prize(rk) ? `هديتك: ${prize(rk)}\n` : '') + 'كلمني على واتساب 01022424105 علشان تستلمها.\nAnatovia';
+      const mailto = mail ? `<a href="mailto:${esc(mail)}?subject=${encodeURIComponent('مبروك! المركز ' + rk + ' في متصدري Anatovia')}&body=${encodeURIComponent(body)}" class="s" style="text-decoration:none;display:inline-block;padding:4px 9px;border:1px solid var(--line);border-radius:10px;color:inherit">✉️ راسله</a>` : '—';
+      const gift = top ? `<button class="s ${done ? 'p' : ''}" data-gift="${esc(wk + '|' + d.id + '|' + rk + '|' + (r.name || ''))}" data-done="${done ? 1 : 0}">${done ? '✅ تم التسليم' : 'تم التسليم؟'}</button>` : '';
+      return `<tr><td>${['🥇', '🥈', '🥉'][i] || rk}</td><td>${esc(r.name)}</td><td class="code">${esc(mail || r.uid)}</td><td>${r.pts}</td><td>${r.c}/${r.q}</td><td>${top ? mailto : ''}</td><td>${gift}</td><td><button class="s d" data-bdel="${esc(wk + '/' + d.id)}">حذف</button></td></tr>`;
+    }).join('') || '<tr><td colspan="8">مفيش بيانات</td></tr>');
     const cs = await db.collection('config').doc('board').get(), c = cs.exists ? cs.data() : { p1: 'خصم 20% على أي باقة', e1: '20% off any plan' };
     ['p1', 'e1', 'p2', 'e2', 'p3', 'e3'].forEach((k) => { if (document.activeElement !== $(k)) $(k).value = c[k] || ''; });
     $('bopen').checked = c.open === true;
@@ -117,7 +125,10 @@ async function loadBoard() {
 }
 $('bload').onclick = loadBoard; $('bwk').onchange = loadBoard;
 $('psave').onclick = async () => { const o = {}; ['p1', 'e1', 'p2', 'e2', 'p3', 'e3'].forEach((k) => { o[k] = $(k).value.trim(); }); o.open = $('bopen').checked; try { await db.collection('config').doc('board').set(o); say(o.open ? 'تم الحفظ — المتصدرون مفتوحون للطلاب ✅' : 'تم الحفظ — المتصدرون مقفولون (قريبًا)', 'ok'); } catch (e) { say('فشل الحفظ: ' + (e.code || e.message), 'bad'); } };
-document.addEventListener('click', async (ev) => { const b = ev.target.closest('[data-bdel]'); if (!b) return; if (!confirm('حذف هذا الاسم من المتصدرين؟')) return; const [wk, id] = b.dataset.bdel.split('/'); try { await db.collection('weeks').doc(wk).collection('scores').doc(id).delete(); loadBoard(); } catch (e) { say('فشل الحذف: ' + (e.code || e.message), 'bad'); } });
+document.addEventListener('click', async (ev) => {
+  const g = ev.target.closest('[data-gift]');
+  if (g) { const [wk, uid, rk, name] = g.dataset.gift.split('|'), id = wk + '_' + uid; try { if (g.dataset.done === '1') { if (!confirm('إلغاء علامة التسليم؟')) return; await db.collection('gifts').doc(id).delete(); } else await db.collection('gifts').doc(id).set({ wk, uid, rank: +rk, name, at: FV.serverTimestamp() }); loadBoard(); } catch (e) { say('فشل: ' + (e.code || e.message) + ' — انشر القواعد الجديدة.', 'bad'); } return; }
+  const b = ev.target.closest('[data-bdel]'); if (!b) return; if (!confirm('حذف هذا الاسم من المتصدرين؟')) return; const [wk, id] = b.dataset.bdel.split('/'); try { await db.collection('weeks').doc(wk).collection('scores').doc(id).delete(); loadBoard(); } catch (e) { say('فشل الحذف: ' + (e.code || e.message), 'bad'); } });
 
 async function load() {
   say('جارِ التحميل…');

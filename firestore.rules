@@ -85,6 +85,11 @@ service cloud.firestore {
       allow update: if isAdmin();
     }
 
+    // Gift delivery marks (admin only)
+    match /gifts/{id} {
+      allow read, write: if isAdmin();
+    }
+
     match /config/{doc} {
       allow get: if true;
       allow write: if isAdmin();
