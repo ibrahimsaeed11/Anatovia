@@ -71,12 +71,14 @@ service cloud.firestore {
         && d.q is int && d.q >= d.c && d.q <= 5000
         && d.t == request.time;
     }
+    // Leaderboard launch switch: config/board.open must be true (set from the admin page).
+    function boardOpen() { return get(/databases/$(database)/documents/config/board).data.get('open', false) == true; }
     match /weeks/{wk}/scores/{uid} {
       allow get, list: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == uid && verified()
-        && wk.matches('^[0-9]{8}$') && scoreShape() && request.resource.data.pts <= 40;
+        && boardOpen() && wk.matches('^[0-9]{8}$') && scoreShape() && request.resource.data.pts <= 40;
       allow update: if request.auth != null && request.auth.uid == uid && verified()
-        && scoreShape()
+        && boardOpen() && scoreShape()
         && request.resource.data.pts >= resource.data.pts
         && request.resource.data.pts - resource.data.pts <= ((request.time.toMillis() - resource.data.t.toMillis()) / 3000) + 15;
       allow delete: if (request.auth != null && request.auth.uid == uid) || isAdmin();
@@ -84,7 +86,7 @@ service cloud.firestore {
     }
 
     match /config/{doc} {
-      allow get: if request.auth != null;
+      allow get: if true;
       allow write: if isAdmin();
     }
 

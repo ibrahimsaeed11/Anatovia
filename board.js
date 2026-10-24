@@ -35,6 +35,7 @@ if (!window.__boardLoaded) (() => {
     pushing = true;
     try {
       const g = await A.getDb(); if (!g || !g.user || !g.verified) return;
+      if ((await config(g.db)).open !== true) return;   // leaderboard not launched yet
       const ref = scoresRef(g.db, wkId()).doc(g.uid), FV = firebase.firestore.FieldValue, s = await ref.get();
       b.last = Date.now();
       if (s.exists) {
@@ -65,6 +66,7 @@ if (!window.__boardLoaded) (() => {
   };
   async function checkMedals() {
     const b = B(), g = await A.getDb(); if (!g || !g.user || !g.verified) return;
+    if ((await config(g.db)).open !== true) return;
     let any = false;
     for (let off = 1; off <= 4; off++) {
       const id = wkId(off); if (b.meds[id] !== undefined) continue;
@@ -88,11 +90,13 @@ if (!window.__boardLoaded) (() => {
   setTimeout(() => { try { checkMedals(); } catch (e) { /* ignore */ } }, 5000);
 
   /* ───────── UI ───────── */
-  const BS = { tab: 0, rows: null, me: null, busy: false, err: '', cfg: null, uid: null };
+  const BS = { tab: 0, rows: null, me: null, busy: false, err: '', cfg: null, uid: null, open: undefined };
   function render() {
     const b = B(), a = A.acct || {};
     let h = `<h2>🏅 ${T('Weekly leaderboard', 'متصدرو الأسبوع')}</h2>`;
     if (!window.FIREBASE_CONFIG) return h + `<p class="lead">${T('Not available yet.', 'مش متاح لسه.')}</p>`;
+    if (BS.open === undefined) return h + `<p class="lead">${BS.err ? esc(BS.err) : T('Loading…', 'جارِ التحميل…')}</p>`;
+    if (BS.open === false) return h + `<div class="advice" style="text-align:center;font-size:17px">🏅 ${T('Coming soon!', 'قريبًا!')}</div><p class="lead">${T('The weekly leaderboard opens soon — top students win medals and gifts. Keep studying!', 'متصدرو الأسبوع هيفتحوا قريب — أعلى الطلاب بياخدوا ميداليات وهدايا. كمّل مذاكرة!')}</p>`;
     if (!a.email) return h + `<p class="lead">${T('Sign in (free) to join the weekly leaderboard.', 'سجّل دخولك (مجانًا) علشان تشترك في متصدري الأسبوع.')}</p><button class="btn primary wide" data-act="pwacc">👤 ${T('Sign in / create a free account', 'سجّل دخول / حساب مجاني')}</button>`;
     if (a.unverified) return h + `<p class="lead">${T('Verify your e-mail first, then come back.', 'أكّد بريدك الأول وبعدين ارجع.')}</p><button class="btn primary wide" data-act="pwacc">✉️ ${T('Verify e-mail', 'تأكيد البريد')}</button>`;
     h += A.medalsHtml();
@@ -122,7 +126,14 @@ if (!window.__boardLoaded) (() => {
     } catch (e) { BS.err = T('Could not load — check your connection.', 'تعذّر التحميل — اتأكد من الإنترنت.'); }
     BS.busy = false; redraw();
   }
-  const open = () => { BS.err = ''; A.modal(render); if (B().on) load(); else A.getDb(); };
+  const open = async () => {
+    BS.err = ''; BS.open = undefined; A.modal(render);
+    try {
+      const g = await A.getDb(); if (!g || !g.db) throw new Error('net');
+      BS.cfg = await config(g.db); BS.open = BS.cfg.open === true;
+    } catch (e) { BS.err = T('Could not load — check your connection.', 'تعذّر التحميل — اتأكد من الإنترنت.'); redraw(); return; }
+    redraw(); if (BS.open && B().on) load();
+  };
   A.acts.board = open;
   A.hubExtra = A.hubExtra || {}; A.hubExtra.board = open;
   A.acts.bdtab = (el) => { BS.tab = +el.dataset.k; BS.rows = null; load(); };
