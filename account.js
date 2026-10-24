@@ -276,6 +276,14 @@
 
   function open() { st.msg = ''; A.modal(render); ensure(); }
   A.openAccount = open;
+  /* Firestore handle for other modules (leaderboard): waits for the SDK + the auth state */
+  A.getDb = async () => {
+    if (!CFG) return null;
+    try { await ensure(); } catch (e) { return null; }
+    for (let i = 0; i < 30 && !st.authKnown; i++) await new Promise((r) => setTimeout(r, 150));
+    if (!st.ready) return null;
+    return { db, user: st.user || null, uid: st.user ? st.user.uid : null, verified: !A.acct.unverified, email: st.user ? st.user.email : '' };
+  };
   /* paywall shown when a free user taps a Premium feature */
   A.paywall = (en, a) => {
     ensure();

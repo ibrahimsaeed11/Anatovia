@@ -59,6 +59,19 @@ textarea{width:100%;min-height:110px;background:#0b102e;color:var(--ink);border:
   </div>
 
   <div class="card">
+    <h2>🏅 المتصدرون الأسبوعيون</h2>
+    <div class="row" style="margin-bottom:8px"><select id="bwk"></select><button id="bload">تحديث</button></div>
+    <div class="tw"><table id="btable"></table></div>
+    <h3 style="margin:14px 0 6px;font-size:15px">الهدايا (تتغير من هنا في أي وقت)</h3>
+    <div class="row" style="flex-direction:column;align-items:stretch;gap:6px">
+      <input id="p1" placeholder="هدية المركز الأول (عربي)"><input id="e1" dir="ltr" placeholder="1st gift (English)">
+      <input id="p2" placeholder="هدية المركز الثاني (اختياري)"><input id="e2" dir="ltr" placeholder="2nd gift (optional)">
+      <input id="p3" placeholder="هدية المركز الثالث (اختياري)"><input id="e3" dir="ltr" placeholder="3rd gift (optional)">
+      <button id="psave" class="p">حفظ الهدايا</button>
+    </div>
+  </div>
+
+  <div class="card">
     <h2>المستخدمون</h2>
     <div class="row" style="margin-bottom:8px"><input id="uq" placeholder="ابحث بالإيميل…" style="flex:1;min-width:160px;direction:ltr"><select id="uf"><option value="all">الكل</option><option value="prem">مشتركون</option><option value="free">مجانيون</option><option value="unv">بريد غير مؤكد</option></select></div>
     <div class="tw"><table id="users"></table></div>
@@ -89,13 +102,28 @@ auth.onAuthStateChanged((u) => {
   say(''); $('login').hidden = true; $('app').hidden = false; $('who').textContent = u.email; load();
 });
 
+const wkStart = (off) => { const x = new Date(); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 1) % 7) - 7 * off); return x.getFullYear() * 10000 + (x.getMonth() + 1) * 100 + x.getDate(); };
+$('bwk').innerHTML = [0, 1, 2, 3].map((o) => `<option value="${wkStart(o)}">${o === 0 ? 'هذا الأسبوع' : o === 1 ? 'الأسبوع الماضي' : 'قبلها بـ ' + (o - 1) + ' أسبوع'} (${wkStart(o)})</option>`).join('');
+async function loadBoard() {
+  try {
+    const wk = $('bwk').value, q = await db.collection('weeks').doc(wk).collection('scores').orderBy('pts', 'desc').limit(20).get();
+    const em = Object.fromEntries(users.map((u) => [u.id, u.email]));
+    $('btable').innerHTML = '<tr><th>#</th><th>الاسم المستعار</th><th>الإيميل</th><th>نقاط</th><th>إجابات</th><th></th></tr>' + (q.docs.map((d, i) => { const r = d.data(); return `<tr><td>${['🥇', '🥈', '🥉'][i] || i + 1}</td><td>${esc(r.name)}</td><td class="code">${esc(em[r.uid] || r.uid)}</td><td>${r.pts}</td><td>${r.c}/${r.q}</td><td><button class="s d" data-bdel="${esc(wk + '/' + d.id)}">حذف</button></td></tr>`; }).join('') || '<tr><td colspan="6">مفيش بيانات</td></tr>');
+    const cs = await db.collection('config').doc('board').get(), c = cs.exists ? cs.data() : { p1: 'خصم 20% على أي باقة', e1: '20% off any plan' };
+    ['p1', 'e1', 'p2', 'e2', 'p3', 'e3'].forEach((k) => { if (document.activeElement !== $(k)) $(k).value = c[k] || ''; });
+  } catch (e) { say('خطأ في المتصدرين: ' + (e.code || e.message) + ' — تأكد من نشر القواعد الجديدة.', 'bad'); }
+}
+$('bload').onclick = loadBoard; $('bwk').onchange = loadBoard;
+$('psave').onclick = async () => { const o = {}; ['p1', 'e1', 'p2', 'e2', 'p3', 'e3'].forEach((k) => { o[k] = $(k).value.trim(); }); try { await db.collection('config').doc('board').set(o); say('تم حفظ الهدايا', 'ok'); } catch (e) { say('فشل الحفظ: ' + (e.code || e.message), 'bad'); } };
+document.addEventListener('click', async (ev) => { const b = ev.target.closest('[data-bdel]'); if (!b) return; if (!confirm('حذف هذا الاسم من المتصدرين؟')) return; const [wk, id] = b.dataset.bdel.split('/'); try { await db.collection('weeks').doc(wk).collection('scores').doc(id).delete(); loadBoard(); } catch (e) { say('فشل الحذف: ' + (e.code || e.message), 'bad'); } });
+
 async function load() {
   say('جارِ التحميل…');
   try {
     const [us, cs] = await Promise.all([db.collection('users').get(), db.collection('codes').orderBy('createdAt', 'desc').limit(500).get()]);
     users = us.docs.map((d) => ({ id: d.id, ...d.data() }));
     codes = cs.docs.map((d) => ({ id: d.id, ...d.data() }));
-    draw(); say('');
+    draw(); say(''); loadBoard();
   } catch (e) { say('خطأ في القراءة: ' + (e.code || e.message) + ' — تأكد أنك نشرت قواعد Firestore.', 'bad'); }
 }
 

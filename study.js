@@ -18,7 +18,7 @@
   const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201022424105?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/_ibrahimoffice" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'شاهد أعمالي' : 'See my work'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['account', '👤'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
+    const items = [['account', '👤'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['board', '🏅'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
     const ac = A.acct || {}, dl = Math.max(0, Math.ceil(((ac.until || 0) - Date.now()) / 864e5));
     const trialBar = ac.trial ? `<div class="advice">🎁 ${TT('Free trial — ' + dl + ' day(s) left', 'التجربة المجانية — باقي ' + dl + ' يوم')}</div>` : !ac.premium ? `<button type="button" class="btn wide" style="margin-bottom:10px" data-act="pwacc">🎁 ${TT('Try Premium free for 3 days', 'جرّب النسخة المميزة 3 أيام مجانًا')}</button>` : '';
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p>${trialBar}<div class="hub">` +
@@ -293,6 +293,8 @@
     nmapSub: { en: 'If a nerve is cut: weak muscles + sensory loss', ar: 'لو العصب اتقطع: العضلات الضعيفة ومنطقة فقدان الإحساس' },
     calc: { en: 'ROM & MMT calculator', ar: 'حاسبة ROM و MMT' },
     calcSub: { en: 'Record a patient\'s measurements and export a PDF', ar: 'سجّل قياسات مريض واطلع ملف PDF' },
+    board: { en: 'Weekly leaderboard', ar: 'متصدرو الأسبوع' },
+    boardSub: { en: 'Top 10 students · weekly medals', ar: 'أعلى 10 طلاب · ميداليات أسبوعية' },
     m_ospe: { en: 'Practical exam (OSPE) – 30 s per station', ar: 'امتحان عملي (OSPE) – 30 ثانية لكل محطة' },
   });
   const ymd = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -517,6 +519,7 @@
   if (window.__anat) window.__anat.study = A.quizApi;
   /* tour.js is injected from here so a stale index.html can never leave the Study button dead */
   Object.assign(STR, { tour: { en: 'How to use', ar: 'شرح الاستخدام' }, tourSub: { en: 'A quick tour of the app', ar: 'جولة سريعة تعرّفك على التطبيق' } });
+  if (!window.__boardLoaded) { const sc7 = document.createElement('script'); sc7.src = 'board.js'; document.body.appendChild(sc7); }
   if (!window.__calcLoaded) { const sc6 = document.createElement('script'); sc6.src = 'calc.js'; document.body.appendChild(sc6); }
   if (!window.__nervesLoaded) { const sc5 = document.createElement('script'); sc5.src = 'nerves.js'; document.body.appendChild(sc5); }
   if (!window.__testsLoaded) { const sc4 = document.createElement('script'); sc4.src = 'tests.js'; document.body.appendChild(sc4); }

@@ -318,7 +318,7 @@
       const mx = Math.max(10, ...days.map((x) => x.n)), tot = days.reduce((a, x) => a + x.n, 0), cor = days.reduce((a, x) => a + x.c, 0), t = totals();
       let h = `<h2>🏆 ${T('Achievements & week', 'الإنجازات والأسبوع')}</h2><div class="stat3"><div><b>🔥 ${Store.streak()}</b><small>${T('day streak', 'يوم متتالٍ')}</small></div><div><b>${tot}</b><small>${T('answers this week', 'إجابة هذا الأسبوع')}${tot ? ' · ' + pct(cor, tot) + '%' : ''}</small></div><div><b>${t.n}</b><small>${T('answers in total', 'إجابة إجمالاً')}</small></div></div>` +
         `<h4>${T('Last 7 days', 'آخر 7 أيام')}</h4><div class="week">` + days.map((x) => `<div><i style="height:${Math.max(3, (x.n / mx) * 100)}%;background:var(--${!x.n ? 'line' : pct(x.c, x.n) >= 70 ? 'good' : pct(x.c, x.n) >= 50 ? 'gold' : 'bad'})" title="${x.n}"></i><small>${x.n || ''}</small><span>${x.dt.toLocaleDateString(ar() ? 'ar-EG' : 'en', { weekday: 'short' })}</span></div>`).join('') + '</div>' +
-        `<h4>${T('Badges', 'الشارات')} (${(d.earned || []).length}/${BADGES.length})</h4><div class="badges">` +
+        (A.medalsHtml ? A.medalsHtml() : '') + `<h4>${T('Badges', 'الشارات')} (${(d.earned || []).length}/${BADGES.length})</h4><div class="badges">` +
         BADGES.map((b) => { const got = (d.earned || []).includes(b.id); return `<div class="badge ${got ? 'got' : ''}"><span>${b.i}</span><b>${esc(txt(b.n))}</b><small>${esc(txt(b.d))}</small></div>`; }).join('') + '</div>';
       return h;
     });
