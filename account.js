@@ -233,7 +233,7 @@
       `<small>${p.m > 1 ? T('≈ ' + per + ' EGP / month', 'حوالي ' + num(per) + ' جنيه في الشهر') : T('Flexible, cancel any time', 'مرن، من غير التزام')}</small>` +
       (p.save ? `<em>${T('Save ' + p.save + ' EGP', 'وفّر ' + num(p.save) + ' جنيه')}</em>` : '') + `</${pick ? 'button' : 'div'}>`;
   }).join('') + `</div><p class="tiny plan-note">${T('Pay once, no auto-renewal. You receive an activation code on WhatsApp after payment.', 'الدفع مرة واحدة من غير تجديد تلقائي. بتوصلك كود التفعيل على واتساب بعد الدفع.')}</p>`;
-  const waLink = (text) => `https://wa.me/201022424105?text=${encodeURIComponent(text)}`;
+  const waLink = (text) => `https://wa.me/201050761015?text=${encodeURIComponent(text)}`;
   const msgBox = () => (st.msg ? `<div class="acc-msg ${st.ok ? 'ok' : 'bad'}">${esc(st.msg)}</div>` : '');
   function render() {
     const head = `<h2>${t('account')}</h2>`;

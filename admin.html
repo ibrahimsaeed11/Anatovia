@@ -113,7 +113,7 @@ async function loadBoard() {
     const prize = (n) => ($('p' + n).value || '').trim();
     $('btable').innerHTML = '<tr><th>#</th><th>الاسم المستعار</th><th>الإيميل</th><th>نقاط</th><th>إجابات</th><th>تواصل</th><th>الهدية</th><th></th></tr>' + (q.docs.map((d, i) => {
       const r = d.data(), rk = i + 1, mail = em[r.uid] || '', top = rk <= 3, done = !!gifts[wk + '_' + d.id];
-      const body = `السلام عليكم يا ${r.name}،\nمبروك! جبت المركز ${rk} في متصدري Anatovia (أسبوع ${wk}). 🏅\n` + (prize(rk) ? `هديتك: ${prize(rk)}\n` : '') + 'كلمني على واتساب 01022424105 علشان تستلمها.\nAnatovia';
+      const body = `السلام عليكم يا ${r.name}،\nمبروك! جبت المركز ${rk} في متصدري Anatovia (أسبوع ${wk}). 🏅\n` + (prize(rk) ? `هديتك: ${prize(rk)}\n` : '') + 'كلمني على واتساب 01050761015 علشان تستلمها.\nAnatovia';
       const mailto = mail ? `<a href="mailto:${esc(mail)}?subject=${encodeURIComponent('مبروك! المركز ' + rk + ' في متصدري Anatovia')}&body=${encodeURIComponent(body)}" class="s" style="text-decoration:none;display:inline-block;padding:4px 9px;border:1px solid var(--line);border-radius:10px;color:inherit">✉️ راسله</a>` : '—';
       const gift = top ? `<button class="s ${done ? 'p' : ''}" data-gift="${esc(wk + '|' + d.id + '|' + rk + '|' + (r.name || ''))}" data-done="${done ? 1 : 0}">${done ? '✅ تم التسليم' : 'تم التسليم؟'}</button>` : '';
       return `<tr><td>${['🥇', '🥈', '🥉'][i] || rk}</td><td>${esc(r.name)}</td><td class="code">${esc(mail || r.uid)}</td><td>${r.pts}</td><td>${r.c}/${r.q}</td><td>${top ? mailto : ''}</td><td>${gift}</td><td><button class="s d" data-bdel="${esc(wk + '/' + d.id)}">حذف</button></td></tr>`;

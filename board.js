@@ -6,7 +6,7 @@ if (!window.__boardLoaded) (() => {
   const { S, esc } = A;
   const ar = () => S.lang === 'ar';
   const T = (en, a) => (ar() ? a : en);
-  const CAP = 40, WA = 'https://wa.me/201022424105?text=';
+  const CAP = 40, WA = 'https://wa.me/201050761015?text=';
   const ymd = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   const weekStart = () => { const x = new Date(); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 1) % 7)); return x; };   // Saturday
   const wkId = (off = 0) => { const s = weekStart(); s.setDate(s.getDate() - 7 * off); return String(ymd(s)); };
