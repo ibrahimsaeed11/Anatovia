@@ -62,7 +62,7 @@ textarea{width:100%;min-height:110px;background:#0b102e;color:var(--ink);border:
     <h2>🏅 المتصدرون الأسبوعيون</h2>
     <div class="row" style="margin-bottom:8px"><select id="bwk"></select><button id="bload">تحديث</button></div>
     <div class="tw"><table id="btable"></table></div>
-    <label class="row" style="margin:12px 0 4px;gap:8px"><input type="checkbox" id="bopen" style="width:20px;height:20px"> <b>فتح المتصدرين للطلاب</b> <span class="mut">(مقفول = «قريبًا» ومحدش يقدر ينضم)</span></label>
+    <label class="row" style="margin:12px 0 4px;gap:8px"><input type="checkbox" id="bopen" style="width:20px;height:20px"> <b>فتح المتصدرين للطلاب</b> <span class="mut">(بيتحفظ فورًا بمجرد ما تعلّم أو تشيل العلامة)</span></label>
     <h3 style="margin:14px 0 6px;font-size:15px">الهدايا (تتغير من هنا في أي وقت)</h3>
     <div class="row" style="flex-direction:column;align-items:stretch;gap:6px">
       <input id="p1" placeholder="هدية المركز الأول (عربي)"><input id="e1" dir="ltr" placeholder="1st gift (English)">
@@ -123,6 +123,7 @@ async function loadBoard() {
     $('bopen').checked = c.open === true;
   } catch (e) { say('خطأ في المتصدرين: ' + (e.code || e.message) + ' — تأكد من نشر القواعد الجديدة.', 'bad'); }
 }
+$('bopen').onchange = async () => { const on = $('bopen').checked; try { await db.collection('config').doc('board').set({ open: on }, { merge: true }); say(on ? 'المتصدرون مفتوحون للطلاب ✅' : 'المتصدرون مقفولون (قريبًا)', 'ok'); } catch (e) { $('bopen').checked = !on; say('فشل الحفظ: ' + (e.code || e.message), 'bad'); } };
 $('bload').onclick = loadBoard; $('bwk').onchange = loadBoard;
 $('psave').onclick = async () => { const o = {}; ['p1', 'e1', 'p2', 'e2', 'p3', 'e3'].forEach((k) => { o[k] = $(k).value.trim(); }); o.open = $('bopen').checked; try { await db.collection('config').doc('board').set(o); say(o.open ? 'تم الحفظ — المتصدرون مفتوحون للطلاب ✅' : 'تم الحفظ — المتصدرون مقفولون (قريبًا)', 'ok'); } catch (e) { say('فشل الحفظ: ' + (e.code || e.message), 'bad'); } };
 document.addEventListener('click', async (ev) => {
