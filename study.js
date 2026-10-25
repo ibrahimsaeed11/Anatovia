@@ -521,6 +521,7 @@
   if (window.__anat) window.__anat.study = A.quizApi;
   /* tour.js is injected from here so a stale index.html can never leave the Study button dead */
   Object.assign(STR, { tour: { en: 'How to use', ar: 'شرح الاستخدام' }, tourSub: { en: 'A quick tour of the app', ar: 'جولة سريعة تعرّفك على التطبيق' } });
+  if (!window.__voxLoaded) { const sc9 = document.createElement('script'); sc9.src = 'voice.js'; document.body.appendChild(sc9); }
   if (!window.__duelLoaded) { const sc8 = document.createElement('script'); sc8.src = 'duel.js'; document.body.appendChild(sc8); }
   if (!window.__boardLoaded) { const sc7 = document.createElement('script'); sc7.src = 'board.js'; document.body.appendChild(sc7); }
   if (!window.__calcLoaded) { const sc6 = document.createElement('script'); sc6.src = 'calc.js'; document.body.appendChild(sc6); }
