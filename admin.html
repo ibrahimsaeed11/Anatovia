@@ -161,7 +161,7 @@ const wkDateOf = (wk) => new Date(+wk.slice(0, 4), +wk.slice(4, 6) - 1, +wk.slic
 async function loadFac() {
   try {
     const wk = $('fwk').value, q = await db.collection('weeks').doc(wk).collection('scores').get(), g = {};
-    q.docs.forEach((d) => { const r = d.data(); if (!r.uni || !r.fac || r.uni === 'other') return; (g[r.uni + '|' + r.fac] = g[r.uni + '|' + r.fac] || []).push({ id: d.id, name: r.name, pts: r.pts }); });
+    q.docs.forEach((d) => { const r = d.data(); if (!r.uni || !r.fac || r.uni === 'other' || r.fac === 'other') return; (g[r.uni + '|' + r.fac] = g[r.uni + '|' + r.fac] || []).push({ id: d.id, name: r.name, pts: r.pts }); });
     const rows = Object.keys(g).map((k) => { const [u, f] = k.split('|'), act = g[k].filter((x) => x.pts >= F_ACT).sort((a, b) => b.pts - a.pts); return { k, u, f, s: act.slice(0, F_TOP).reduce((t, x) => t + x.pts, 0), n: act.length, all: g[k].length, m: act }; });
     FR = { wk, rows }; drawFac();
     const cs = await db.collection('config').doc('board').get(), c = cs.exists ? cs.data() : {};

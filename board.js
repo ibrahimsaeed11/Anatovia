@@ -91,7 +91,7 @@ if (!window.__boardLoaded) (() => {
      in a finished week, and I was a real contributor (>= 50 pts that week, faculty chosen BEFORE that week), offer the gift claim on WhatsApp */
   const wkDate = (id) => new Date(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6));
   async function checkFacWin() {
-    const a = A.acct || {}; if (!a.uni || !a.fac || a.uni === 'other') return;
+    const a = A.acct || {}; if (!a.uni || !a.fac || a.uni === 'other' || a.fac === 'other') return;
     const g = await A.getDb(); if (!g || !g.user || !g.verified) return;
     const cfg = await config(g.db); if (cfg.open !== true) return;
     const b = B(); b.fw = b.fw || {};
@@ -143,7 +143,7 @@ if (!window.__boardLoaded) (() => {
     let h = '';
     const pf = (ar() ? c.pf1 : c.ef1) || c.pf1 || ''; if (pf) h += `<div class="advice">🎁 ${T('Winning faculty gift', 'هدية الكلية الفايزة')}: <b>${esc(pf)}</b></div>`;
     if (!a.uni || !a.fac) h += `<div class="advice">${T('Choose your university and faculty to take part.', 'اختار جامعتك وكليتك علشان تشترك.')}</div><button class="btn primary wide" style="margin:8px 0" data-act="bdfac">🎓 ${T('Choose now', 'اختار دلوقتي')}</button>`;
-    else if (a.uni === 'other') h += `<p class="tiny">${T('Your faculty is not part of the competition.', 'كليتك مش داخلة في المنافسة.')}</p>`;
+    else if (a.uni === 'other' || a.fac === 'other') h += `<p class="tiny">${T('Your faculty is not part of the competition.', 'كليتك مش داخلة في المنافسة.')}</p>`;
     else h += `<p class="tiny">${T('Your faculty', 'كليتك')}: <b>${esc(A.facLabel(a.uni, a.fac))}</b></p>`;
     if (BS.busy) return h + `<p class="lead">${T('Loading…', 'جارِ التحميل…')}</p>`;
     if (BS.err) return h + `<div class="acc-msg bad">${esc(BS.err)}</div>`;
