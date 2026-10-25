@@ -36,16 +36,16 @@ if (!window.__boardLoaded) (() => {
     try {
       const g = await A.getDb(); if (!g || !g.user || !g.verified) return;
       if ((await config(g.db)).open !== true) return;   // leaderboard not launched yet
-      const ref = scoresRef(g.db, wkId()).doc(g.uid), FV = firebase.firestore.FieldValue, s = await ref.get();
+      const ref = scoresRef(g.db, wkId()).doc(g.uid), FV = firebase.firestore.FieldValue, s = await ref.get(), fx = A.acct && A.acct.uni && A.acct.fac ? { uni: A.acct.uni, fac: A.acct.fac } : {};
       b.last = Date.now();
       if (s.exists) {
         const d = s.data(), lt = d.t && d.t.toMillis ? d.t.toMillis() : Date.now(), allow = Math.floor((Date.now() - lt) / 3000) + 5;
         const send = Math.max(d.pts, Math.min(w.pts, d.pts + allow));
-        await ref.update({ name: b.name, pts: send, c: Math.max(d.c || 0, Math.min(w.c, (d.c || 0) + allow)), q: Math.max(d.q || 0, Math.min(w.q, (d.q || 0) + allow)), t: FV.serverTimestamp() });
+        await ref.update(Object.assign({ name: b.name, pts: send, c: Math.max(d.c || 0, Math.min(w.c, (d.c || 0) + allow)), q: Math.max(d.q || 0, Math.min(w.q, (d.q || 0) + allow)), t: FV.serverTimestamp() }, fx));
         b.sent = send === w.pts ? w.pts : -1;
       } else {
         const send = Math.min(w.pts, 40);
-        await ref.set({ uid: g.uid, name: b.name, pts: send, c: Math.min(w.c, send), q: Math.min(Math.max(w.q, w.c), send), t: FV.serverTimestamp() });
+        await ref.set(Object.assign({ uid: g.uid, name: b.name, pts: send, c: Math.min(w.c, send), q: Math.min(Math.max(w.q, w.c), send), t: FV.serverTimestamp() }, fx));
         b.sent = send === w.pts ? w.pts : -1;
       }
       Store.save();
@@ -87,10 +87,32 @@ if (!window.__boardLoaded) (() => {
       (prize ? `<div class="advice">🎁 ${esc(prize)}</div><a class="btn primary wide" style="margin-top:10px" target="_blank" rel="noopener" href="${WA + encodeURIComponent(wa)}">💬 ${T('Claim my gift on WhatsApp', 'استلم هديتك على واتساب')}</a>` : '') +
       `<button class="btn wide" style="margin-top:8px" data-act="board">🏅 ${T('Open the leaderboard', 'افتح المتصدرين')}</button>`);
   }
-  setTimeout(() => { try { checkMedals(); } catch (e) { /* ignore */ } }, 5000);
+  /* faculty competition: the admin publishes config/facrank (rows of {u,f,s,n}); if MY university+faculty finished #1 among its faculty type
+     in a finished week, and I was a real contributor (>= 50 pts that week, faculty chosen BEFORE that week), offer the gift claim on WhatsApp */
+  const wkDate = (id) => new Date(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6));
+  async function checkFacWin() {
+    const a = A.acct || {}; if (!a.uni || !a.fac || a.uni === 'other') return;
+    const g = await A.getDb(); if (!g || !g.user || !g.verified) return;
+    const cfg = await config(g.db); if (cfg.open !== true) return;
+    const b = B(); b.fw = b.fw || {};
+    const d = (await g.db.collection('config').doc('facrank').get()).data(); if (!d || !d.wk || !d.rows || String(d.wk) >= wkId() || b.fw[d.wk] !== undefined) return;
+    const top = d.rows.filter((r) => r.f === a.fac).sort((x, y) => y.s - x.s)[0];
+    if (!top || top.u !== a.uni) { b.fw[d.wk] = 0; return Store.save(); }
+    const me = await scoresRef(g.db, String(d.wk)).doc(g.uid).get(), mp = me.exists ? me.data().pts : 0;
+    if (mp < 50 || !a.facAt || a.facAt >= wkDate(String(d.wk)).getTime()) { b.fw[d.wk] = 0; return Store.save(); }
+    b.fw[d.wk] = 1; Store.save();
+    const prize = (ar() ? cfg.pf1 : cfg.ef1) || cfg.pf1 || '', lab = A.facLabel(a.uni, a.fac);
+    const wa = T(`Hello, my faculty won the Anatovia faculty competition (week of ${wkLabel(String(d.wk))}): ${lab}. Nickname: ${b.name}. E-mail: ${g.email}. ${prize ? 'I would like to claim: ' + prize : ''}`,
+      `السلام عليكم، كليتنا كسبت منافسة الكليات في Anatovia (أسبوع ${wkLabel(String(d.wk))}): ${lab}. الاسم المستعار: ${b.name}. إيميلي: ${g.email}. ${prize ? 'عايز أستلم الهدية: ' + prize : ''}`);
+    A.modal(() => `<h2>🏆 ${T('Your faculty won!', 'كليتك كسبت!')}</h2><p class="lead">${esc(lab)}</p>` +
+      (prize ? `<div class="advice">🎁 ${esc(prize)}</div>` : '') +
+      `<p class="tiny">${T('Send us a photo of your student ID with your message so we can confirm.', 'ابعتلنا صورة كارنيه الكلية مع الرسالة علشان نتأكد.')}</p>` +
+      `<a class="btn primary wide" style="margin-top:10px" target="_blank" rel="noopener" href="${WA + encodeURIComponent(wa)}">💬 ${T('Claim on WhatsApp', 'استلم على واتساب')}</a>`);
+  }
+  setTimeout(() => { try { checkMedals().then(() => checkFacWin()).catch(() => {}); } catch (e) { /* ignore */ } }, 5000);
 
   /* ───────── UI ───────── */
-  const BS = { tab: 0, rows: null, me: null, busy: false, err: '', cfg: null, uid: null, open: undefined };
+  const BS = { tab: 0, rows: null, me: null, busy: false, err: '', cfg: null, uid: null, open: undefined, war: undefined, ff: '' };
   function render() {
     const b = B(), a = A.acct || {};
     let h = `<h2>🏅 ${T('Weekly leaderboard', 'متصدرو الأسبوع')}</h2>`;
@@ -103,8 +125,10 @@ if (!window.__boardLoaded) (() => {
     if (!b.on) return h + `<p class="lead">${T('Top 10 students this week win medals 🥇🥈🥉. Points = correct answers (max 40 a day). Choose a nickname — your real name and e-mail stay private.', 'أعلى 10 طلاب في الأسبوع، والأوائل بياخدوا ميداليات 🥇🥈🥉. النقاط = إجابات صح (حد أقصى 40 في اليوم). اختار اسم مستعار — اسمك الحقيقي وإيميلك مش بيظهروا.')}</p>` +
       `<div class="acc-form"><input id="bdName" maxlength="20" placeholder="${T('Nickname (2–20 characters)', 'الاسم المستعار (2–20 حرف)')}" value="${esc(b.name || '')}"><button class="btn primary wide" data-act="bdjoin">${T('Join the leaderboard', 'انضم للمتصدرين')}</button></div>${BS.err ? `<div class="acc-msg bad">${esc(BS.err)}</div>` : ''}`;
     const w = weekPts();
-    h += `<div class="row"><button class="opt ${BS.tab === 0 ? 'sel' : ''}" data-act="bdtab" data-k="0">${T('This week', 'الأسبوع ده')}</button><button class="opt ${BS.tab === 1 ? 'sel' : ''}" data-act="bdtab" data-k="1">${T('Last week', 'الأسبوع اللي فات')}</button></div>`;
-    const c = BS.cfg || DEF, pr = prizeOf(c, 1); if (pr) h += `<div class="advice">🎁 ${T('Champion gift', 'هدية البطل')}: <b>${esc(pr)}</b></div>`;
+    h += `<div class="row"><button class="opt ${BS.tab === 0 ? 'sel' : ''}" data-act="bdtab" data-k="0">${T('This week', 'الأسبوع ده')}</button><button class="opt ${BS.tab === 1 ? 'sel' : ''}" data-act="bdtab" data-k="1">${T('Last week', 'الأسبوع اللي فات')}</button><button class="opt ${BS.tab === 2 ? 'sel' : ''}" data-act="bdtab" data-k="2">🎓 ${T('Faculties', 'الكليات')}</button></div>`;
+    const c = BS.cfg || DEF, pr = prizeOf(c, 1);
+    if (BS.tab === 2) return h + warHtml();
+    if (pr) h += `<div class="advice">🎁 ${T('Champion gift', 'هدية البطل')}: <b>${esc(pr)}</b></div>`;
     h += `<p class="tiny">${T('Week of ', 'أسبوع ')}${wkLabel(wkId(BS.tab))} · ${T('You', 'أنت')}: <b>${esc(b.name)}</b> · ${T('your points this week', 'نقاطك الأسبوع ده')}: <b>${w.pts}</b></p>`;
     if (BS.busy) h += `<p class="lead">${T('Loading…', 'جارِ التحميل…')}</p>`;
     else if (BS.err) h += `<div class="acc-msg bad">${esc(BS.err)}</div>`;
@@ -112,6 +136,25 @@ if (!window.__boardLoaded) (() => {
     else h += '<div class="bd">' + BS.rows.map((r, i) => `<div class="bdr ${r.uid === BS.uid ? 'me' : ''}"><span class="bdk">${MED[i + 1] || i + 1}</span><span class="bdn">${esc(r.name)}</span><b>${r.pts}</b></div>`).join('') + '</div>';
     h += `<div class="row" style="margin-top:10px"><button class="btn" data-act="bdrefresh">🔄 ${T('Refresh', 'تحديث')}</button><button class="btn" data-act="bdleave">${T('Leave', 'خروج من المتصدرين')}</button></div>`;
     return h + `<p class="tiny">${T('Points: correct answers, max 40 a day. The week starts on Saturday and resets automatically.', 'النقاط: إجابات صح، بحد أقصى 40 في اليوم. الأسبوع بيبدأ السبت وبيتصفّر لوحده.')}</p>`;
+  }
+  function warHtml() {
+    const a = A.acct || {}, c = BS.cfg || {};
+    if (!window.__facLoaded) return `<p class="lead">${T('Loading…', 'جارِ التحميل…')}</p>`;
+    let h = '';
+    const pf = (ar() ? c.pf1 : c.ef1) || c.pf1 || ''; if (pf) h += `<div class="advice">🎁 ${T('Winning faculty gift', 'هدية الكلية الفايزة')}: <b>${esc(pf)}</b></div>`;
+    if (!a.uni || !a.fac) h += `<div class="advice">${T('Choose your university and faculty to take part.', 'اختار جامعتك وكليتك علشان تشترك.')}</div><button class="btn primary wide" style="margin:8px 0" data-act="bdfac">🎓 ${T('Choose now', 'اختار دلوقتي')}</button>`;
+    else if (a.uni === 'other') h += `<p class="tiny">${T('Your faculty is not part of the competition.', 'كليتك مش داخلة في المنافسة.')}</p>`;
+    else h += `<p class="tiny">${T('Your faculty', 'كليتك')}: <b>${esc(A.facLabel(a.uni, a.fac))}</b></p>`;
+    if (BS.busy) return h + `<p class="lead">${T('Loading…', 'جارِ التحميل…')}</p>`;
+    if (BS.err) return h + `<div class="acc-msg bad">${esc(BS.err)}</div>`;
+    const d = BS.war;
+    if (!d || !d.rows || !d.rows.length) return h + `<p class="lead">${T('The first faculty ranking has not been published yet.', 'أول ترتيب للكليات لسه ما اتنشرش.')}</p><p class="tiny">${T('A faculty ranks by the points of its top 10 active students (10+ points in the week), and needs at least 5 active students.', 'ترتيب الكلية = مجموع نقاط أعلى 10 طلاب نشيطين (10 نقاط فأكتر في الأسبوع)، ولازم يكون فيها 5 طلاب نشيطين على الأقل.')}</p>`;
+    const types = [...new Set(d.rows.map((r) => r.f))], ff = BS.ff && types.includes(BS.ff) ? BS.ff : '';
+    h += `<div class="row" style="flex-wrap:wrap"><button class="opt ${ff ? '' : 'sel'}" data-act="bdff" data-k="">${T('All', 'الكل')}</button>` + types.map((f) => `<button class="opt ${ff === f ? 'sel' : ''}" data-act="bdff" data-k="${esc(f)}">${esc(A.facName(f))}</button>`).join('') + '</div>';
+    const list = d.rows.filter((r) => !ff || r.f === ff).sort((x, y) => y.s - x.s).slice(0, 20);
+    h += `<p class="tiny">${T('Week of ', 'أسبوع ')}${wkLabel(String(d.wk))}</p><div class="bd">` + list.map((r, i) => `<div class="bdr ${r.u === a.uni && r.f === a.fac ? 'me' : ''}"><span class="bdk">${MED[i + 1] || i + 1}</span><span class="bdn">${esc(ff ? A.uniName(r.u) : A.facLabel(r.u, r.f))}<small style="display:block;color:var(--muted)">${r.n} ${T('active students', 'طالب نشيط')}</small></span><b>${r.s}</b></div>`).join('') + '</div>' +
+      `<p class="tiny">${T('Ranking = points of the top 10 active students (10+ points); at least 5 active students needed. Updated by the team, not live.', 'الترتيب = نقاط أعلى 10 طلاب نشيطين (10 نقاط فأكتر)، ولازم 5 نشيطين على الأقل. بيتحدّث من إدارة التطبيق، مش لحظي.')}</p>`;
+    return h;
   }
   const redraw = () => { if (A.modalFn === render) A.modal(render); };
   async function load() {
@@ -121,13 +164,14 @@ if (!window.__boardLoaded) (() => {
       const g = await A.getDb(); if (!g || !g.user) throw new Error('auth');
       BS.uid = g.uid; if (BS.tab === 0) await push(true);
       BS.cfg = await config(g.db);
-      const q = await scoresRef(g.db, wkId(BS.tab)).orderBy('pts', 'desc').limit(10).get();
-      BS.rows = q.docs.map((d) => d.data()).filter((r) => r.pts > 0);
+      if (BS.tab === 2) { const fs = await g.db.collection('config').doc('facrank').get(); BS.war = fs.exists ? fs.data() : null; }
+      else { const q = await scoresRef(g.db, wkId(BS.tab)).orderBy('pts', 'desc').limit(10).get(); BS.rows = q.docs.map((d) => d.data()).filter((r) => r.pts > 0); }
     } catch (e) { BS.err = T('Could not load — check your connection.', 'تعذّر التحميل — اتأكد من الإنترنت.'); }
     BS.busy = false; redraw();
   }
   const open = async () => {
     BS.err = ''; BS.open = undefined; A.modal(render);
+    if (!window.__facLoaded) { const sc = document.createElement('script'); sc.src = 'faculty.js'; sc.onload = redraw; document.body.appendChild(sc); }
     try {
       const g = await A.getDb(); if (!g || !g.db) throw new Error('net');
       BS.cfg = await config(g.db); BS.open = BS.cfg.open === true;
@@ -137,6 +181,8 @@ if (!window.__boardLoaded) (() => {
   A.acts.board = open;
   A.hubExtra = A.hubExtra || {}; A.hubExtra.board = open;
   A.acts.bdtab = (el) => { BS.tab = +el.dataset.k; BS.rows = null; load(); };
+  A.acts.bdff = (el) => { BS.ff = el.dataset.k || ''; redraw(); };
+  A.acts.bdfac = () => { if (A.facPrompt) A.facPrompt(); };
   A.acts.bdrefresh = () => load();
   A.acts.bdjoin = () => {
     const el = document.getElementById('bdName'), v = (el && el.value || '').trim().replace(/\s+/g, ' ');

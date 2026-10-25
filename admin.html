@@ -73,6 +73,17 @@ textarea{width:100%;min-height:110px;background:#0b102e;color:var(--ink);border:
   </div>
 
   <div class="card">
+    <h2>🎓 حرب الكليات</h2>
+    <p class="mut">الترتيب = مجموع نقاط أعلى 10 طلاب نشيطين (10 نقاط فأكثر في الأسبوع)، ولازم 5 نشيطين على الأقل. الأرقام بتتحسب هنا وبعدين تنشرها للطلاب بالزرار.</p>
+    <div class="row" style="margin-bottom:8px"><select id="fwk"></select><button id="fload">احسب الترتيب</button><button id="fpub" class="p">نشر الترتيب للطلاب</button></div>
+    <div class="tw"><table id="ftable"></table></div>
+    <div id="fmem" style="margin-top:10px"></div>
+    <h3 style="margin:14px 0 6px;font-size:15px">هدية الكلية الفايزة</h3>
+    <div class="row" style="flex-direction:column;align-items:stretch;gap:6px"><input id="pf1" placeholder="هدية الكلية الأولى (عربي)"><input id="ef1" dir="ltr" placeholder="Winning faculty gift (English)"><button id="pfsave" class="p">حفظ هدية الكليات</button></div>
+  </div>
+
+  <div id="fedit"></div>
+  <div class="card">
     <h2>المستخدمون</h2>
     <div class="row" style="margin-bottom:8px"><input id="uq" placeholder="ابحث بالإيميل…" style="flex:1;min-width:160px;direction:ltr"><select id="uf"><option value="all">الكل</option><option value="prem">مشتركون</option><option value="free">مجانيون</option><option value="unv">بريد غير مؤكد</option></select></div>
     <div class="tw"><table id="users"></table></div>
@@ -80,6 +91,7 @@ textarea{width:100%;min-height:110px;background:#0b102e;color:var(--ink);border:
 </div>
 
 <script src="firebase-config.js"></script>
+<script src="faculty.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -137,9 +149,67 @@ async function load() {
     const [us, cs] = await Promise.all([db.collection('users').get(), db.collection('codes').orderBy('createdAt', 'desc').limit(500).get()]);
     users = us.docs.map((d) => ({ id: d.id, ...d.data() }));
     codes = cs.docs.map((d) => ({ id: d.id, ...d.data() }));
-    draw(); say(''); loadBoard();
+    draw(); say(''); loadBoard(); loadFac();
   } catch (e) { say('خطأ في القراءة: ' + (e.code || e.message) + ' — تأكد أنك نشرت قواعد Firestore.', 'bad'); }
 }
+
+/* ───────── حرب الكليات ───────── */
+const UN = window.ANAT_UNIS, FC = window.ANAT_FACS, F_ACT = 10, F_TOP = 10, F_MIN = 5, F_ELIG = 50;
+$('fwk').innerHTML = $('bwk').innerHTML;
+let FR = null;
+const wkDateOf = (wk) => new Date(+wk.slice(0, 4), +wk.slice(4, 6) - 1, +wk.slice(6));
+async function loadFac() {
+  try {
+    const wk = $('fwk').value, q = await db.collection('weeks').doc(wk).collection('scores').get(), g = {};
+    q.docs.forEach((d) => { const r = d.data(); if (!r.uni || !r.fac || r.uni === 'other') return; (g[r.uni + '|' + r.fac] = g[r.uni + '|' + r.fac] || []).push({ id: d.id, name: r.name, pts: r.pts }); });
+    const rows = Object.keys(g).map((k) => { const [u, f] = k.split('|'), act = g[k].filter((x) => x.pts >= F_ACT).sort((a, b) => b.pts - a.pts); return { k, u, f, s: act.slice(0, F_TOP).reduce((t, x) => t + x.pts, 0), n: act.length, all: g[k].length, m: act }; });
+    FR = { wk, rows }; drawFac();
+    const cs = await db.collection('config').doc('board').get(), c = cs.exists ? cs.data() : {};
+    if (document.activeElement !== $('pf1')) $('pf1').value = c.pf1 || ''; if (document.activeElement !== $('ef1')) $('ef1').value = c.ef1 || '';
+  } catch (e) { say('خطأ في الكليات: ' + (e.code || e.message), 'bad'); }
+}
+function drawFac() {
+  if (!FR) return; const types = [...new Set(FR.rows.map((r) => r.f))];
+  let h = '<tr><th>#</th><th>الجامعة</th><th>نقاط (أعلى 10)</th><th>نشيطون</th><th>الحالة</th><th></th></tr>';
+  if (!FR.rows.length) h += '<tr><td colspan="6" class="mut">مفيش بيانات للكليات في الأسبوع ده (الطلاب لازم يختاروا جامعتهم وكليتهم الأول)</td></tr>';
+  types.forEach((f) => {
+    h += `<tr><th colspan="6" style="text-align:right">${esc(FC[f] ? FC[f].ar : f)}</th></tr>`;
+    const list = FR.rows.filter((r) => r.f === f).sort((a, b) => b.s - a.s); let rk = 0;
+    list.forEach((r) => { const ok = r.n >= F_MIN; if (ok) rk++; h += `<tr><td>${ok ? (['🥇', '🥈', '🥉'][rk - 1] || rk) : '—'}</td><td>${esc(UN[r.u] ? UN[r.u].ar : r.u)}</td><td>${r.s}</td><td>${r.n} / ${r.all}</td><td><span class="tag ${ok ? 'ok' : 'no'}">${ok ? 'مؤهلة' : 'ناقص نشيطين'}</span></td><td><button class="s" data-fmem="${esc(r.k)}">الأعضاء</button></td></tr>`; });
+  });
+  $('ftable').innerHTML = h;
+}
+$('fload').onclick = loadFac; $('fwk').onchange = loadFac;
+$('fpub').onclick = async () => {
+  if (!FR) return say('اضغط «احسب الترتيب» الأول.', 'bad');
+  const rows = FR.rows.filter((r) => r.n >= F_MIN).map((r) => ({ u: r.u, f: r.f, s: r.s, n: r.n }));
+  if (!rows.length) return say('مفيش كليات مؤهلة للنشر.', 'bad');
+  if (!confirm('نشر ترتيب الأسبوع ' + FR.wk + ' للطلاب؟ (' + rows.length + ' كلية)')) return;
+  try { await db.collection('config').doc('facrank').set({ wk: FR.wk, at: FV.serverTimestamp(), rows }); say('تم نشر الترتيب ✅', 'ok'); } catch (e) { say('فشل النشر: ' + (e.code || e.message), 'bad'); }
+};
+$('pfsave').onclick = async () => { try { await db.collection('config').doc('board').set({ pf1: $('pf1').value.trim(), ef1: $('ef1').value.trim() }, { merge: true }); say('تم حفظ هدية الكليات ✅', 'ok'); } catch (e) { say('فشل الحفظ: ' + (e.code || e.message), 'bad'); } };
+function showMembers(k) {
+  const r = FR && FR.rows.find((x) => x.k === k); if (!r) return;
+  const em = Object.fromEntries(users.map((u) => [u.id, u])), st = wkDateOf(FR.wk).getTime(); let elig = [];
+  const body = r.m.map((x) => { const u = em[x.id] || {}, at = u.facAt && u.facAt.toMillis ? u.facAt.toMillis() : 0, ok = x.pts >= F_ELIG && at && at < st; if (ok) elig.push(u.email); return `<tr><td>${esc(x.name)}</td><td class="code">${esc(u.email || x.id)}</td><td>${x.pts}</td><td>${at ? fmt(u.facAt) : '—'}</td><td><span class="tag ${ok ? 'ok' : 'no'}">${ok ? 'مؤهل للهدية' : (x.pts < F_ELIG ? 'أقل من 50 نقطة' : 'سجّل الكلية بعد بداية الأسبوع')}</span></td></tr>`; }).join('');
+  $('fmem').innerHTML = `<h3 style="font-size:15px;margin:6px 0">${esc((FC[r.f] ? FC[r.f].ar : r.f) + ' — ' + (UN[r.u] ? UN[r.u].ar : r.u))}</h3><div class="tw"><table><tr><th>الاسم</th><th>الإيميل</th><th>نقاط</th><th>اختار الكلية</th><th>الحالة</th></tr>${body || '<tr><td colspan="5">لا أحد</td></tr>'}</table></div>` +
+    `<p class="mut">المؤهلين للهدية (${elig.length}) — تأكد من كارنيه الكلية قبل التسليم:</p><textarea readonly style="width:100%;height:70px;direction:ltr">${esc(elig.join(', '))}</textarea>`;
+}
+/* admin-only: change / clear a student's university + faculty */
+function editFac(id) {
+  const u = users.find((x) => x.id === id); if (!u) return;
+  const uo = Object.keys(UN).map((c) => `<option value="${c}" ${u.uni === c ? 'selected' : ''}>${esc(UN[c].ar)}</option>`).join('') + `<option value="other" ${u.uni === 'other' ? 'selected' : ''}>أخرى</option>`;
+  const fo = Object.keys(FC).map((c) => `<option value="${c}" ${u.fac === c ? 'selected' : ''}>${esc(FC[c].ar)}</option>`).join('');
+  $('fedit').innerHTML = `<div class="card" style="border-color:var(--accent,#8c9cff)"><b class="code">${esc(u.email)}</b><div class="row" style="margin:8px 0"><select id="eu">${uo}</select><select id="ef">${fo}</select></div><div class="row"><button class="p" id="esave">حفظ</button><button class="d s" id="eclear">مسح الاختيار (يختار تاني)</button><button class="s" id="ecancel">إلغاء</button></div></div>`;
+  $('fedit').scrollIntoView({ block: 'center' });
+  $('ecancel').onclick = () => { $('fedit').innerHTML = ''; };
+  $('esave').onclick = async () => { try { await db.collection('users').doc(id).update({ uni: $('eu').value, fac: $('ef').value, facAt: FV.serverTimestamp() }); $('fedit').innerHTML = ''; say('تم التعديل ✅', 'ok'); load(); } catch (e) { say('فشل: ' + (e.code || e.message), 'bad'); } };
+  $('eclear').onclick = async () => { if (!confirm('مسح اختيار الطالب؟ هيطلب منه يختار تاني.')) return; try { await db.collection('users').doc(id).update({ uni: FV.delete(), fac: FV.delete(), facAt: FV.delete() }); $('fedit').innerHTML = ''; say('تم المسح ✅', 'ok'); load(); } catch (e) { say('فشل: ' + (e.code || e.message), 'bad'); } };
+}
+document.addEventListener('click', (ev) => {
+  const m = ev.target.closest('[data-fmem]'); if (m) return showMembers(m.dataset.fmem);
+  const e = ev.target.closest('[data-fedit]'); if (e) editFac(e.dataset.fedit);
+});
 
 const PRICE = { 30: 75, 90: 180, 180: 300, 365: 450 };
 const DUR = { 30: 'شهر', 90: '3 شهور', 180: '6 شهور', 365: 'سنة' };
@@ -163,12 +233,12 @@ function draw() {
   const ul = users.filter((u) => (!q || String(u.email || '').toLowerCase().includes(q)) &&
     (uf === 'all' || (uf === 'prem' && isOn(u, now)) || (uf === 'free' && !isOn(u, now)) || (uf === 'unv' && u.verified === false)));
   ul.sort((a, b) => (b.createdAt ? b.createdAt.toMillis() : 0) - (a.createdAt ? a.createdAt.toMillis() : 0));
-  $('users').innerHTML = '<tr><th>الإيميل</th><th>الدخول</th><th>الاشتراك</th><th>أجهزة</th><th>آخر كود</th><th>سجّل</th><th>آخر دخول</th><th></th></tr>' + (ul.map((u) => {
+  $('users').innerHTML = '<tr><th>الإيميل</th><th>الدخول</th><th>الاشتراك</th><th>الكلية</th><th>أجهزة</th><th>آخر كود</th><th>سجّل</th><th>آخر دخول</th><th></th></tr>' + (ul.map((u) => {
     const on = isOn(u, now);
     const ver = u.verified === false ? '<span class="tag no">غير مؤكد</span>' : u.verified === true ? '<span class="tag ok">مؤكد</span>' : '';
-    return `<tr><td class="code">${esc(u.email)}</td><td>${esc(prov(u))} ${ver}</td><td><span class="tag ${on ? 'ok' : ''}">${on ? (isTrial(u) ? 'تجربة حتى ' : 'حتى ') + fmt(u.premiumUntil) : (u.trialUsed ? 'مجاني (خلّص التجربة)' : 'مجاني')}</span></td><td>${(u.devices || []).length}</td><td class="code">${esc(u.lastCode || '')}</td><td>${fmt(u.createdAt)}</td><td>${fmt(u.lastSeen)}</td>` +
+    return `<tr><td class="code">${esc(u.email)}</td><td>${esc(prov(u))} ${ver}</td><td><span class="tag ${on ? 'ok' : ''}">${on ? (isTrial(u) ? 'تجربة حتى ' : 'حتى ') + fmt(u.premiumUntil) : (u.trialUsed ? 'مجاني (خلّص التجربة)' : 'مجاني')}</span></td><td>${u.fac ? esc((UN[u.uni] ? UN[u.uni].ar : u.uni) + ' — ' + (FC[u.fac] ? FC[u.fac].ar : u.fac)) : '<span class="mut">—</span>'} <button class="s" data-fedit="${u.id}">✏️</button></td><td>${(u.devices || []).length}</td><td class="code">${esc(u.lastCode || '')}</td><td>${fmt(u.createdAt)}</td><td>${fmt(u.lastSeen)}</td>` +
       `<td><div class="row"><select class="gd" data-for="${u.id}"><option value="30">شهر</option><option value="90">3 شهور</option><option value="180">6 شهور</option><option value="365">سنة</option></select><button class="s" data-grant="${u.id}">إضافة</button><button class="s" data-reset="${u.id}">صفّر الأجهزة</button>${on ? `<button class="d s" data-revoke="${u.id}">إلغاء</button>` : ''}</div></td></tr>`;
-  }).join('') || '<tr><td colspan="8" class="mut">لا يوجد</td></tr>');
+  }).join('') || '<tr><td colspan="9" class="mut">لا يوجد</td></tr>');
 }
 $('uq').oninput = draw; $('uf').onchange = draw;
 $('cf').onchange = draw;

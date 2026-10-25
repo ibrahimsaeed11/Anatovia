@@ -218,6 +218,7 @@ a.btn.contact{text-decoration:none;display:inline-flex;align-items:center;justif
 
 /* account */
 .acc-form{display:flex;flex-direction:column;gap:9px;margin:10px 0}
+.acc-form select{width:100%;padding:12px 14px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);color:var(--ink);font-size:16px}
 .acc-form input{width:100%;padding:12px 14px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);color:var(--ink);font-size:16px}
 .acc-link{background:none;border:0;color:var(--accent);padding:4px;font-size:14px;align-self:flex-start}
 .acc-card{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:14px;background:var(--surface2);border:1px solid var(--line);margin:10px 0}

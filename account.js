@@ -38,25 +38,51 @@
 
   /* ───────── derive premium state ───────── */
   function apply() {
-    let until = 0, email = null, limited = false, tu = false, tl = false;
+    let until = 0, email = null, limited = false, tu = false, tl = false, fx = { uni: '', fac: '', facAt: 0 };
     if (st.authKnown && st.user && st.data) {
       email = st.user.email; until = untilOf(st.data); tu = !!st.data.trialUsed; tl = tu && !st.data.lastCode;
+      fx = { uni: st.data.uni || '', fac: st.data.fac || '', facAt: st.data.facAt && st.data.facAt.toMillis ? st.data.facAt.toMillis() : 0 };
       const devs = st.data.devices || [];
       limited = until > Date.now() && !devs.some((d) => d.id === devId()) && devs.length >= MAXDEV;
     } else if (st.authKnown && st.user && !st.data && cache && cache.email === st.user.email) {
-      email = cache.email; until = cache.until || 0; limited = !!cache.limited; tu = !!cache.tu; tl = !!cache.tl; // fetch failed — keep last known state
+      email = cache.email; until = cache.until || 0; limited = !!cache.limited; tu = !!cache.tu; tl = !!cache.tl; fx = cache.fx || fx; // fetch failed — keep last known state
     } else if (!st.authKnown && cache) {
-      email = cache.email; until = cache.until || 0; limited = !!cache.limited; tu = !!cache.tu; tl = !!cache.tl; // offline / SDK not loaded
+      email = cache.email; until = cache.until || 0; limited = !!cache.limited; tu = !!cache.tu; tl = !!cache.tl; fx = cache.fx || fx; // offline / SDK not loaded
     }
     const unverified = !!(st.authKnown && st.user && st.user.emailVerified === false);
     const prem = until > Date.now() && !limited && !unverified;
-    A.acct = { email, until, limited, premium: prem, unverified, trialUsed: tu, trial: prem && tl };
-    if (st.authKnown && (st.data || !st.user)) { cache = st.user ? { email, until, limited, tu, tl } : null; ls.set(LS, JSON.stringify(cache)); }
+    A.acct = { email, until, limited, premium: prem, unverified, trialUsed: tu, trial: prem && tl, uni: fx.uni, fac: fx.fac, facAt: fx.facAt };
+    if (st.authKnown && (st.data || !st.user)) { cache = st.user ? { email, until, limited, tu, tl, fx } : null; ls.set(LS, JSON.stringify(cache)); }
+    facAsk();
     refresh();
     try { if (A.apply) A.apply(); } catch (e) { /* scene not ready yet */ }
     try { if (A.acct.trial && A.acct.until - Date.now() < 864e5 && ls.get('anatovia_tw') !== new Date().toDateString()) { ls.set('anatovia_tw', new Date().toDateString()); setTimeout(() => A.toast && A.toast(T('⏳ Your free trial ends within a day', '⏳ التجربة المجانية هتخلص خلال يوم')), 2500); } } catch (e) { /* ignore */ }
   }
   const refresh = () => { if (A.modalFn === render) A.modal(render); };
+  /* one-time "choose your university & faculty" (saved once, locked by the rules) — asked at most once a day until chosen */
+  let facTry = 0;
+  function facAsk() {
+    try {
+      if (!(st.authKnown && st.user && st.data) || A.acct.unverified || A.acct.uni || facTry || ls.get('anatovia_fp') === new Date().toDateString()) return;
+      facTry = 1;
+      const go = (n) => setTimeout(() => {
+        if (A.acct.uni) return;
+        if (A.modalFn && n < 8) return go(n + 1);   // something else is open — wait a bit
+        if (A.modalFn) return;
+        ls.set('anatovia_fp', new Date().toDateString());
+        if (window.__facLoaded) return A.facPrompt();
+        const sc = document.createElement('script'); sc.src = 'faculty.js'; sc.onload = () => A.facPrompt && A.facPrompt(); document.body.appendChild(sc);
+      }, n ? 10000 : 4500);
+      go(0);
+    } catch (e) { /* ignore */ }
+  }
+  /* save uni + fac ONCE (rules reject any later change by the student) */
+  A.setFac = async (uni, fac) => {
+    if (!st.user || !db) throw new Error('auth');
+    const ref = db.collection('users').doc(st.user.uid);
+    await ref.update({ uni, fac, facAt: firebase.firestore.FieldValue.serverTimestamp() });
+    const s = await ref.get(); st.data = s.data(); apply();
+  };
 
   /* ───────── SDK loading ───────── */
   const loadScript = (src) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('net')); document.head.appendChild(s); });

@@ -39,6 +39,16 @@ service cloud.firestore {
         && !exists(tpath) && existsAfter(tpath);
     }
 
+    // University + faculty: the student may set them ONCE (both empty before); afterwards they can never change (only an admin can edit).
+    function facOk() {
+      let r = resource.data; let n = request.resource.data;
+      return (n.get('uni', '') == r.get('uni', '') && n.get('fac', '') == r.get('fac', '') && n.get('facAt', null) == r.get('facAt', null))
+        || (r.get('uni', '') == '' && r.get('fac', '') == ''
+            && n.uni is string && n.fac is string && n.uni.size() > 0 && n.uni.size() <= 24 && n.fac.size() > 0 && n.fac.size() <= 24
+            && n.facAt == request.time);
+    }
+    function userFac(k) { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get(k, ''); }
+
     // Premium actions need a verified e-mail (Google accounts are always verified).
     function verified() { return request.auth.token.email_verified == true; }
 
@@ -51,7 +61,8 @@ service cloud.firestore {
         && request.resource.data.devices.size() <= 2;
 
       allow update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'devices', 'premiumUntil', 'lastCode', 'provider', 'verified', 'lastSeen', 'trialUsed', 'trialAt', 'trialDev'])
+        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'devices', 'premiumUntil', 'lastCode', 'provider', 'verified', 'lastSeen', 'trialUsed', 'trialAt', 'trialDev', 'uni', 'fac', 'facAt'])
+        && facOk()
         && request.resource.data.devices.size() <= 2
         && (resource.data.get('trialUsed', false) == false || request.resource.data.get('trialUsed', false) == true)
         && (request.resource.data.get('premiumUntil', null) == resource.data.get('premiumUntil', null) || (verified() && redeemOk()) || trialOk());
@@ -63,7 +74,8 @@ service cloud.firestore {
     // grow ~1 per 3 s (+ small allowance); hard weekly cap = 40 points x 7 days.
     function scoreShape() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['uid', 'name', 'pts', 'c', 'q', 't'])
+      return d.keys().hasOnly(['uid', 'name', 'pts', 'c', 'q', 't', 'uni', 'fac'])
+        && d.get('uni', '') == userFac('uni') && d.get('fac', '') == userFac('fac')
         && d.uid == request.auth.uid
         && d.name is string && d.name.size() >= 2 && d.name.size() <= 20
         && d.pts is int && d.pts >= 0 && d.pts <= 280
