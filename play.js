@@ -207,10 +207,8 @@
   A.acts.tqcard = async () => {
     if (!lastRes) return;
     const cv = drawCard(lastRes), blob = await new Promise((res) => cv.toBlob(res, 'image/jpeg', 0.9)); if (!blob) return A.toast(T('Could not build the card', 'تعذّر إنشاء الصورة'));
-    const text = shareText(lastRes.c, lastRes.n) + '\n' + LRM + lastRes.link, file = new File([blob], 'anatovia-result.jpg', { type: 'image/jpeg' });
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
-    const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = 'anatovia-result.jpg'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
-    try { await navigator.clipboard.writeText(text); } catch (e) { /* ignore */ } A.toast(T('Saved — link copied', 'تم الحفظ — واتنسخ الرابط'));
+    const text = shareText(lastRes.c, lastRes.n) + '\n' + LRM + lastRes.link;
+    A.fileOut(blob, 'anatovia-result.jpg', 'image/jpeg', { text, head: T('🏆 Result card', '🏆 كارت النتيجة') });
   };
 
   /* ───────────── challenges hub ───────────── */

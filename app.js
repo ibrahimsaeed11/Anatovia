@@ -304,6 +304,30 @@ function toast(msg, ms = 2600) { const el = $('toast'); el.textContent = msg; el
 function hideToast() { $('toast').hidden = true; }
 A.toast = toast;
 
+/* ───────── file out: always offer a real Download + a separate Share ───────── */
+A.dl = (blob, name) => {
+  const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 8000);
+  toast(S.lang === 'ar' ? 'تم التنزيل ✔' : 'Downloaded ✔');
+};
+A.shareFile = async (blob, name, type, text, title) => {
+  const file = new File([blob], name, { type });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: title || 'Anatovia', text: text || '' }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  A.dl(blob, name);
+};
+let FO = null;
+A.fileOut = (blob, name, type, o) => {
+  o = o || {}; FO = { blob, name, type, text: o.text || '', title: o.title }; const ar = S.lang === 'ar';
+  const img = type.indexOf('image/') === 0; if (FO.url) URL.revokeObjectURL(FO.url); FO.url = img ? URL.createObjectURL(blob) : '';
+  A.modal(() => `<h2>${o.head || (ar ? 'جاهز ✔' : 'Ready ✔')}</h2>` +
+    (FO.url ? `<img src="${FO.url}" alt="" style="width:100%;max-height:52vh;object-fit:contain;border-radius:12px;border:1px solid var(--line);margin-bottom:12px">` : '') +
+    `<div class="row"><button class="btn primary" data-act="fodl">⬇️ ${ar ? 'تنزيل على الجهاز' : 'Download'}</button><button class="btn" data-act="fosh">📤 ${ar ? 'مشاركة' : 'Share'}</button></div>`);
+};
+A.acts.fodl = () => { if (FO) A.dl(FO.blob, FO.name); };
+A.acts.fosh = () => { if (FO) A.shareFile(FO.blob, FO.name, FO.type, FO.text, FO.title); };
+
 /* ───────── search ───────── */
 function search(q) {
   const n = norm(q.trim()); if (!n) return [];

@@ -180,9 +180,10 @@ if (!window.__calcLoaded) (() => {
       last = { pdf: makePdf(jpgs, W, H), url: URL.createObjectURL(jbs[0]), n: cvs.length };
     } catch (e) { return A.toast(T('Could not build the PDF', 'تعذّر إنشاء الملف')); }
     A.modal(() => `<h2>📄 ${T('Assessment PDF', 'ملف التقييم')}</h2><img src="${last.url}" alt="page 1" style="width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:12px">` +
-      `<p class="tiny">${last.n} ${T('page(s)', 'صفحة')}</p><div class="row"><button class="btn primary" data-act="calcsave">${T('Share / save PDF', 'مشاركة / حفظ PDF')}</button><button class="btn" data-act="calc">‹ ${T('Back', 'رجوع')}</button></div>`);
+      `<p class="tiny">${last.n} ${T('page(s)', 'صفحة')}</p><div class="row"><button class="btn primary" data-act="calcsave">⬇️ ${T('Download PDF', 'تنزيل PDF')}</button><button class="btn" data-act="calcsh">📤 ${T('Share', 'مشاركة')}</button><button class="btn" data-act="calc">‹ ${T('Back', 'رجوع')}</button></div>`);
   };
-  A.acts.calcsave = () => { if (last) save(last.pdf, 'anatovia-rom-mmt.pdf', 'application/pdf'); };
+  A.acts.calcsave = () => { if (last) A.dl(last.pdf, 'anatovia-rom-mmt.pdf'); };
+  A.acts.calcsh = () => { if (last) A.shareFile(last.pdf, 'anatovia-rom-mmt.pdf', 'application/pdf'); };
   A.acts.calc = open;
   A.hubExtra = A.hubExtra || {}; A.hubExtra.calc = open;
 })();

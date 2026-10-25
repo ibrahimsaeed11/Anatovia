@@ -130,9 +130,7 @@ if (!window.__duelLoaded) (() => {
     tx(T('Dare to beat us?', 'تقدر تغلبنا؟'), W / 2, 1060, 44, '#b9c4ff');
     x.fillStyle = 'rgba(255,255,255,.1)'; x.fillRect(0, H - 130, W, 130); tx('ibrahimsaeed11.github.io/Anatovia', W / 2, H - 65, 40, '#fff', 1);
     const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9)); if (!blob) return;
-    const file = new File([blob], 'anatovia-duel.jpg', { type: 'image/jpeg' }), text = T('Anatomy duel on Anatovia ⚔️', 'تحدّي تشريح على Anatovia ⚔️') + '\n‎https://ibrahimsaeed11.github.io/Anatovia/';
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], text }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
-    const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = 'anatovia-duel.jpg'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000);
-    A.toast(T('Saved', 'تم الحفظ'));
+    const text = T('Anatomy duel on Anatovia ⚔️', 'تحدّي تشريح على Anatovia ⚔️') + '\n‎https://ibrahimsaeed11.github.io/Anatovia/';
+    A.fileOut(blob, 'anatovia-duel.jpg', 'image/jpeg', { text, head: T('⚔️ Duel card', '⚔️ كارت التحدي') });
   }
 })();

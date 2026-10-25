@@ -74,11 +74,7 @@ if (!window.__shareLoaded) (() => {
     const e = S.sel >= 0 ? P[S.sel] : null, nm = (e ? (e.baseEn || e.en) : 'anatomy').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'anatomy';
     const file = new File([blob], `anatovia-${nm}.jpg`, { type: 'image/jpeg' });
     const text = T('Anatovia — 3D anatomy in Arabic & English', 'Anatovia — التشريح ثلاثي الأبعاد بالعربي والإنجليزي') + '\n\u200E' + 'https://' + SITE + '/';
-    try {
-      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Anatovia', text }); return; }
-    } catch (err) { if (err && err.name === 'AbortError') return; }
-    const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000); A.toast(T('Image saved', 'تم حفظ الصورة'));
+    A.fileOut(blob, file.name, 'image/jpeg', { text, head: T('📸 Snapshot', '📸 اللقطة') });
   };
   const prev = A.extraChips;
   A.extraChips = () => (prev ? prev() : '') + `<button class="chip" data-act="snap"><svg viewBox="0 0 24 24" class="ico"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>${T('Snapshot', 'لقطة')}</button>`;

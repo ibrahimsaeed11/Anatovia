@@ -170,9 +170,10 @@ if (!window.__reportLoaded) (() => {
     try { await build(); } catch (e) { return A.toast(T('Could not build the report', 'تعذّر إنشاء التقرير')); }
     A.modal(() => `<h2>📄 ${T('Progress report', 'تقرير التقدّم')}</h2><p class="lead">${T('Show it to your doctor or keep it for yourself.', 'اعرضه على الدكتور أو احتفظ به لنفسك.')}</p>` +
       `<img src="${last.url}" alt="report" style="width:100%;border-radius:12px;border:1px solid var(--line);margin-bottom:12px">` +
-      `<div class="row"><button class="btn primary" data-act="reportpdf">${T('Share / save PDF', 'مشاركة / حفظ PDF')}</button><button class="btn" data-act="reportimg">${T('Save as image', 'حفظ كصورة')}</button></div>`);
+      `<div class="row"><button class="btn primary" data-act="reportpdf">⬇️ ${T('Download PDF', 'تنزيل PDF')}</button><button class="btn" data-act="reportimg">⬇️ ${T('Download image', 'تنزيل صورة')}</button><button class="btn" data-act="reportsh">📤 ${T('Share', 'مشاركة')}</button></div>`);
   };
-  A.acts.reportpdf = () => { if (last) save(last.pdf, 'anatovia-report.pdf', 'application/pdf'); };
-  A.acts.reportimg = () => { if (last) save(last.jpg, 'anatovia-report.jpg', 'image/jpeg'); };
+  A.acts.reportpdf = () => { if (last) A.dl(last.pdf, 'anatovia-report.pdf'); };
+  A.acts.reportimg = () => { if (last) A.dl(last.jpg, 'anatovia-report.jpg'); };
+  A.acts.reportsh = () => { if (last) A.shareFile(last.pdf, 'anatovia-report.pdf', 'application/pdf', T('My Anatovia progress report', 'تقرير تقدّمي في Anatovia')); };
   A.reportReady = true;
 })();
