@@ -18,7 +18,7 @@
   const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201050761015?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/anatovia.eg" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'آخر التحديثات' : 'Latest updates'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['account', '👤'], ['daily', '🔥'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['board', '🏅'], ['duel', '⚔️'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
+    const items = [['account', '👤'], ['daily', '🔥'], ['ready', '📊'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['board', '🏅'], ['duel', '⚔️'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
     const ac = A.acct || {}, dl = Math.max(0, Math.ceil(((ac.until || 0) - Date.now()) / 864e5));
     const trialBar = ac.trial ? `<div class="advice">🎁 ${TT('Free trial — ' + dl + ' day(s) left', 'التجربة المجانية — باقي ' + dl + ' يوم')}</div>` : !ac.premium ? `<button type="button" class="btn wide" style="margin-bottom:10px" data-act="pwacc">🎁 ${TT('Try Premium free for 3 days', 'جرّب النسخة المميزة 3 أيام مجانًا')}</button>` : '';
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p>${trialBar}<div class="hub">` +
@@ -26,7 +26,7 @@
   });
   const HUB_PAID = { splan: ['Study plan is part of Premium.', 'خطة المذاكرة ضمن النسخة المميزة.'], spinal: ['Spinal nerve tables are part of Premium.', 'جداول الأعصاب الشوكية ضمن النسخة المميزة.'] };
   A.acts.hub = (el) => { const g = HUB_PAID[el.dataset.k]; if (g && !A.isPremium()) return A.paywall(g[0], g[1]); return hubGo(el); };
-  const hubGo = (el) => ({ quiz: openQuizSetup, splan: openPlan, cards: openCardsSetup, daily: openDaily, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
+  const hubGo = (el) => ({ quiz: openQuizSetup, splan: openPlan, cards: openCardsSetup, daily: openDaily, ready: openReady, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
 
   /* scope helpers shared by quiz + flashcards */
   const scopeRow = (cfg, act) => {
@@ -484,6 +484,55 @@
       (deck.missed.size ? `<p class="lead">${TT(deck.missed.size + ' part(s) will come back in your next session.', deck.missed.size + ' جزء هيرجعولك في الجلسة الجاية.')}</p>` : '') +
       `<div class="row" style="margin-top:14px"><button class="btn primary" data-act="hub" data-k="daily">🔥 ${TT('Back', 'رجوع')}</button></div>`;
   }
+
+
+  /* ───────── exam readiness ───────── */
+  Object.assign(STR, {
+    ready: { en: 'Exam readiness', ar: 'جاهزيتي للامتحان' },
+    readySub: { en: 'Your % per system — aim for 90%', ar: 'نسبتك في كل نظام — الهدف 90%' },
+  });
+  const STRN = [0, 0.3, 0.5, 0.7, 0.85, 1, 1];
+  function readiness() {
+    const st = Store.d, out = {};
+    const hist = st.hist.slice(-8);
+    for (const sy of SYSTEMS) {
+      const items = repList.filter((e) => e.sys === sy && (!e.lk || A.isPremium()));
+      if (!items.length) continue;
+      let sum = 0, got = 0;
+      for (const e of items) { const r = st.srs[e.id]; const v = r ? STRN[Math.min(6, r.b)] : st.learned[e.id] ? 0.5 : 0; sum += v; if (r || st.learned[e.id]) got++; }
+      const mast = sum / items.length; let c = 0, n = 0;
+      for (const h of hist) { const a = h.sysA && h.sysA[sy]; if (a) { c += a.c; n += a.n; } }
+      const pc = n >= 8 ? Math.round((0.65 * mast + 0.35 * (c / n)) * 100) : Math.round(mast * 100);
+      out[sy] = { p: Math.min(100, pc), n: items.length, got, need: Math.max(0, Math.ceil((0.9 - mast) * items.length)) };
+    }
+    return out;
+  }
+  function openReady() {
+    A.modal(() => {
+      const R = readiness(), pl = Store.d.plan, keys = Object.keys(R);
+      const sel = pl && pl.sys && pl.sys.some((x) => R[x]) ? pl.sys.filter((x) => R[x]) : keys.filter((x) => R[x].got > 0);
+      const list = sel.length ? sel : keys.filter((x) => ['bone', 'muscle'].includes(x));
+      const tot = list.length ? Math.round(list.reduce((a, k) => a + R[k].p, 0) / list.length) : 0;
+      let days = null; if (pl && pl.date) days = Math.round((new Date(pl.date + 'T00:00:00') - new Date(new Date().setHours(0, 0, 0, 0))) / 864e5);
+      const col = (p) => p >= 90 ? 'var(--good)' : p >= 60 ? 'var(--gold)' : 'var(--bad)';
+      let h = `<h2>📊 ${t('ready')}</h2><div class="card3"><div class="nm" style="font-size:44px;color:${col(tot)}">${tot}%</div><div>${TT('Overall readiness', 'جاهزيتك الكلية')}</div>` +
+        (days !== null && days >= 0 ? `<div style="margin-top:6px">⏳ ${days} ${TT('day(s) to the exam', 'يوم على الامتحان')}</div>` : '') + '</div>';
+      h += `<div class="area" style="opacity:.7"><span></span><div class="bar" style="position:relative"><i style="width:0"></i><b style="position:absolute;inset-inline-start:90%;top:-2px;bottom:-2px;width:2px;background:var(--gold)"></b></div><span>90%</span></div>`;
+      for (const k of keys) { const o = R[k]; h += `<div class="area"><span>${t(k)}</span><div class="bar"><i style="width:${o.p}%;background:${col(o.p)}"></i></div><span>${o.p}%</span></div>`; }
+      const weak = list.slice().sort((a, b) => R[a].p - R[b].p)[0];
+      if (weak && R[weak].p < 90) h += `<div class="advice">🎯 ${TT('Weakest: ', 'أضعف نظام: ')}<b>${t(weak)}</b> (${R[weak].p}%) — ${TT('master about ' + R[weak].need + ' more part(s) to reach 90%.', 'محتاج تتقن حوالي ' + R[weak].need + ' جزء كمان عشان توصل 90%.')}</div>`;
+      else if (weak) h += `<div class="advice">🏆 ${TT('You are above 90% — exam ready!', 'فوق 90% — جاهز للامتحان!')}</div>`;
+      if (days !== null && days >= 1 && weak && R[weak].need) h += `<p class="tiny">${TT('About ' + Math.ceil(R[weak].need / days) + ' part(s)/day to get there in time.', 'يعني حوالي ' + Math.ceil(R[weak].need / days) + ' جزء في اليوم عشان تلحق.')}</p>`;
+      h += `<p class="tiny">${TT('Based on your flashcards, quizzes and learned parts.', 'محسوبة من بطاقات المراجعة والاختبارات وما علّمته متعلَّم.')}</p>`;
+      h += `<div class="row" style="margin-top:12px"><button class="btn primary" data-act="hub" data-k="daily">🔥 ${TT('Today\'s session', 'جلسة اليوم')}</button><button class="btn" data-act="readysh" data-t="${tot}" data-w="${weak || ''}">📤 ${TT('Share on WhatsApp', 'شارك على واتساب')}</button></div>`;
+      return h;
+    });
+  }
+  A.acts.readysh = (el) => {
+    const p = el.dataset.t;
+    const msg = S.lang === 'ar' ? `أنا جاهز ${p}% للامتحان على Anatovia 🧠\nجرّب تشوف نسبتك: https://ibrahimsaeed11.github.io/Anatovia/` : `I'm ${p}% ready for my anatomy exam on Anatovia 🧠\nCheck your own score: https://ibrahimsaeed11.github.io/Anatovia/`;
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+  };
 
   /* ───────── MOVEMENT FINDER ───────── */
   const GROUP_NAMES = { shoulder: ['Shoulder', 'الكتف'], scap: ['Scapula', 'اللوح'], elbow: ['Elbow', 'المرفق'], forearm: ['Forearm', 'الساعد'], wrist: ['Wrist', 'الرسغ'], finger: ['Hand', 'اليد'], thumb: ['Hand', 'اليد'], hip: ['Hip', 'الورك'], knee: ['Knee', 'الركبة'], ankle: ['Ankle & foot', 'الكاحل والقدم'], foot: ['Ankle & foot', 'الكاحل والقدم'], trunk: ['Trunk', 'الجذع'], neck: ['Neck & jaw', 'الرقبة والفك'], jaw: ['Neck & jaw', 'الرقبة والفك'], breath: ['Breathing', 'التنفس'] };
