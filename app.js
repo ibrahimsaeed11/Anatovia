@@ -286,7 +286,17 @@ A.acts.explode = () => { $('explodeBar').hidden = false; if (S.explode === 0) { 
 A.acts.undo = () => { const i = S.hideStack.pop(); S.hidden.delete(i); applyState(); };
 A.acts.showall = () => { S.hidden.clear(); S.hideStack = []; S.iso = -1; S.region = null; S.pulled.clear(); S.explode = 0; $('explodeBar').hidden = true; A.clearMove && A.clearMove(true); if (A.onShowAll) A.onShowAll(); applyState(); };
 A.acts.spin = () => { S.spin = !S.spin; cam.spin = S.spin; renderChips(); requestRender(); };
-A.acts.resetview = () => { cam.reset(); requestRender(); };
+A.acts.resetview = () => {
+  if (!S.quiz) {
+    A.acts.showall();   // un-hide, un-isolate, un-explode, clear movement/focus/cut/function overlays
+    for (const k of Object.keys(S.layers)) S.layers[k] = k === 'bone' ? 'on' : 'off';
+    S.sel = -1; S.hl = null; S.focus = null; S.lm = false; S.lmSel = -1; S.moveSet = null;
+    if (S.spin) { S.spin = false; cam.spin = false; }
+    try { closePanel(); } catch (e) { /* panel not open */ }
+    applyState(true); renderChips();
+  }
+  cam.reset(); requestRender();
+};
 
 /* ───────── modal ───────── */
 A.modalFn = null;

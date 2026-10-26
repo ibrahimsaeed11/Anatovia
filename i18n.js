@@ -16,7 +16,7 @@ const STR = {
   abdomen: { en: 'Abdomen', ar: 'البطن' }, pelvis: { en: 'Pelvis', ar: 'الحوض' },
   upper: { en: 'Upper limb', ar: 'الطرف العلوي' }, lower: { en: 'Lower limb', ar: 'الطرف السفلي' },
   explode: { en: 'Disassemble', ar: 'فكّ الأجزاء' }, assemble: { en: 'Assemble', ar: 'تجميع' },
-  resetView: { en: 'Reset view', ar: 'إعادة الوضع' }, spin: { en: 'Auto-rotate', ar: 'دوران تلقائي' },
+  resetView: { en: 'Reset all', ar: 'رجّع كل حاجة' }, spin: { en: 'Auto-rotate', ar: 'دوران تلقائي' },
   undo: { en: 'Undo hide', ar: 'تراجع' }, showAll: { en: 'Show all', ar: 'إظهار الكل' },
   hidePart: { en: 'Hide (peel layer)', ar: 'إخفاء (إزالة الطبقة)' }, isolate: { en: 'Isolate', ar: 'عزل' },
   pullOut: { en: 'Pull out', ar: 'سحب للخارج' }, putBack: { en: 'Put back', ar: 'إعادة' },
