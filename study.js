@@ -15,7 +15,7 @@
   const repOf = (e) => reps.get(repKey(e));
   const repList = [...reps.values()];
 
-  const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201050761015?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/anatovia.eg" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'شاهد أعمالي' : 'See my work'}</a></div>`;
+  const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201050761015?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/anatovia.eg" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'آخر التحديثات' : 'Latest updates'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
     const items = [['account', '👤'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['board', '🏅'], ['duel', '⚔️'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
