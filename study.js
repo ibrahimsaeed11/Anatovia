@@ -18,7 +18,7 @@
   const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201050761015?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/anatovia.eg" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'آخر التحديثات' : 'Latest updates'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['account', '👤'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['board', '🏅'], ['duel', '⚔️'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
+    const items = [['account', '👤'], ['daily', '🔥'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['board', '🏅'], ['duel', '⚔️'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
     const ac = A.acct || {}, dl = Math.max(0, Math.ceil(((ac.until || 0) - Date.now()) / 864e5));
     const trialBar = ac.trial ? `<div class="advice">🎁 ${TT('Free trial — ' + dl + ' day(s) left', 'التجربة المجانية — باقي ' + dl + ' يوم')}</div>` : !ac.premium ? `<button type="button" class="btn wide" style="margin-bottom:10px" data-act="pwacc">🎁 ${TT('Try Premium free for 3 days', 'جرّب النسخة المميزة 3 أيام مجانًا')}</button>` : '';
     return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p>${trialBar}<div class="hub">` +
@@ -26,7 +26,7 @@
   });
   const HUB_PAID = { splan: ['Study plan is part of Premium.', 'خطة المذاكرة ضمن النسخة المميزة.'], spinal: ['Spinal nerve tables are part of Premium.', 'جداول الأعصاب الشوكية ضمن النسخة المميزة.'] };
   A.acts.hub = (el) => { const g = HUB_PAID[el.dataset.k]; if (g && !A.isPremium()) return A.paywall(g[0], g[1]); return hubGo(el); };
-  const hubGo = (el) => ({ quiz: openQuizSetup, splan: openPlan, cards: openCardsSetup, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
+  const hubGo = (el) => ({ quiz: openQuizSetup, splan: openPlan, cards: openCardsSetup, daily: openDaily, moves: openMoves, progress: openProgress, favs: openFavs, about: openAbout, ...(A.hubExtra || {}) })[el.dataset.k]();
 
   /* scope helpers shared by quiz + flashcards */
   const scopeRow = (cfg, act) => {
@@ -405,9 +405,10 @@
   A.acts.cstart = () => { const { due, fresh } = buildDeck(); deck = { q: shuffle([...due, ...fresh]), total: due.length + fresh.length, done: 0, back: false, again: 0 }; showCard(); };
   function showCard() { A.modal(cardHtml); }
   function cardHtml() {
+    if (!deck.q.length && deck.daily) return dailyDoneHtml();
     if (!deck.q.length) return `<h2>${t('cardDone')}</h2><div class="card3"><div class="nm">🎉</div><div>${deck.done} ${t('cards')}</div></div><div class="row" style="margin-top:14px"><button class="btn primary" data-act="hub" data-k="cards">${t('cards')}</button></div>`;
     const e = deck.q[0];
-    let h = `<h2>${t('cards')}</h2><div class="qtop"><span dir="ltr">${deck.done} / ${deck.total}</span><span>${t(e.reg)} · ${t('kind_' + e.k)}</span></div><div class="qprog"><i style="width:${pct(deck.done, deck.total)}%"></i></div>`;
+    let h = `<h2>${deck.daily ? '🔥 ' + TT('Today\'s session', 'جلسة اليوم') : t('cards')}</h2><div class="qtop"><span dir="ltr">${deck.done} / ${deck.total}</span><span>${t(e.reg)} · ${t('kind_' + e.k)}</span></div><div class="qprog"><i style="width:${pct(deck.done, deck.total)}%"></i></div>`;
     h += `<div class="card3"><div class="nm">${esc(base1(e))}</div>`;
     if (!deck.back) h += `<div class="lead">${t('whatIsThis')}</div></div><button class="btn primary wide" style="margin-top:12px" data-act="cflip">${t('showAnswer')}</button>`;
     else {
@@ -423,10 +424,66 @@
   A.acts.cshow = () => { const e = deck.q[0]; A.closeModal(); A.select(e.i); };
   A.acts.crate = (el) => {
     const r = +el.dataset.r, e = deck.q.shift(), s = Store.d.srs, cur = s[e.id] || { b: 0 };
-    if (r === 0) { s[e.id] = { b: 0, d: dayNo() }; if (deck.again < 25) { deck.again++; deck.q.push(e); } else deck.done++; }
+    if (r === 0) { if (deck.missed) deck.missed.add(e.id); s[e.id] = { b: 0, d: dayNo() }; if (deck.again < 25) { deck.again++; deck.q.push(e); } else deck.done++; }
     else { const b = Math.min(6, cur.b + (r === 2 ? 2 : 1)); s[e.id] = { b, d: dayNo() + INTERVALS[b] }; deck.done++; Store.d.learned[e.id] = Store.d.learned[e.id] || (b >= 3 ? 1 : 0); if (!Store.d.learned[e.id]) delete Store.d.learned[e.id]; }
     Store.save(); Store.touchDay(); deck.back = false; showCard();
   };
+
+
+  /* ───────── daily session ───────── */
+  Object.assign(STR, {
+    daily: { en: 'Today\'s session', ar: 'جلسة اليوم' },
+    dailySub: { en: '10 minutes: review, mistakes, new parts', ar: '10 دقايق: مراجعة وأخطاء وأجزاء جديدة' },
+  });
+  const dsDays = () => { const d = Store.d; if (!Array.isArray(d.dsDays)) d.dsDays = []; return d.dsDays; };
+  function dsStreak() {
+    const a = dsDays(), t0 = dayNo(); let n = 0, d = a.includes(t0) ? t0 : t0 - 1;
+    while (a.includes(d)) { n++; d--; }
+    return n;
+  }
+  function buildDaily() {
+    const today = dayNo(), srs = Store.d.srs;
+    const pool = repList.filter((e) => (!e.lk || A.isPremium()));
+    const byOld = (a, b) => srs[a.id].d - srs[b.id].d;
+    const mist = pool.filter((e) => srs[e.id] && srs[e.id].b === 0).sort(byOld);
+    const rev = pool.filter((e) => srs[e.id] && srs[e.id].b >= 1 && srs[e.id].d <= today).sort(byOld);
+    let fresh = shuffle(pool.filter((e) => !srs[e.id]));
+    if (fresh.length) { const f = fresh[0]; fresh = [f, ...fresh.slice(1).filter((x) => x.reg === f.reg && x.sys === f.sys), ...fresh.slice(1).filter((x) => !(x.reg === f.reg && x.sys === f.sys))]; }
+    const pick = { m: mist.slice(0, 3), r: rev.slice(0, 5), n: fresh.slice(0, 4) };
+    let left = 12 - pick.m.length - pick.r.length - pick.n.length;
+    if (left > 0) { pick.r.push(...rev.slice(5, 5 + left)); left = 12 - pick.m.length - pick.r.length - pick.n.length; }
+    if (left > 0) { pick.m.push(...mist.slice(3, 3 + left)); left = 12 - pick.m.length - pick.r.length - pick.n.length; }
+    if (left > 0) pick.n.push(...fresh.slice(pick.n.length, pick.n.length + left));
+    return pick;
+  }
+  function openDaily() {
+    A.modal(() => {
+      const st = dsStreak(), doneToday = dsDays().includes(dayNo()), p = buildDaily(), tot = p.m.length + p.r.length + p.n.length;
+      const resume = deck && deck.daily && deck.day === dayNo() && deck.q.length;
+      let dots = ''; for (let i = 6; i >= 0; i--) dots += `<span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:50%;margin:0 3px;font-size:13px;background:${dsDays().includes(dayNo() - i) ? '#2e9d5b' : 'rgba(128,128,128,.25)'}">${dsDays().includes(dayNo() - i) ? '✓' : ''}</span>`;
+      let h = `<h2>🔥 ${TT('Today\'s session', 'جلسة اليوم')}</h2><div class="card3"><div class="nm">${st} ${TT('day streak', 'يوم متتالي')} 🔥</div><div style="margin-top:8px" dir="ltr">${dots}</div></div>`;
+      if (doneToday) h += `<div class="advice">✅ ${TT('You finished today\'s session. See you tomorrow!', 'خلّصت جلسة النهاردة. نشوفك بكرة!')}</div>`;
+      h += `<div class="stat3"><div><b>${p.r.length}</b><small>${TT('review', 'مراجعة')}</small></div><div><b>${p.m.length}</b><small>${TT('mistakes', 'أخطاء')}</small></div><div><b>${p.n.length}</b><small>${TT('new', 'جديد')}</small></div></div>`;
+      if (resume) h += `<button class="btn primary wide" data-act="dresume">▶ ${TT('Continue session', 'كمّل الجلسة')} (${deck.q.length})</button>`;
+      else if (tot) h += `<button class="btn primary wide" data-act="dstart">▶ ${doneToday ? TT('Another session', 'جلسة تانية') : TT('Start today\'s session', 'ابدأ جلسة اليوم')}</button><p class="tiny">${TT('About ' + Math.max(3, Math.round(tot * 0.8)) + ' minutes', 'حوالي ' + Math.max(3, Math.round(tot * 0.8)) + ' دقايق')}</p>`;
+      else h += `<p class="lead">${TT('Nothing to review yet.', 'مفيش حاجة للمراجعة لسه.')}</p>`;
+      return h;
+    });
+  }
+  A.acts.dstart = () => {
+    const p = buildDaily(), q = [...shuffle(p.r), ...shuffle(p.m), ...p.n], mixed = shuffle(q.slice(0, q.length - p.n.length)).concat(q.slice(q.length - p.n.length));
+    if (!mixed.length) return;
+    deck = { q: mixed, total: mixed.length, done: 0, back: false, again: 0, daily: true, day: dayNo(), missed: new Set(), fin: false, c: { r: p.r.length, m: p.m.length, n: p.n.length } };
+    showCard();
+  };
+  A.acts.dresume = () => showCard();
+  function dailyDoneHtml() {
+    if (!deck.fin) { deck.fin = true; const a = dsDays(), d = dayNo(); if (!a.includes(d)) { a.push(d); a.sort((x, y) => x - y); if (a.length > 400) a.shift(); } Store.save(); Store.touchDay(); }
+    const ok = deck.total - deck.missed.size, st = dsStreak();
+    return `<h2>✅ ${TT('Session complete', 'خلّصت جلسة اليوم')}</h2><div class="card3"><div class="nm">🎉</div><div>${TT('Correct', 'صح')} ${ok} ${TT('of', 'من')} ${deck.total}</div><div style="margin-top:6px">🔥 ${st} ${TT('day streak', 'يوم متتالي')}</div></div>` +
+      (deck.missed.size ? `<p class="lead">${TT(deck.missed.size + ' part(s) will come back in your next session.', deck.missed.size + ' جزء هيرجعولك في الجلسة الجاية.')}</p>` : '') +
+      `<div class="row" style="margin-top:14px"><button class="btn primary" data-act="hub" data-k="daily">🔥 ${TT('Back', 'رجوع')}</button></div>`;
+  }
 
   /* ───────── MOVEMENT FINDER ───────── */
   const GROUP_NAMES = { shoulder: ['Shoulder', 'الكتف'], scap: ['Scapula', 'اللوح'], elbow: ['Elbow', 'المرفق'], forearm: ['Forearm', 'الساعد'], wrist: ['Wrist', 'الرسغ'], finger: ['Hand', 'اليد'], thumb: ['Hand', 'اليد'], hip: ['Hip', 'الورك'], knee: ['Knee', 'الركبة'], ankle: ['Ankle & foot', 'الكاحل والقدم'], foot: ['Ankle & foot', 'الكاحل والقدم'], trunk: ['Trunk', 'الجذع'], neck: ['Neck & jaw', 'الرقبة والفك'], jaw: ['Neck & jaw', 'الرقبة والفك'], breath: ['Breathing', 'التنفس'] };
