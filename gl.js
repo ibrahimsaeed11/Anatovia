@@ -234,7 +234,7 @@ class Renderer {
     const fp = this.floorProg; gl.useProgram(fp.p);
     gl.uniformMatrix4fv(fp.u.uVP, false, vp); gl.uniform3fv(fp.u.uFloorCol, this.floorCol); gl.uniform3fv(fp.u.uLine, this.lineCol); gl.uniform1f(fp.u.uDark, this.floorDark);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.floorBuf); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0); gl.disableVertexAttribArray(1);
-    gl.depthMask(false); gl.drawArrays(gl.TRIANGLE_FAN, 0, this.floorN); gl.depthMask(true);
+    if (!this.noFloor) { gl.depthMask(false); gl.drawArrays(gl.TRIANGLE_FAN, 0, this.floorN); gl.depthMask(true); }
     // model
     const pr = this.prog; gl.useProgram(pr.p);
     gl.uniformMatrix4fv(pr.u.uVP, false, vp); gl.uniform3fv(pr.u.uEye, eye); gl.uniform1f(pr.u.uLight, this.light); gl.uniform4fv(pr.u.uClip, this.clip);

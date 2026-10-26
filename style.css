@@ -300,3 +300,37 @@ textarea{border-radius:12px;border:1px solid var(--line);background:var(--surfac
 #vox .vx-h{margin-top:8px;color:var(--muted);font-size:14px}#vox .vx-s{margin-top:6px;font-size:17px;font-weight:700}
 #vox .vx-c{display:flex;flex-direction:column;gap:6px;margin-top:8px}#vox .vx-b{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);font-size:15px;text-align:start}
 #vox .vx-t{margin-top:8px;font-size:12px;color:var(--muted)}
+
+/* ───── Bono's notebook ───── */
+#nbx{position:fixed;inset:0;z-index:39;background:#0b1020;display:flex;flex-direction:column;color:#eef1ff;font-family:inherit}
+#nbx[hidden]{display:none}
+body.nbopen .toast{z-index:90}
+.nb-top{display:flex;align-items:center;gap:4px;padding:8px 8px;background:#151d3a;border-bottom:1px solid rgba(255,255,255,.1);overflow-x:auto}
+.nb-top button,.nb-tools button,.nb-ctx button,.nb-row button{background:#222d52;color:#eef1ff;border:1px solid rgba(255,255,255,.12);border-radius:12px;font-size:16px;padding:7px 10px;cursor:pointer;flex:0 0 auto}
+.nb-top button:active,.nb-tools button:active{transform:scale(.95)}
+.nb-ttl{font-size:15px;white-space:nowrap}.nb-sp{flex:1}.nb-pg{min-width:42px;text-align:center;font-weight:700;font-size:14px;direction:ltr}
+.nb-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#0e1530;overflow:hidden}
+#nbc{background:#fff;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.5);touch-action:none;cursor:crosshair}
+.nb-tools{display:flex;gap:4px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:#151d3a;border-top:1px solid rgba(255,255,255,.1);overflow-x:auto}
+.nb-tools button{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:54px;padding:5px 6px}
+.nb-tools button i{font-style:normal;font-size:20px;line-height:24px}.nb-tools button small{font-size:10.5px;color:#a3adcf}
+.nb-tools button.on,.nb-row button.on,.nb-ctx button.on{background:#4a5fbf;border-color:#8c9cff}
+.nb-dot{display:inline-block;width:20px;height:20px;border-radius:50%;border:2px solid #fff;vertical-align:middle}
+.nb-ctx{display:flex;gap:4px;padding:5px 8px;background:#1d2850;overflow-x:auto;justify-content:center}
+.nb-ctx[hidden],.nb-sheet[hidden]{display:none}
+.nb-sheet{position:relative;max-height:46vh;overflow:auto;background:#18213f;border-top:1px solid rgba(255,255,255,.14);padding:10px 14px 14px}
+.nb-sheet h4{margin:10px 0 6px;font-size:14px;color:#a3adcf}.nb-p{font-size:14px;line-height:1.6;margin:6px 0 10px}
+.nb-x{position:absolute;inset-inline-end:10px;top:8px;background:#222d52;color:#fff;border:0;border-radius:50%;width:30px;height:30px;font-size:14px}
+.nb-sws{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.nb-sw{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.35);cursor:pointer;padding:0}.nb-sw.on{border:3px solid #fff;box-shadow:0 0 0 2px #4a7bff}
+.nb-col{width:40px;height:34px;border:0;background:none;padding:0}
+.nb-row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.nb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px}
+.nb-st{background:#222d52;border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:6px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;color:#cbd5ff;cursor:pointer}
+.nb-st img{width:100%;height:64px;object-fit:contain}.nb-st small{font-size:10.5px}
+.nb-dlg{position:absolute;inset:0;background:rgba(5,8,20,.7);display:grid;place-items:center;z-index:5;padding:14px}
+.nb-dc{width:min(420px,100%);background:#18213f;border-radius:18px;padding:16px;border:1px solid rgba(255,255,255,.14)}
+#nbPick{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom));z-index:55;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;background:rgba(21,29,58,.94);padding:10px 12px;border-radius:18px;border:1px solid rgba(255,255,255,.2);box-shadow:0 8px 24px rgba(0,0,0,.45);max-width:94vw}
+#nbPick[hidden]{display:none}
+#nbPick button{background:#4a5fbf;color:#fff;border:0;border-radius:12px;padding:10px 14px;font-size:15px;font-weight:700}#nbPick button.x{background:#3a4468;padding:10px 12px}
+#nbPick small{flex-basis:100%;text-align:center;color:#a3adcf;font-size:11.5px}
