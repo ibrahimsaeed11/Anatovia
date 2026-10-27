@@ -17,7 +17,12 @@ if (!window.__nbLoaded) (() => {
   const FRAMES = [['waves', 'موجات', 'Waves'], ['bubbles', 'فقاعات', 'Bubbles'], ['dashed', 'منقّط', 'Dashed'], ['corners', 'أركان', 'Corners'], ['stripe', 'شريط', 'Banner'], ['none', 'بدون', 'None']];
   const uid = () => Math.random().toString(36).slice(2, 9);
   const newPage = () => ({ id: uid(), paper: 'ruled', bg: '#fffaf0', frame: 'waves', c1: '#9ec5ee', c2: '#4a5fbf', items: [] });
-  const ST = { tool: 'select', c: '#1b2a4a', w: 4, hc: '#ffe066', hw: 22, sel: null, sheet: '' };
+  const ST = { tool: 'select', c: '#1b2a4a', w: 4, hc: '#ffe066', hw: 22, sel: null, sheet: '', smooth: (typeof Store !== 'undefined' && Store.d.nbSm === 0) ? false : true };
+  const V = { z: 1, ox: 0, oy: 0 };
+  const PICK = { rep: null };
+  const resetView = () => { V.z = 1; V.ox = 0; V.oy = 0; };
+  function clampView() { V.z = Math.max(1, Math.min(5, V.z)); V.ox = Math.min(0, Math.max(PW * (1 - V.z), V.ox)); V.oy = Math.min(0, Math.max(PH * (1 - V.z), V.oy)); }
+  function zoomAt(sx, sy, f) { const z0 = V.z, nz = Math.max(1, Math.min(5, z0 * f)), px = (sx - V.ox) / z0, py = (sy - V.oy) / z0; V.z = nz; V.ox = sx - px * nz; V.oy = sy - py * nz; clampView(); draw(); }
   let NB = null, ov = null, cv = null, cx = null, K = 1, cur = null, undo = [], redo = [], saveT = 0, rafId = 0, bonoReady = null;
 
   /* ───────── storage (IndexedDB, fallback localStorage) ───────── */
@@ -91,6 +96,21 @@ if (!window.__nbLoaded) (() => {
   }
   const topAt = (x, y) => { const a = items(); for (let i = a.length - 1; i >= 0; i--) if (hit(a[i], x, y)) return a[i]; return null; };
 
+  /* ───────── handwriting smoothing: resample + gentle averaging, thickness follows speed (ink pen) ───────── */
+  function smoothStroke(it, passes) {
+    const n0 = it.p.length / 2; if (n0 < 3) return; const ms = it.m || [];
+    let a = []; for (let i = 0; i < n0; i++) a.push([it.p[2 * i], it.p[2 * i + 1], ms[i] || 1]);
+    const out = [a[0].slice()]; let acc = 0, prev = a[0];
+    for (let i = 1; i < a.length; i++) {
+      let b = a[i], d = Math.hypot(b[0] - prev[0], b[1] - prev[1]);
+      while (acc + d >= 4 && d > 0) { const t = (4 - acc) / d, q = [prev[0] + (b[0] - prev[0]) * t, prev[1] + (b[1] - prev[1]) * t, prev[2] + (b[2] - prev[2]) * t]; out.push(q); prev = q; d = Math.hypot(b[0] - prev[0], b[1] - prev[1]); acc = 0; }
+      acc += d; prev = b;
+    }
+    out.push(a[a.length - 1].slice());
+    for (let k = 0; k < (passes || 2); k++) { const o = out.map((q) => q.slice()); for (let i = 1; i < out.length - 1; i++) for (let j = 0; j < 3; j++) o[i][j] = (out[i - 1][j] + 2 * out[i][j] + out[i + 1][j]) / 4; for (let i = 0; i < out.length; i++) out[i] = o[i]; }
+    it.p = []; it.m = []; for (const q of out) { it.p.push(Math.round(q[0] * 10) / 10, Math.round(q[1] * 10) / 10); it.m.push(Math.round(q[2] * 100) / 100); }
+  }
+
   /* ───────── drawing ───────── */
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
   function bubble(c, x, y, r, fill, line) { c.beginPath(); c.arc(x, y, r, 0, 7); if (fill) { c.fillStyle = fill; c.fill(); } if (line) { c.strokeStyle = line; c.lineWidth = 3; c.stroke(); } }
@@ -133,7 +153,11 @@ if (!window.__nbLoaded) (() => {
   }
   function drawItem(c, it) {
     c.save();
-    if (it.t === 's') {
+    if (it.t === 's' && it.ink && it.m && !it.hl) {
+      c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = it.c; c.fillStyle = it.c; const m = it.m, nn = it.p.length / 2;
+      if (nn < 2) { c.beginPath(); c.arc(it.p[0], it.p[1], it.w * 0.5 * (m[0] || 1), 0, 7); c.fill(); }
+      for (let i = 1; i < nn; i++) { c.lineWidth = Math.max(0.8, it.w * (m[i] || 1)); c.beginPath(); c.moveTo(it.p[2 * i - 2], it.p[2 * i - 1]); c.lineTo(it.p[2 * i], it.p[2 * i + 1]); c.stroke(); }
+    } else if (it.t === 's') {
       c.lineCap = it.hl ? 'butt' : 'round'; c.lineJoin = 'round'; c.strokeStyle = it.c; c.lineWidth = it.w; if (it.hl) c.globalAlpha = 0.4;
       c.beginPath(); c.moveTo(it.p[0], it.p[1]);
       if (it.p.length === 2) c.lineTo(it.p[0] + 0.1, it.p[1]);
@@ -169,7 +193,7 @@ if (!window.__nbLoaded) (() => {
   function draw() {
     if (!cx) return; if (rafId) return;
     rafId = requestAnimationFrame(() => {
-      rafId = 0; if (!cx) return; cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, cv.width, cv.height); cx.setTransform(K, 0, 0, K, 0, 0);
+      rafId = 0; if (!cx) return; cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, cv.width, cv.height); cx.setTransform(K * V.z, 0, 0, K * V.z, K * V.ox, K * V.oy);
       renderTo(cx, page(), cur);
       if (ST.sel && items().includes(ST.sel)) drawSel(cx, ST.sel);
     });
@@ -192,12 +216,12 @@ if (!window.__nbLoaded) (() => {
     (document.getElementById('app') || document.body).appendChild(ov); cv = ov.querySelector('#nbc'); cx = cv.getContext('2d');
     ov.addEventListener('click', onClick); bindPointer();
   }
-  const TOOLS = [['select', '☝️', 'تحديد', 'Select'], ['pen', '✏️', 'قلم', 'Pen'], ['hl', '🖍️', 'ماركر', 'Marker'], ['erase', '🧽', 'ممحاة', 'Eraser'], ['text', '🔤', 'نص', 'Text'], ['arrow', '↗️', 'سهم', 'Arrow']];
+  const TOOLS = [['select', '☝️', 'تحديد', 'Select'], ['hand', '✋', 'تحريك', 'Pan'], ['pen', '✏️', 'قلم', 'Pen'], ['hl', '🖍️', 'ماركر', 'Marker'], ['erase', '🧽', 'ممحاة', 'Eraser'], ['text', '🔤', 'نص', 'Text'], ['arrow', '↗️', 'سهم', 'Arrow']];
   function toolbar() {
     $('nbTools').innerHTML = TOOLS.map(([k, e, a, en]) => `<button class="${ST.tool === k ? 'on' : ''}" data-nb="tool:${k}"><i>${e}</i><small>${T(en, a)}</small></button>`).join('') +
       `<button data-nb="sheet:color"><i><span class="nb-dot" style="background:${ST.tool === 'hl' ? ST.hc : ST.c}"></span></i><small>${T('Color', 'لون')}</small></button>` +
       `<button data-nb="sheet:stickers"><i>😀</i><small>${T('Bono', 'بونو')}</small></button><button data-nb="sheet:model"><i>🦴</i><small>${T('3D part', 'من المجسم')}</small></button>` +
-      `<button data-nb="sheet:design"><i>🎨</i><small>${T('Design', 'التصميم')}</small></button><button data-nb="undo"><i>↶</i><small>${T('Undo', 'تراجع')}</small></button><button data-nb="redo"><i>↷</i><small>${T('Redo', 'إعادة')}</small></button>`;
+      `<button data-nb="sheet:design"><i>🎨</i><small>${T('Design', 'التصميم')}</small></button><button data-nb="zoom:in"><i>🔍</i><small>${T('Zoom +', 'تكبير')}</small></button><button data-nb="zoom:out"><i>🔎</i><small>${T('Zoom −', 'تصغير')}</small></button><button data-nb="zoom:reset"><i>⤢</i><small>${T('Fit', 'ملاءمة')}</small></button><button data-nb="undo"><i>↶</i><small>${T('Undo', 'تراجع')}</small></button><button data-nb="redo"><i>↷</i><small>${T('Redo', 'إعادة')}</small></button>`;
     $('nbPg').textContent = `${NB.cur + 1}/${NB.pages.length}`;
   }
   function ctxBar() {
@@ -205,7 +229,7 @@ if (!window.__nbLoaded) (() => {
     if (!it || !items().includes(it)) { el.hidden = true; ST.sel = null; return; }
     el.hidden = false;
     el.innerHTML = `<button data-nb="op:shrink">➖</button><button data-nb="op:grow">➕</button><button data-nb="op:rl">↺</button><button data-nb="op:rr">↻</button><button data-nb="op:copy">⎘</button><button data-nb="op:front">⬆️</button>` +
-      (it.t === 't' || it.t === 'a' ? '<button data-nb="op:edit">✎</button>' : '') + (it.t === 'i' ? `<button class="${it.sh ? 'on' : ''}" data-nb="op:shadow">◐</button>` : '') + (it.t === 's' || it.t === 't' || it.t === 'a' ? '<button data-nb="op:color">🎨</button>' : '') + '<button data-nb="op:del">🗑</button>';
+      (it.t === 't' || it.t === 'a' ? '<button data-nb="op:edit">✎</button>' : '') + (it.t === 'i' ? `<button class="${it.sh ? 'on' : ''}" data-nb="op:shadow">◐</button>` : '') + (it.t === 'i' && it.cam ? '<button data-nb="op:rot3d">🔄 3D</button>' : '') + (it.t === 's' && !it.hl ? '<button data-nb="op:smooth">✨</button>' : '') + (it.t === 's' || it.t === 't' || it.t === 'a' ? '<button data-nb="op:color">🎨</button>' : '') + '<button data-nb="op:del">🗑</button>';
   }
   function sheet(kind) {
     const el = $('nbSheet'); if (!kind || ST.sheet === kind) { ST.sheet = ''; el.hidden = true; return; }
@@ -213,7 +237,8 @@ if (!window.__nbLoaded) (() => {
     if (kind === 'color') {
       const hl = ST.tool === 'hl';
       h += `<h4>${hl ? T('Marker color', 'لون الماركر') : T('Pen color', 'لون القلم')}</h4><div class="nb-sws">${sw(hl ? HLC : COLORS, hl ? ST.hc : ST.c, 'col')}<input type="color" class="nb-col" value="${hl ? ST.hc : ST.c}" data-nbin="col"></div>` +
-        `<h4>${T('Thickness', 'السُّمك')}</h4><input type="range" min="${hl ? 12 : 2}" max="${hl ? 48 : 22}" value="${hl ? ST.hw : ST.w}" data-nbin="wid" style="width:100%">`;
+        `<h4>${T('Thickness', 'السُّمك')}</h4><input type="range" min="${hl ? 12 : 2}" max="${hl ? 48 : 22}" value="${hl ? ST.hw : ST.w}" data-nbin="wid" style="width:100%">` +
+        (hl ? '' : `<div class="nb-row"><button class="${ST.smooth ? 'on' : ''}" data-nb="smooth">✨ ${T('Smooth handwriting', 'تنعيم الخط')}: ${ST.smooth ? T('On', 'شغّال') : T('Off', 'مقفول')}</button></div><p class="nb-p">${T('Keeps your own handwriting but removes shaky lines and varies thickness like an ink pen.', 'بيفضل خط إيدك زي ما هو، بس بيشيل الرعشة ويخلّي السُّمك زي قلم الحبر.')}</p>`);
     } else if (kind === 'stickers') {
       const B = window.BONO, G = B.groups || [], tab = ST.stab && G.some((g) => g.id === ST.stab) ? ST.stab : (G[0] ? G[0].id : 'b'), g = G.find((x) => x.id === tab) || G[0];
       const cell = (k) => `<button class="nb-st" data-nb="stk:${k}"><img alt="" loading="lazy" src="${svgSrc(k)}">${B.labels[k] ? `<small>${B.labels[k]}</small>` : ''}</button>`;
@@ -245,6 +270,8 @@ if (!window.__nbLoaded) (() => {
     if (k === 'stk') { checkpoint(); const it = { t: 'k', id: v, x: PW / 2 + (Math.random() - 0.5) * 80, y: PH / 2 + (Math.random() - 0.5) * 120, sc: 1.4, r: 0 }; items().push(it); ST.tool = 'select'; ST.sel = it; sheet(''); ctxBar(); toolbar(); draw(); return; }
     if (k === 'paper' || k === 'frame' || k === 'bg' || k === 'c1' || k === 'c2') { pg[k] = v; sheet(''); sheet('design'); draw(); save(); return; }
     if (k === 'designall') { for (const q of NB.pages) { q.paper = pg.paper; q.frame = pg.frame; q.bg = pg.bg; q.c1 = pg.c1; q.c2 = pg.c2; } draw(); save(); A.toast(T('Applied to all pages', 'اتطبّق على كل الصفحات')); return; }
+    if (k === 'smooth') { ST.smooth = !ST.smooth; Store.d.nbSm = ST.smooth ? 1 : 0; Store.save(); sheet(''); sheet('color'); return; }
+    if (k === 'zoom') { if (v === 'reset') { resetView(); draw(); } else zoomAt(PW / 2, PH / 2, v === 'in' ? 1.4 : 1 / 1.4); return; }
     if (k === 'stab') { ST.stab = v; sheet(''); sheet('stickers'); return; }
     if (k === 'pick') return startPick();
     if (k === 'op') return doOp(v);
@@ -258,7 +285,7 @@ if (!window.__nbLoaded) (() => {
   });
   function canAdd() { if (NB.pages.length >= FREE_PAGES && !(A.isPremium && A.isPremium())) { A.paywall('The free notebook has 3 pages. Premium gives you unlimited pages.', 'الدفتر المجاني فيه 3 صفحات. النسخة المميزة تدّيك صفحات بلا حدود.'); return false; } return true; }
   function addPage() { if (!canAdd()) return; const p = newPage(), c = page(); Object.assign(p, { paper: c.paper, frame: c.frame, bg: c.bg, c1: c.c1, c2: c.c2 }); NB.pages.splice(NB.cur + 1, 0, p); gotoPage(NB.cur + 1); save(); }
-  function gotoPage(n) { if (n < 0 || n >= NB.pages.length) return; NB.cur = n; undo = []; redo = []; ST.sel = null; ctxBar(); toolbar(); draw(); save(); }
+  function gotoPage(n) { if (n < 0 || n >= NB.pages.length) return; NB.cur = n; resetView(); undo = []; redo = []; ST.sel = null; ctxBar(); toolbar(); draw(); save(); }
 
   /* ───────── item operations ───────── */
   function doOp(op) {
@@ -268,6 +295,8 @@ if (!window.__nbLoaded) (() => {
     else if (op === 'front') { checkpoint(); page().items = items().filter((x) => x !== it); items().push(it); }
     else if (op === 'grow' || op === 'shrink') { checkpoint(); scaleBy(it, op === 'grow' ? 1.15 : 1 / 1.15); }
     else if (op === 'rl' || op === 'rr') { checkpoint(); rotBy(it, (op === 'rr' ? 1 : -1) * Math.PI / 12); }
+    else if (op === 'rot3d') { startPick(it); return; }
+    else if (op === 'smooth' && it.t === 's') { checkpoint(); if (!it.m) it.m = new Array(it.p.length / 2).fill(1); smoothStroke(it, 3); it.ink = 1; }
     else if (op === 'shadow') { checkpoint(); it.sh = it.sh ? 0 : 1; }
     else if (op === 'edit') { if (it.t === 't') textDialog(it); else labelDialog(it); return; }
     else if (op === 'color') { checkpoint(); it.c = ST.tool === 'hl' && it.hl ? ST.hc : ST.c; }
@@ -302,32 +331,47 @@ if (!window.__nbLoaded) (() => {
 
   /* ───────── pointer input ───────── */
   function bindPointer() {
-    const P2 = new Map(); let drag = null, pinch = null;
-    const pos = (e) => { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * PW, y: (e.clientY - r.top) / r.height * PH }; };
+    const P2 = new Map(); let drag = null, pinch = null, vpinch = null;
+    const pos = (e) => { const r = cv.getBoundingClientRect(), sx = (e.clientX - r.left) / r.width * PW, sy = (e.clientY - r.top) / r.height * PH; return { x: (sx - V.ox) / V.z, y: (sy - V.oy) / V.z, sx, sy }; };
     const eraseAt = (p) => { const a = items(), n = a.length, keep = a.filter((it) => !hit(it, p.x, p.y, 8)); if (keep.length !== n) { if (!drag.cp) { undo.push(JSON.stringify(a)); redo = []; drag.cp = 1; } page().items = keep; ST.sel = null; ctxBar(); draw(); save(); } };
+    cv.addEventListener('wheel', (e) => { e.preventDefault(); const p = pos(e); zoomAt(p.sx, p.sy, e.deltaY < 0 ? 1.15 : 1 / 1.15); }, { passive: false });
     cv.addEventListener('pointerdown', (e) => {
       cv.setPointerCapture(e.pointerId); const p = pos(e); P2.set(e.pointerId, p);
-      if (P2.size === 2 && ST.sel) { const [a, b] = [...P2.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), a: Math.atan2(b.y - a.y, b.x - a.x) }; checkpoint(); cur = null; drag = null; return; }
-      if (P2.size > 1) return; drag = { p0: p, last: p, moved: false, cp: 0 };
-      if (ST.tool === 'pen' || ST.tool === 'hl') { const hl = ST.tool === 'hl'; cur = { t: 's', c: hl ? ST.hc : ST.c, w: hl ? ST.hw : ST.w, hl, p: [p.x, p.y] }; draw(); }
+      if (P2.size === 2) {
+        const [a, b] = [...P2.values()]; cur = null; drag = null;
+        if (ST.sel && hit(ST.sel, (a.x + b.x) / 2, (a.y + b.y) / 2, 30)) { pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), a: Math.atan2(b.y - a.y, b.x - a.x) }; checkpoint(); }
+        else vpinch = { d: Math.hypot(a.sx - b.sx, a.sy - b.sy), z: V.z, ox: V.ox, oy: V.oy, mx: (a.sx + b.sx) / 2, my: (a.sy + b.sy) / 2 };
+        return;
+      }
+      if (P2.size > 1) return; drag = { p0: p, last: p, moved: false, cp: 0, t: performance.now(), ls: { x: p.sx, y: p.sy } };
+      if (ST.tool === 'pen' || ST.tool === 'hl') { const hl = ST.tool === 'hl'; cur = { t: 's', c: hl ? ST.hc : ST.c, w: hl ? ST.hw : ST.w, hl, p: [p.x, p.y] }; if (!hl && ST.smooth) { cur.ink = 1; cur.m = [1]; } draw(); }
       else if (ST.tool === 'erase') eraseAt(p);
       else if (ST.tool === 'arrow') { cur = { t: 'a', x1: p.x, y1: p.y, x2: p.x, y2: p.y, c: ST.c, w: Math.max(4, ST.w), l: '' }; }
       else if (ST.tool === 'select') { const h = topAt(p.x, p.y); ST.sel = h; drag.item = h; ctxBar(); draw(); }
     });
     cv.addEventListener('pointermove', (e) => {
       if (!P2.has(e.pointerId)) return; const p = pos(e); P2.set(e.pointerId, p);
+      if (vpinch && P2.size === 2) { const [a, b] = [...P2.values()], d = Math.hypot(a.sx - b.sx, a.sy - b.sy), mx = (a.sx + b.sx) / 2, my = (a.sy + b.sy) / 2, nz = Math.max(1, Math.min(5, vpinch.z * d / Math.max(8, vpinch.d))), px = (vpinch.mx - vpinch.ox) / vpinch.z, py = (vpinch.my - vpinch.oy) / vpinch.z; V.z = nz; V.ox = mx - px * nz; V.oy = my - py * nz; clampView(); draw(); return; }
       if (pinch && P2.size === 2 && ST.sel) { const [a, b] = [...P2.values()], d = Math.hypot(a.x - b.x, a.y - b.y), an = Math.atan2(b.y - a.y, b.x - a.x); if (pinch.d > 5 && d > 5) scaleBy(ST.sel, d / pinch.d); rotBy(ST.sel, an - pinch.a); pinch = { d, a: an }; draw(); return; }
       if (!drag) return; const dx = p.x - drag.last.x, dy = p.y - drag.last.y; if (Math.hypot(p.x - drag.p0.x, p.y - drag.p0.y) > 4) drag.moved = true;
-      if (cur && cur.t === 's') { const n = cur.p.length; if (Math.hypot(p.x - cur.p[n - 2], p.y - cur.p[n - 1]) > 2.5) { cur.p.push(p.x, p.y); draw(); } }
+      if (ST.tool === 'hand') { V.ox += p.sx - drag.ls.x; V.oy += p.sy - drag.ls.y; clampView(); drag.ls = { x: p.sx, y: p.sy }; draw(); return; }
+      if (cur && cur.t === 's') {
+        const n = cur.p.length;
+        if (Math.hypot(p.x - cur.p[n - 2], p.y - cur.p[n - 1]) > 2.5) {
+          if (cur.m) { const now = performance.now(), sp = Math.hypot(p.x - cur.p[n - 2], p.y - cur.p[n - 1]) / Math.max(1, now - drag.t); cur.m.push(Math.max(0.55, Math.min(1.35, 1.4 - sp * 0.6))); drag.t = now; }
+          cur.p.push(p.x, p.y); draw();
+        }
+      }
       else if (cur && cur.t === 'a') { cur.x2 = p.x; cur.y2 = p.y; draw(); }
       else if (ST.tool === 'erase') eraseAt(p);
       else if (ST.tool === 'select' && drag.item && drag.moved) { if (!drag.cp) { checkpoint(); drag.cp = 1; } moveBy(drag.item, dx, dy); draw(); }
       drag.last = p;
     });
     const end = (e) => {
-      P2.delete(e.pointerId); if (pinch) { if (P2.size < 2) { pinch = null; save(); } return; }
+      P2.delete(e.pointerId); if (vpinch) { if (P2.size < 2) vpinch = null; return; }
+      if (pinch) { if (P2.size < 2) { pinch = null; save(); } return; }
       if (!drag) return; const d = drag; drag = null;
-      if (cur && cur.t === 's') { checkpoint(); items().push(cur); cur = null; draw(); }
+      if (cur && cur.t === 's') { if (cur.ink && cur.m) smoothStroke(cur, 2); checkpoint(); items().push(cur); cur = null; draw(); }
       else if (cur && cur.t === 'a') { const a = cur; cur = null; if (Math.hypot(a.x2 - a.x1, a.y2 - a.y1) > 24) { checkpoint(); items().push(a); ST.sel = a; ctxBar(); labelDialog(a); } draw(); }
       else if (ST.tool === 'text' && !d.moved) { const h = topAt(d.p0.x, d.p0.y); if (h && h.t === 't') { ST.sel = h; ctxBar(); textDialog(h); } else textDialog(null, d.p0); }
       else if (ST.tool === 'select' && d.item && d.moved) save();
@@ -338,15 +382,18 @@ if (!window.__nbLoaded) (() => {
   }
 
   /* ───────── 3D part → transparent sticker ───────── */
-  function startPick() {
-    ov.hidden = true; document.body.classList.remove('nbopen'); let pill = $('nbPick');
+  const getCam = () => { const k = A.cam; return { t: k.target.slice(), d: k.distGoal || k.dist, y: k.yaw, p: k.pitch }; };
+  function setCam(c) { const k = A.cam; k.goal = null; k.target = c.t.slice(); k.dist = k.distGoal = c.d; k.yaw = c.y; k.pitch = c.p; k.vy = k.vp = 0; A.redraw(); }
+  function startPick(rep) {
+    PICK.rep = rep || null; ov.hidden = true; document.body.classList.remove('nbopen'); let pill = $('nbPick');
     if (!pill) { pill = document.createElement('div'); pill.id = 'nbPick'; document.body.appendChild(pill); pill.addEventListener('click', (e) => { const b = e.target.closest('[data-nbp]'); if (!b) return; if (b.dataset.nbp === 'ok') capture(); else endPick(); }); }
-    pill.innerHTML = `<button data-nbp="ok">📓 ${T('Put it in the notebook', 'حطّها في الدفتر')}</button><button data-nbp="no" class="x">✕</button><small>${T('Zoom in on the part first', 'قرّب الجزء الأول')}</small>`; pill.hidden = false;
+    pill.innerHTML = `<button data-nbp="ok">📓 ${PICK.rep ? T('Update the picture', 'حدّث الصورة') : T('Put it in the notebook', 'حطّها في الدفتر')}</button><button data-nbp="no" class="x">✕</button><small>${T('Zoom in on the part first', 'قرّب الجزء الأول')}</small>`; pill.hidden = false;
     if (A.closeModal) A.closeModal();
+    if (rep && rep.cam) (async () => { try { if (rep.pi >= 0 && P[rep.pi]) await A.select(rep.pi, { fly: false, noPanel: true }); } catch (e) { /* ignore */ } setCam(rep.cam); })();
   }
-  function endPick() { const p = $('nbPick'); if (p) p.hidden = true; ov.hidden = false; document.body.classList.add('nbopen'); fit(); }
+  function endPick() { PICK.rep = null; const p = $('nbPick'); if (p) p.hidden = true; ov.hidden = false; document.body.classList.add('nbopen'); fit(); }
   function capture() {
-    const e = S.sel >= 0 ? P[S.sel] : null, keep = { iso: S.iso, sel: S.sel, hl: S.hl }; let out = null;
+    const e = S.sel >= 0 ? P[S.sel] : null, keep = { iso: S.iso, sel: S.sel, hl: S.hl }, camNow = getCam(), piNow = e ? e.i : -1; let out = null;
     try {
       keep.qo = S.quizOnly; keep.focus = S.focus; keep.nf = A.R.noFloor; S.quizOnly = e ? (x) => x.i === e.i : keep.qo; S.focus = null; S.sel = -1; S.hl = null; A.R.noFloor = true;
       A.apply(); A.R.draw(A.cam); if (A.afterDraw) A.afterDraw();
@@ -360,8 +407,9 @@ if (!window.__nbLoaded) (() => {
     } catch (err) { out = null; }
     S.iso = keep.iso; S.sel = keep.sel; S.hl = keep.hl; S.quizOnly = keep.qo; S.focus = keep.focus; A.R.noFloor = keep.nf; A.apply();
     if (!out) { A.toast(T('Nothing visible to capture', 'مفيش حاجة ظاهرة تتصوّر')); return; }
+    if (PICK.rep && items().includes(PICK.rep)) { checkpoint(); const r0 = PICK.rep; const nid = uid(); NB.imgs[nid] = out.url; r0.im = nid; r0.cam = camNow; r0.pi = piNow; ST.sel = r0; endPick(); sheet(''); ctxBar(); toolbar(); draw(); save(); A.toast(T('Picture updated ✓', 'اتحدّثت الصورة ✓')); return; }
     const id = uid(); NB.imgs[id] = out.url; const wd = Math.min(380, Math.max(160, out.w * 0.5)); checkpoint();
-    const it = { t: 'i', im: id, x: PW / 2, y: PH / 2, w: wd, sc: 1, r: 0, sh: 1 }; items().push(it); ST.sel = it; ST.tool = 'select';
+    const it = { t: 'i', im: id, x: PW / 2, y: PH / 2, w: wd, sc: 1, r: 0, sh: 1, cam: camNow, pi: piNow }; items().push(it); ST.sel = it; ST.tool = 'select';
     endPick(); sheet(''); ctxBar(); toolbar(); draw(); save(); A.toast(T('Added to the page ✓', 'اتضافت للصفحة ✓'));
   }
 
@@ -402,7 +450,7 @@ if (!window.__nbLoaded) (() => {
     if (A.closeModal) A.closeModal();
     await loadBono(); if (!window.BONO) { A.toast(T('Could not load the stickers', 'تعذّر تحميل الستيكرات')); return; }
     if (!NB) { const d = await dbGet(); NB = d && d.pages && d.pages.length ? d : { pages: [newPage()], cur: 0, imgs: {} }; NB.imgs = NB.imgs || {}; NB.cur = Math.min(NB.cur || 0, NB.pages.length - 1); }
-    if (!ov) shell(); ov.hidden = false; ov.dir = ar() ? 'rtl' : 'ltr'; document.body.classList.add('nbopen'); ST.sel = null; sheet(''); ctxBar(); toolbar(); setTimeout(fit, 30); setTimeout(fit, 300);
+    if (!ov) shell(); resetView(); ov.hidden = false; ov.dir = ar() ? 'rtl' : 'ltr'; document.body.classList.add('nbopen'); ST.sel = null; sheet(''); ctxBar(); toolbar(); setTimeout(fit, 30); setTimeout(fit, 300);
     if (!Store.d.nbHint) { Store.d.nbHint = 1; Store.save(); A.toast(T('Tip: pinch with two fingers to resize/rotate a selected item', 'نصيحة: اقرص بإصبعين لتكبير أو لف العنصر المحدد'), 5000); }
   }
   function close() { if (!ov) return; ov.hidden = true; document.body.classList.remove('nbopen'); dbSet(); }
