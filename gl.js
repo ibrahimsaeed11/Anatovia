@@ -119,6 +119,7 @@ precision highp float;
 precision mediump float;
 #endif
 varying vec3 vN; varying vec3 vP;
+#SPOTDECL
 uniform vec3 uColor; uniform vec4 uTint; uniform vec3 uEye; uniform vec3 uKey; uniform vec3 uFill; uniform float uAlpha; uniform float uLight; uniform vec4 uClip;
 void main(){
   bool clipOn = dot(uClip.xyz, uClip.xyz) > 0.0;
@@ -130,6 +131,7 @@ void main(){
   float hemi = n.y * 0.5 + 0.5;
   vec3 amb = mix(vec3(0.24,0.22,0.22), vec3(0.50,0.52,0.56), hemi);
   vec3 base = mix(uColor, uTint.rgb, uTint.a);
+#SPOTLOOP
   vec3 col = base * (amb + d1 * 0.74 + d2 * 0.24);
   vec3 h = normalize(uKey + v);
   col += vec3(0.30,0.28,0.24) * pow(max(dot(n, h), 0.0), 40.0) * 0.30;
@@ -137,6 +139,8 @@ void main(){
   col += uTint.rgb * rim * 0.10 * uTint.a + vec3(0.10,0.14,0.18) * rim * 0.35 * uLight;
   gl_FragColor = vec4(col * uAlpha, uAlpha);
 }`;
+const SPOT_DECL = (N) => N ? `uniform vec4 uSp[${N}]; uniform vec3 uSc[${N}]; uniform float uSn;` : '';
+const SPOT_LOOP = (N) => N ? `{ float bw = 0.0; vec3 bc = base; for (int k = 0; k < ${N}; k++) { if (float(k) >= uSn) break; float dd = distance(vP, uSp[k].xyz); float w = 1.0 - smoothstep(uSp[k].w * 0.62, uSp[k].w, dd); if (w > bw) { bw = w; bc = uSc[k]; } } base = mix(base, bc, bw * 0.92); }` : '';
 const FS_PICK = `precision mediump float; varying vec3 vP; uniform vec3 uId; uniform vec4 uClip; void main(){ if (dot(uClip.xyz, uClip.xyz) > 0.0 && dot(vP, uClip.xyz) > uClip.w) discard; gl_FragColor = vec4(uId, 1.0); }`;
 const VS_FLOOR = `attribute vec3 aPos; uniform mat4 uVP; varying vec3 vW; void main(){ vW = aPos; gl_Position = uVP * vec4(aPos,1.0); }`;
 const FS_FLOOR = `
@@ -164,7 +168,9 @@ class Renderer {
     const gl = canvas.getContext('webgl', opts) || canvas.getContext('experimental-webgl', opts);
     if (!gl) throw new Error('webgl-unsupported');
     this.gl = gl;
-    this.prog = this._program(VS, FS, ['uVP', 'uOff', 'uLo', 'uSpan', 'uColor', 'uTint', 'uEye', 'uKey', 'uFill', 'uAlpha', 'uLight', 'uClip']);
+    let nsp = 32; try { const mv = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS); nsp = Math.max(0, Math.min(32, Math.floor((mv - 24) / 2))); } catch (e) { nsp = 0; } if (nsp < 8) nsp = 0;
+    this.nsp = nsp;
+    this.prog = this._program(VS, FS.replace('#SPOTDECL', SPOT_DECL(nsp)).replace('#SPOTLOOP', SPOT_LOOP(nsp)), ['uVP', 'uOff', 'uLo', 'uSpan', 'uColor', 'uTint', 'uEye', 'uKey', 'uFill', 'uAlpha', 'uLight', 'uClip'].concat(nsp ? ['uSp', 'uSc', 'uSn'] : []));
     this.pickProg = this._program(VS, FS_PICK, ['uVP', 'uOff', 'uLo', 'uSpan', 'uId', 'uClip']);
     this.floorProg = this._program(VS_FLOOR, FS_FLOOR, ['uVP', 'uFloorCol', 'uLine', 'uDark']);
     this.items = []; this.fbo = null; this.pickW = 0; this.pickH = 0; this.dpr = 1;
@@ -247,6 +253,7 @@ class Renderer {
         this._bind(it, pr);
         gl.uniform3fv(pr.u.uOff, it.offset); gl.uniform3fv(pr.u.uColor, it.color); gl.uniform4fv(pr.u.uTint, it.tint);
         gl.uniform1f(pr.u.uAlpha, it.alpha);
+        if (this.nsp) { const sp = it.spots; if (sp) { gl.uniform4fv(pr.u.uSp, sp.pos); gl.uniform3fv(pr.u.uSc, sp.col); gl.uniform1f(pr.u.uSn, sp.n); } else gl.uniform1f(pr.u.uSn, 0); }
         gl.drawElements(gl.TRIANGLES, it.count, gl.UNSIGNED_SHORT, 0);
       }
     };

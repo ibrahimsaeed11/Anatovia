@@ -9,6 +9,7 @@
 
   Object.assign(STR, {
     lmBtn: { en: 'Labels', ar: 'التسميات' },
+    lmColBtn: { en: 'Landmark colors', ar: 'ألوان المعالم' },
     lmHint: { en: 'Labels on: zoom in on a bone and tap a label', ar: 'التسميات شغالة: قرّب على عظمة واضغط على أي اسم' },
     casesBtn: { en: 'Clinical cases', ar: 'حالات سريرية' },
     fnBtn: { en: 'Brain functions', ar: 'وظائف المخ' },
@@ -30,7 +31,26 @@
   const LM = (window.LANDMARKS || []).map((l) => ({ ...l, bi: P.findIndex((e) => e.id === l.bn) })).filter((l) => l.bi >= 0);
   const lmByBone = new Map();
   LM.forEach((l) => { if (!lmByBone.has(l.bi)) lmByBone.set(l.bi, []); lmByBone.get(l.bi).push(l); });
-  S.lm = false; S.lmSel = -1;
+  S.lm = false; S.lmSel = -1; S.lmCol = false;
+  /* landmark colours: each landmark of the selected bone gets its own hue (golden-angle spacing so neighbours differ) */
+  const hsl = (h, sa, l) => { const f = (n) => { const k = (n + h * 12) % 12, a = sa * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; };
+  const lmRgb = (bi, l) => { const arr = lmByBone.get(bi) || []; const k = arr.indexOf(l); return hsl(((k < 0 ? 0 : k) * 0.381966 + 0.02) % 1, 0.82, 0.55); };
+  const css = (rgb) => `rgb(${rgb.map((v) => Math.round(v * 255)).join(',')})`;
+  let spotKey = '';
+  function syncSpots() {
+    const x = X(), R = x.R || A.R; if (!x.itemOf || !R || !R.nsp) return;
+    const bi = S.lmCol && S.sel >= 0 && P[S.sel].k === 'bone' && lmByBone.has(S.sel) ? S.sel : -1;
+    const key = bi + '|' + S.lmSel; if (key === spotKey) return; spotKey = key;
+    R.items.forEach((it) => { it.spots = null; });
+    if (bi < 0) { A.redraw(); return; }
+    const it = x.itemOf[bi]; if (!it) return;
+    const arr = lmByBone.get(bi).slice(0, R.nsp), N = R.nsp, pos = new Float32Array(N * 4), col = new Float32Array(N * 3);
+    arr.forEach((l, k) => {
+      const o = it.offset, r = Math.min(0.03, Math.max(0.011, (l.d || 0.01) * 1.6)), c = lmRgb(bi, l);
+      pos.set([l.p[0] + o[0], l.p[1] + o[1], l.p[2] + o[2], l.i === S.lmSel ? r * 1.35 : r], k * 4); col.set(c, k * 3);
+    });
+    it.spots = { n: arr.length, pos, col }; A.redraw();
+  }
   let hits = [];
   const cvLm = () => $('lm');
 
@@ -53,6 +73,7 @@
   const LSX = { set: [], side: new Map(), y: new Map(), a: 1, idleAt: 0, sig: '', key: '' };
   const lmTimer = { t: 0 };
   A.afterDraw = () => {
+    syncSpots();
     const cv = cvLm(); if (!cv) return;
     const x = X(); if (!x.cam || !x.itemOf) return;
     const W = cv.clientWidth, H = cv.clientHeight; if (!W || !H) return;
@@ -159,6 +180,16 @@
     const it = x.itemOf[l.bi], o = it ? it.offset : [0, 0, 0];
     const n = l.n; x.cam.flyTo([l.p[0] + o[0], l.p[1] + o[1], l.p[2] + o[2]], 0.34, Math.atan2(n[0], n[2]), 0.15); A.toast(l.ar + '  —  ' + l.en, 4200); A.redraw();
   };
+  A.acts.lmcol = () => {
+    S.lmCol = !S.lmCol; spotKey = '';
+    if (S.lmCol) {
+      if (S.layers.bone === 'off') S.layers.bone = 'on';
+      if (!(S.sel >= 0 && P[S.sel].k === 'bone')) A.toast(T('Select a bone to see its landmarks in colors', 'اختار عضمة عشان تشوف معالمها بألوان'), 3800);
+      else if (!R_ok()) A.toast(T('Your device does not support landmark colors', 'جهازك مش بيدعم ألوان المعالم'), 3800);
+    }
+    refresh(); if (A.renderChips) A.renderChips(); if (S.sel >= 0 && A.renderPanel) A.renderPanel(); A.redraw();
+  };
+  const R_ok = () => { const R = X().R || A.R; return !!(R && R.nsp); };
   A.acts.lmtoggle = () => {
     S.lm = !S.lm; S.lmSel = -1;
     if (S.lm) { if (S.layers.bone === 'off') S.layers.bone = 'on'; A.ensure('bone').then(refresh); A.toast(T('Labels on: zoom in on a bone and tap a label', 'التسميات شغالة: قرّب على عظمة واضغط على أي اسم'), 4200); }
@@ -222,7 +253,7 @@
     }
     if (e.k === 'bone' && lmByBone.has(e.i)) {
       const ls = lmByBone.get(e.i).slice().sort((a, b) => a.en.localeCompare(b.en));
-      h += `<h4>${T('Bone landmarks – tap to point to it', 'معالم العظمة – اضغط لتوجيه السهم')} (${ls.length})</h4><div class="pills">${ls.map((l) => `<span class="pill2" data-act="lmgo" data-i="${l.i}">${esc(T(l.en, l.ar).replace(/ – (left|right)$| \((يسار|يمين)\)$/, ''))}</span>`).join('')}</div>`;
+      h += `<h4>${T('Bone landmarks – tap to point to it', 'معالم العظمة – اضغط لتوجيه السهم')} (${ls.length})</h4><div class="pills">${ls.map((l) => `<span class="pill2" data-act="lmgo" data-i="${l.i}">${S.lmCol ? `<i style="display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:5px;background:${css(lmRgb(e.i, l))}"></i>` : ''}${esc(T(l.en, l.ar).replace(/ – (left|right)$| \((يسار|يمين)\)$/, ''))}</span>`).join('')}</div>`;
     }
     return h;
   };
@@ -468,6 +499,7 @@
     const ic = { lm: '<svg viewBox="0 0 24 24" class="ico"><path d="M4 20l9-9M13 11l-1 5 5-1M14 3h7v5M21 3l-8 8" /></svg>', ca: '<svg viewBox="0 0 24 24" class="ico"><path d="M12 3v18M3 12h18"/></svg>', fn: '<svg viewBox="0 0 24 24" class="ico"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16"/></svg>', cut: '<svg viewBox="0 0 24 24" class="ico"><path d="M3 12h18M6 7l-3 5 3 5M18 7l3 5-3 5"/></svg>' };
     return `<span class="chip sep"></span>
       <button class="chip ${S.lm ? 'active' : ''}" data-act="lmtoggle">${ic.lm}${t('lmBtn')}</button>
+      <button class="chip ${S.lmCol ? 'active' : ''}" data-act="lmcol">🎨 ${t('lmColBtn')}</button>
       <button class="chip" data-act="cases">${ic.ca}${t('casesBtn')}</button>
       <button class="chip ${S.fnOn ? 'active' : ''}" data-act="fn">${ic.fn}${t('fnBtn')}</button>
       <button class="chip ${S.cutOn ? 'active' : ''}" data-act="cut">${ic.cut}${t('cutBtn')}</button>`;
