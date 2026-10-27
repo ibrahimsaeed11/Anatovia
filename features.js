@@ -31,7 +31,8 @@
   const LM = (window.LANDMARKS || []).map((l) => ({ ...l, bi: P.findIndex((e) => e.id === l.bn) })).filter((l) => l.bi >= 0);
   const lmByBone = new Map();
   LM.forEach((l) => { if (!lmByBone.has(l.bi)) lmByBone.set(l.bi, []); lmByBone.get(l.bi).push(l); });
-  S.lm = false; S.lmSel = -1; S.lmCol = false;
+  S.lm = false; S.lmSel = -1; S.lmCol = false; S.att = false; S.mov = null;
+  const swapped = new Set();
   /* landmark colours: each landmark of the selected bone gets its own hue (golden-angle spacing so neighbours differ) */
   const hsl = (h, sa, l) => { const f = (n) => { const k = (n + h * 12) % 12, a = sa * Math.min(l, 1 - l); return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [f(0), f(8), f(4)]; };
   const lmRgb = (bi, l) => { const arr = lmByBone.get(bi) || []; const k = arr.indexOf(l); return hsl(((k < 0 ? 0 : k) * 0.381966 + 0.02) % 1, 0.82, 0.55); };
@@ -40,8 +41,10 @@
   function syncSpots() {
     const x = X(), R = x.R || A.R; if (!x.itemOf || !R || !R.nsp) return;
     const bi = S.lmCol && S.sel >= 0 && P[S.sel].k === 'bone' && lmByBone.has(S.sel) ? S.sel : -1;
-    const key = bi + '|' + S.lmSel; if (key === spotKey) return; spotKey = key;
+    const am = S.att && S.sel >= 0 && P[S.sel].k === 'muscle' ? S.sel : -1;
+    const key = bi + '|' + S.lmSel + '|' + am + '|' + [...swapped].join(',') + '|' + (S.mov ? 1 : 0); if (key === spotKey) return; spotKey = key;
     R.items.forEach((it) => { it.spots = null; });
+    if (am >= 0) attSpots(am, R);
     if (bi < 0) { A.redraw(); return; }
     const it = x.itemOf[bi]; if (!it) return;
     const arr = lmByBone.get(bi).slice(0, R.nsp), N = R.nsp, pos = new Float32Array(N * 4), col = new Float32Array(N * 3);
@@ -68,6 +71,148 @@
     c.beginPath(); c.moveTo(x1, y1); c.lineTo(x1 - Math.cos(a - 0.42) * s, y1 - Math.sin(a - 0.42) * s); c.lineTo(x1 - Math.cos(a + 0.42) * s, y1 - Math.sin(a + 0.42) * s); c.closePath(); c.fill(); c.setLineDash([]);
   }
 
+
+  /* ───────────── muscle ends (origin / insertion) from the mesh itself — approximate, no hand-made attachment data ───────────── */
+  const vworld = (it, step, withOff) => {
+    const p = it.vpos, n = p.length / 3, out = [], k = Math.max(1, Math.floor(n / step)), o = withOff ? it.offset : [0, 0, 0];
+    for (let i = 0; i < n; i += k) out.push([it.lo[0] + p[i * 3] / 65535 * it.span[0] + o[0], it.lo[1] + p[i * 3 + 1] / 65535 * it.span[1] + o[1], it.lo[2] + p[i * 3 + 2] / 65535 * it.span[2] + o[2]]);
+    return out;
+  };
+  const vsub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], vdot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const vlen = (a) => Math.hypot(a[0], a[1], a[2]), vnorm = (a) => { const l = vlen(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+  const vcross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const vadd = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], vmul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+  function endsOf(e) {
+    const it = X().itemOf[e.i]; if (!it || !it.vpos) return null;
+    if (!it._ends) {
+      const V = vworld(it, 2500, false); const n = V.length; if (n < 8) return null;
+      const m = [0, 0, 0]; V.forEach((v) => { m[0] += v[0]; m[1] += v[1]; m[2] += v[2]; }); m[0] /= n; m[1] /= n; m[2] /= n;
+      let ax = vnorm([0.3, 1, 0.2]);
+      for (let k = 0; k < 14; k++) { const nx = [0, 0, 0]; V.forEach((v) => { const d = vsub(v, m), pr = vdot(d, ax); nx[0] += d[0] * pr; nx[1] += d[1] * pr; nx[2] += d[2] * pr; }); ax = vnorm(nx); }
+      const pr = V.map((v) => vdot(vsub(v, m), ax)); const lo = Math.min(...pr), hi = Math.max(...pr), L = hi - lo || 0.01;
+      const cen = (test) => { const c = [0, 0, 0]; let q = 0; V.forEach((v, i) => { if (test(pr[i])) { c[0] += v[0]; c[1] += v[1]; c[2] += v[2]; q++; } }); return q ? vmul(c, 1 / q) : m; };
+      it._ends = { a: cen((t) => t <= lo + L * 0.16), b: cen((t) => t >= hi - L * 0.16), len: L };
+    }
+    const E = it._ends, o = it.offset;
+    let a = vadd(E.a, o), b = vadd(E.b, o);
+    const REF = [0, e.c[1] >= 1.05 ? 1.35 : 0.95, 0.02];
+    let org = a, ins = b; if (vlen(vsub(b, REF)) < vlen(vsub(a, REF))) { org = b; ins = a; }
+    if (swapped.has(e.i)) { const t = org; org = ins; ins = t; }
+    return { org, ins, len: E.len };
+  }
+  const ORG_COL = [0.16, 0.82, 0.36], INS_COL = [0.2, 0.5, 1.0];
+  const groupItems = (e) => P.filter((q) => q.sys === 'muscle' && q.grp === e.grp && Math.sign(q.c[0]) === Math.sign(e.c[0]) && X().itemOf[q.i] && X().itemOf[q.i].visible);
+  function attSpots(am, R) {
+    groupItems(P[am]).forEach((q) => {
+      const E = endsOf(q), it = X().itemOf[q.i]; if (!E) return;
+      const r = Math.max(0.018, E.len * 0.30), pos = new Float32Array(R.nsp * 4), col = new Float32Array(R.nsp * 3);
+      pos.set([...E.org, r], 0); pos.set([...E.ins, r], 4); col.set(ORG_COL, 0); col.set(INS_COL, 3);
+      it.spots = { n: 2, pos, col };
+    });
+  }
+  function drawAtt(c, W, H) {
+    if (!(S.att && S.sel >= 0 && P[S.sel].k === 'muscle')) return;
+    const cm = X().cam, { vp } = cm.matrices(); const E = endsOf(P[S.sel]); if (!E) return;
+    const o = project(E.org, vp, W, H), i = project(E.ins, vp, W, H); if (!o || !i) return;
+    const dot = (p, col, txt) => { c.fillStyle = col; c.strokeStyle = '#fff'; c.lineWidth = 2; c.beginPath(); c.arc(p[0], p[1], 7, 0, 6.3); c.fill(); c.stroke();
+      c.font = '700 12px system-ui,"Noto Naskh Arabic",sans-serif'; c.textAlign = 'center'; const w = c.measureText(txt).width + 12; c.fillStyle = 'rgba(10,16,40,.85)'; rrect(c, p[0] - w / 2, p[1] - 30, w, 20, 7); c.fill(); c.fillStyle = col; c.textBaseline = 'middle'; c.fillText(txt, p[0], p[1] - 20); };
+    // line of pull: from the insertion toward the origin
+    const dx = o[0] - i[0], dy = o[1] - i[1], L = Math.hypot(dx, dy);
+    if (L > 30) { const k = Math.min(60, L * 0.5) / L; arrow(c, i[0], i[1], i[0] + dx * k, i[1] + dy * k, '#ffd23f', false); }
+    dot(o, '#2ad45c', T('Origin', 'البداية')); dot(i, '#4d8dff', T('Insertion', 'النهاية'));
+  }
+  A.acts.att = () => {
+    S.att = !S.att; spotKey = '';
+    if (S.att && !(S.sel >= 0 && P[S.sel].k === 'muscle')) A.toast(T('Select a muscle to see its origin (green) and insertion (blue)', 'اختار عضلة عشان تشوف بدايتها (أخضر) ونهايتها (أزرق)'), 4200);
+    if (S.att && S.layers.muscle === 'off') { S.layers.muscle = 'on'; A.ensure('muscle').then(refresh); }
+    refresh(); if (A.renderChips) A.renderChips(); if (S.sel >= 0 && A.renderPanel) A.renderPanel(); A.redraw();
+  };
+  A.acts.attswap = () => { if (S.sel < 0) return; groupItems(P[S.sel]).forEach((q) => { if (swapped.has(q.i)) swapped.delete(q.i); else swapped.add(q.i); }); spotKey = ''; if (S.mov) stopMove(); A.redraw(); };
+
+  /* nearest bones to each end → isolate muscle + its bones */
+  const boneItems = () => P.filter((q) => q.k === 'bone' && X().itemOf[q.i] && X().itemOf[q.i].vpos);
+  const bverts = (q) => { const it = X().itemOf[q.i]; if (!it._bv) it._bv = vworld(it, 160, false); return it._bv.map((v) => vadd(v, it.offset)); };
+  const mind = (V, p) => { let m = 9; V.forEach((v) => { const d = vlen(vsub(v, p)); if (d < m) m = d; }); return m; };
+  function nearBones(p, n) { return boneItems().map((q) => ({ q, d: mind(bverts(q), p) })).sort((a, b) => a.d - b.d).slice(0, n); }
+  A.acts.attiso = async () => {
+    const e = P[S.sel]; if (!e || e.k !== 'muscle') return;
+    await A.ensure('bone'); const E = endsOf(e); if (!E) return;
+    const bs = new Set([...nearBones(E.org, 2).filter((r, k) => k === 0 || r.d < 0.035).map((r) => r.q.i), ...nearBones(E.ins, 2).filter((r, k) => k === 0 || r.d < 0.035).map((r) => r.q.i)]);
+    S.focus = new Set([...groupItems(e).map((q) => q.i), ...bs]); S.att = true; spotKey = '';
+    refresh(); if (A.renderChips) A.renderChips();
+    $('app').classList.remove('psel'); $('panel').classList.add('closed'); $('panel').classList.remove('peek');
+    const mid = vmul(vadd(E.org, E.ins), 0.5); X().cam.flyTo(mid, Math.max(0.5, E.len * 2.6), null, 0.15); A.redraw();
+  };
+
+  /* ───────────── movement view: the insertion bone rotates about the joint, the muscle follows and shortens ───────────── */
+  const rotM = (k, th) => { const c = Math.cos(th), s = Math.sin(th), t = 1 - c, [x, y, z] = k;
+    return new Float32Array([t * x * x + c, t * x * y + s * z, t * x * z - s * y, t * x * y - s * z, t * y * y + c, t * y * z + s * x, t * x * z + s * y, t * y * z - s * x, t * z * z + c]); };
+  const rotV = (m, v) => [m[0] * v[0] + m[3] * v[1] + m[6] * v[2], m[1] * v[0] + m[4] * v[1] + m[7] * v[2], m[2] * v[0] + m[5] * v[1] + m[8] * v[2]];
+  let movRaf = 0;
+  function stopMove(keep) {
+    if (movRaf) cancelAnimationFrame(movRaf); movRaf = 0;
+    X().R.items.forEach((it) => { it.anim = null; });
+    if (!keep) { S.mov = null; const b = $('movbar'); if (b) b.remove(); }
+    A.redraw();
+  }
+  function applyMove(th) {
+    const M = S.mov; if (!M) return; const R = X().R, m = rotM(M.axis, th * M.sign);
+    M.bones.forEach((i) => { const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
+    M.muscles.forEach((q) => { const it = X().itemOf[q.i], E = q.E; if (!it) return; const d = vsub(E.ins, E.org);
+      it.anim = { mode: 2, rot: m, piv: M.piv, a: E.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))] }; });
+    M.th = th; const rd = $('movdeg'); if (rd) rd.textContent = Math.round(th * 180 / Math.PI) + '°';
+    const sl = $('movsl'); if (sl && document.activeElement !== sl) sl.value = Math.round(th / M.max * 100);
+    A.redraw();
+  }
+  A.acts.mov = async () => {
+    const e = P[S.sel]; if (!e || e.k !== 'muscle') return;
+    if (S.mov) return stopMove();
+    A.toast(T('Preparing the movement…', 'بجهّز الحركة…'), 1500);
+    await A.ensure('bone'); S.explode = 0; if (A.apply) A.apply(); await new Promise((r) => setTimeout(r, 60));
+    const mus = groupItems(e).map((q) => ({ q, E: endsOf(q) })).filter((r) => r.E);
+    const E = endsOf(e); if (!E) { A.toast(T('Cannot animate this muscle', 'مش قادر أحرّك العضلة دي'), 3000); return; }
+    let insB = nearBones(E.ins, 1)[0]; const orgB = nearBones(E.org, 1)[0];
+    if (insB && orgB && insB.q.i === orgB.q.i) {   // both ends touch the same bone (e.g. biceps ends just above the radius): take the next bone further from the origin
+      const cc = (q) => { const V = bverts(q), c = [0, 0, 0]; V.forEach((v) => { c[0] += v[0]; c[1] += v[1]; c[2] += v[2]; }); return vmul(c, 1 / V.length); };
+      const far = vlen(vsub(cc(orgB.q), E.org)), alt = nearBones(E.ins, 8).filter((r) => r.q.i !== orgB.q.i && r.d < 0.08 && vlen(vsub(cc(r.q), E.org)) > far)[0];
+      if (alt) insB = alt;
+    }
+    if (window.__dbgMov) console.log('MOV', JSON.stringify({o: E.org, i: E.ins, ib: insB && insB.q.en, ob: orgB && orgB.q.en, id: insB && insB.d, od: orgB && orgB.d}));
+    if (!insB || !orgB || insB.q.i === orgB.q.i) { A.toast(T('This muscle does not cross a joint I can detect', 'العضلة دي مش بتعدّي مفصل أقدر أحدده'), 3500); return; }
+    const insV = bverts(insB.q), cen = (V) => { const c = [0, 0, 0]; V.forEach((v) => { c[0] += v[0]; c[1] += v[1]; c[2] += v[2]; }); return vmul(c, 1 / V.length); };
+    const cIns = cen(insV), dIns = vlen(vsub(cIns, E.org));
+    // joint = closest pair between the insertion bone and its proximal neighbour (a bone lying nearer to the origin)
+    let best = null;
+    boneItems().forEach((q) => { if (q.i === insB.q.i) return; const V = bverts(q), c = cen(V); if (vlen(vsub(c, E.org)) >= dIns) return;
+      let m = 9, pa = null, pb = null; insV.forEach((a) => V.forEach((b) => { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } }));
+      if (m < 0.04 && (!best || m < best.m)) best = { q, m, p: vmul(vadd(pa, pb), 0.5) }; });
+    if (!best) { A.toast(T('Could not find the joint for this muscle', 'ملقيتش المفصل بتاع العضلة دي'), 3500); return; }
+    const piv = best.p; let axis = vcross(vsub(E.ins, piv), vsub(E.org, piv));
+    if (vlen(axis) < 1e-5) axis = [1, 0, 0]; axis = vnorm(axis);
+    // sign + range: rotate until the muscle has shortened by ~30 % (25°–80°)
+    const L0 = vlen(vsub(E.ins, E.org)); let sign = 1, max = 0.45;
+    { const t = (th, sg) => vlen(vsub(vadd(piv, rotV(rotM(axis, th * sg), vsub(E.ins, piv))), E.org)); if (t(0.2, -1) < t(0.2, 1)) sign = -1;
+      for (let th = 0.1; th <= 1.4; th += 0.02) { max = th; if (t(th, sign) < L0 * 0.7) break; } max = Math.max(0.44, Math.min(1.4, max)); }
+    // followers: bones beyond the joint that touch the moving bone (hand follows the forearm, etc.)
+    const mv = new Set([insB.q.i]), fr = [insB.q], u = vnorm(vsub(cIns, piv));
+    for (let h = 0; h < 3; h++) { const nx = []; fr.forEach((fq) => { const fv = bverts(fq); boneItems().forEach((q) => { if (mv.has(q.i) || q.i === best.q.i || q.i === orgB.q.i) return; const V = bverts(q), c = cen(V);
+      if (vdot(vsub(c, piv), u) <= 0 || vlen(vsub(c, piv)) > 0.7 || vlen(vsub(c, E.org)) < vlen(vsub(piv, E.org)) + 0.02) return; if (mind(V, cen(fv)) > 0.25 && mind(fv, c) > 0.12) return; let m = 9; fv.forEach((a) => { m = Math.min(m, mind(V, a)); }); if (m < 0.02) { mv.add(q.i); nx.push(q); } }); }); fr.length = 0; fr.push(...nx); }
+    const grp = new Set(mus.map((r) => r.q.i));
+    S.focus = new Set([...grp, ...mv, best.q.i, orgB.q.i]); S.att = true; spotKey = '';
+    S.mov = { axis, sign, max, piv, bones: [...mv], muscles: mus.map((r) => ({ q: r.q, E: r.E })), th: 0, t0: performance.now(), play: true, name: T('Movement', 'الحركة'), joint: T(best.q.en, best.q.ar) };
+    refresh(); if (A.renderChips) A.renderChips();
+    X().cam.flyTo(vadd(piv, vmul(vsub(E.org, piv), 0.3)), Math.max(0.7, L0 * 3.3), null, 0.12);
+    $('app').classList.remove('psel'); $('panel').classList.add('closed'); $('panel').classList.remove('peek');
+    const bar = document.createElement('div'); bar.id = 'movbar';
+    bar.innerHTML = `<button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><b id="movdeg">0°</b><button data-act="movend">✕</button>`;
+    $('app').appendChild(bar);
+    $('movsl').addEventListener('input', (ev) => { S.mov.play = false; $('movpl').textContent = '▶'; applyMove(S.mov.max * (+ev.target.value) / 100); });
+    const tick = (now) => { if (!S.mov) return; if (S.mov.play) { const ph = ((now - S.mov.t0) / 2600) % 2, k = ph < 1 ? ph : 2 - ph; applyMove(S.mov.max * (k * k * (3 - 2 * k))); } movRaf = requestAnimationFrame(tick); };
+    movRaf = requestAnimationFrame(tick);
+  };
+  A.acts.movplay = () => { if (!S.mov) return; S.mov.play = !S.mov.play; if (S.mov.play) S.mov.t0 = performance.now() - 1300 * (S.mov.th / S.mov.max); $('movpl').textContent = S.mov.play ? '⏸' : '▶'; };
+  A.acts.movend = () => { stopMove(); S.focus = null; spotKey = ''; refresh(); if (A.renderChips) A.renderChips(); };
+
   /* Labels are laid out calmly: a stable side per label (with hysteresis), a small fixed number of callouts (rest are quiet dots),
      thin lines (bold only for the selected one), slots that glide instead of jump, and labels fade while the model is being rotated. */
   const LSX = { set: [], side: new Map(), y: new Map(), a: 1, idleAt: 0, sig: '', key: '' };
@@ -79,7 +224,7 @@
     const W = cv.clientWidth, H = cv.clientHeight; if (!W || !H) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); hits = [];
+    const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); hits = []; drawAtt(c, W, H);
     const selBone = S.lm && S.sel >= 0 && P[S.sel].k === 'bone' ? S.sel : -1;
     if (selBone < 0 && !S.lm && S.lmSel < 0) { LSX.set = []; LSX.key = ''; return; }
     const cm = x.cam, { vp, eye } = cm.matrices(), now = performance.now();
@@ -250,6 +395,11 @@
         h += `<h4>${T('Nerve supply (tap to see)', 'التعصيب (اضغط لعرضه)')}</h4><div class="pills">${ns.map((i) => pill('goto', P[i])).join('')}</div>`;
         h += `<div class="actions" style="margin-top:10px"><button class="act on" data-act="nmshow" data-i="${e.i}">⚡ ${T('Show muscle + its nerve', 'اعرض العضلة وعصبها')}</button></div>`;
       }
+    }
+    if (e.k === 'muscle' && e.mu) {
+      h += `<h4>${T('Origin & insertion on the model (approximate)', 'البداية والنهاية على المجسم (تقريبي)')}</h4>
+        <div class="legend2"><div><i style="background:#2ad45c"></i><b>${T('Origin', 'البداية')}</b> ${esc(T(e.mu[0], e.mu[1]) || '')}</div><div><i style="background:#4d8dff"></i><b>${T('Insertion', 'النهاية')}</b> ${esc(T(e.mu[2], e.mu[3]) || '')}</div></div>
+        <div class="actions" style="margin-top:8px"><button class="act ${S.att ? 'on' : ''}" data-act="att">🟢🔵 ${T('Color origin / insertion', 'لوّن البداية والنهاية')}</button><button class="act" data-act="attiso">🦴 ${T('Isolate with its bones', 'اعزلها مع عظامها')}</button><button class="act" data-act="mov">▶ ${T('Movement view', 'شوف الحركة')}</button><button class="act" data-act="attswap">⇄ ${T('Swap ends', 'اعكس البداية/النهاية')}</button></div>`;
     }
     if (e.k === 'bone' && lmByBone.has(e.i)) {
       const ls = lmByBone.get(e.i).slice().sort((a, b) => a.en.localeCompare(b.en));
@@ -500,6 +650,7 @@
     return `<span class="chip sep"></span>
       <button class="chip ${S.lm ? 'active' : ''}" data-act="lmtoggle">${ic.lm}${t('lmBtn')}</button>
       <button class="chip ${S.lmCol ? 'active' : ''}" data-act="lmcol">🎨 ${t('lmColBtn')}</button>
+      <button class="chip ${S.att ? 'active' : ''}" data-act="att">🟢🔵 ${t('attBtn')}</button>
       <button class="chip" data-act="cases">${ic.ca}${t('casesBtn')}</button>
       <button class="chip ${S.fnOn ? 'active' : ''}" data-act="fn">${ic.fn}${t('fnBtn')}</button>
       <button class="chip ${S.cutOn ? 'active' : ''}" data-act="cut">${ic.cut}${t('cutBtn')}</button>`;

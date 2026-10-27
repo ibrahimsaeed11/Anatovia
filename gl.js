@@ -110,8 +110,17 @@ class OrbitCamera {
 const VS = `
 attribute vec3 aPos; attribute vec3 aNor;
 uniform mat4 uVP; uniform vec3 uOff; uniform vec3 uLo; uniform vec3 uSpan;
+uniform mat3 uRot; uniform vec3 uPiv; uniform float uMode; uniform vec3 uA; uniform vec4 uDL;
 varying vec3 vN; varying vec3 vP;
-void main(){ vec3 p = uLo + aPos * uSpan + uOff; vP = p; vN = aNor; gl_Position = uVP * vec4(p,1.0); }`;
+void main(){
+  vec3 p = uLo + aPos * uSpan + uOff; vec3 n = aNor;
+  if (uMode > 0.5) {
+    vec3 q = uPiv + uRot * (p - uPiv); vec3 nn = uRot * aNor; float w = 1.0;
+    if (uMode > 1.5) { w = clamp(dot(p - uA, uDL.xyz) / uDL.w, 0.0, 1.0); w = w * w * (3.0 - 2.0 * w); }
+    p = mix(p, q, w); n = mix(aNor, nn, w);
+  }
+  vP = p; vN = n; gl_Position = uVP * vec4(p,1.0);
+}`;
 const FS = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
@@ -170,8 +179,8 @@ class Renderer {
     this.gl = gl;
     let nsp = 32; try { const mv = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS); nsp = Math.max(0, Math.min(32, Math.floor((mv - 24) / 2))); } catch (e) { nsp = 0; } if (nsp < 8) nsp = 0;
     this.nsp = nsp;
-    this.prog = this._program(VS, FS.replace('#SPOTDECL', SPOT_DECL(nsp)).replace('#SPOTLOOP', SPOT_LOOP(nsp)), ['uVP', 'uOff', 'uLo', 'uSpan', 'uColor', 'uTint', 'uEye', 'uKey', 'uFill', 'uAlpha', 'uLight', 'uClip'].concat(nsp ? ['uSp', 'uSc', 'uSn'] : []));
-    this.pickProg = this._program(VS, FS_PICK, ['uVP', 'uOff', 'uLo', 'uSpan', 'uId', 'uClip']);
+    this.prog = this._program(VS, FS.replace('#SPOTDECL', SPOT_DECL(nsp)).replace('#SPOTLOOP', SPOT_LOOP(nsp)), ['uVP', 'uOff', 'uLo', 'uSpan', 'uColor', 'uTint', 'uEye', 'uKey', 'uFill', 'uAlpha', 'uLight', 'uClip', 'uRot', 'uPiv', 'uMode', 'uA', 'uDL'].concat(nsp ? ['uSp', 'uSc', 'uSn'] : []));
+    this.pickProg = this._program(VS, FS_PICK, ['uVP', 'uOff', 'uLo', 'uSpan', 'uId', 'uClip', 'uRot', 'uPiv', 'uMode', 'uA', 'uDL']);
     this.floorProg = this._program(VS_FLOOR, FS_FLOOR, ['uVP', 'uFloorCol', 'uLine', 'uDark']);
     this.items = []; this.fbo = null; this.pickW = 0; this.pickH = 0; this.dpr = 1;
     this.floorY = -0.002; this.floorCol = [0.55, 0.6, 0.7]; this.lineCol = [1, 1, 1]; this.floorDark = 1; this.light = 1; this.clip = [0, 0, 0, 0];
@@ -201,7 +210,7 @@ class Renderer {
     const gl = this.gl;
     const mk = (target, data) => { const b = gl.createBuffer(); gl.bindBuffer(target, b); gl.bufferData(target, data, gl.STATIC_DRAW); return b; };
     const item = { id, index, pb: mk(gl.ARRAY_BUFFER, pt.pos), nb: mk(gl.ARRAY_BUFFER, pt.nor), ib: mk(gl.ELEMENT_ARRAY_BUFFER, pt.idx),
-      count: pt.idx.length, lo: pt.lo, span: pt.span, offset: [0, 0, 0], goalOff: [0, 0, 0],
+      count: pt.idx.length, vpos: pt.pos, lo: pt.lo, span: pt.span, offset: [0, 0, 0], goalOff: [0, 0, 0],
       tint: [0, 0, 0, 0], color: [0.93, 0.89, 0.8], alpha: 1, visible: false, pickable: false };
     this.items.push(item); return item;
   }
@@ -253,6 +262,7 @@ class Renderer {
         this._bind(it, pr);
         gl.uniform3fv(pr.u.uOff, it.offset); gl.uniform3fv(pr.u.uColor, it.color); gl.uniform4fv(pr.u.uTint, it.tint);
         gl.uniform1f(pr.u.uAlpha, it.alpha);
+        { const an = it.anim; if (an) { gl.uniform1f(pr.u.uMode, an.mode); gl.uniformMatrix3fv(pr.u.uRot, false, an.rot); gl.uniform3fv(pr.u.uPiv, an.piv); gl.uniform3fv(pr.u.uA, an.a); gl.uniform4fv(pr.u.uDL, an.dl); } else gl.uniform1f(pr.u.uMode, 0); }
         if (this.nsp) { const sp = it.spots; if (sp) { gl.uniform4fv(pr.u.uSp, sp.pos); gl.uniform3fv(pr.u.uSc, sp.col); gl.uniform1f(pr.u.uSn, sp.n); } else gl.uniform1f(pr.u.uSn, 0); }
         gl.drawElements(gl.TRIANGLES, it.count, gl.UNSIGNED_SHORT, 0);
       }
