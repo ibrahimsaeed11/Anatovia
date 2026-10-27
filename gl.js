@@ -115,10 +115,16 @@ varying vec3 vN; varying vec3 vP;
 void main(){
   vec3 p = uLo + aPos * uSpan + uOff; vec3 n = aNor;
   if (uMode > 0.5) {
+    if (uMode > 2.5) {   // pure muscle contraction: shorten along the fibre axis about the origin end (uPiv.x = shortening), belly bulges (uBul)
+      float tt = clamp(dot(p - uA, uDL.xyz) / uDL.w, 0.0, 1.0);
+      p += (p - (uA + uDL.xyz * dot(p - uA, uDL.xyz))) * uBul * sin(3.14159 * tt);
+      p -= uDL.xyz * (uPiv.x * dot(p - uA, uDL.xyz));
+    } else {
     float w = 1.0;
     if (uMode > 1.5) { float tt = clamp(dot(p - uA, uDL.xyz) / uDL.w, 0.0, 1.0); w = tt * tt * (3.0 - 2.0 * tt); p += (p - (uA + uDL.xyz * dot(p - uA, uDL.xyz))) * uBul * sin(3.14159 * tt); }
     vec3 q = uPiv + uRot * (p - uPiv); vec3 nn = uRot * aNor;
     p = mix(p, q, w); n = mix(aNor, nn, w);
+    }
   }
   vP = p; vN = n; gl_Position = uVP * vec4(p,1.0);
 }`;

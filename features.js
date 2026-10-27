@@ -155,59 +155,29 @@
     if (!keep) { S.mov = null; const b = $('movbar'); if (b) b.remove(); }
     A.redraw();
   }
-  function applyMove(th) {
-    const M = S.mov; if (!M || !M.piv) return; const R = X().R, m = rotM(M.axis, th * M.sign), kk = Math.min(1, th / M.max);
-    M.bones.forEach((i) => { const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
-    M.muscles.forEach((q) => { const it = X().itemOf[q.i], E = q.E; if (!it) return; const d = vsub(E.ins, E.org);
-      it.anim = { mode: 2, rot: m, piv: M.piv, a: E.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))], bul: 0.55 * kk }; it.tint = [1, 0.3, 0.12, 0.18 + 0.5 * kk]; });
-    M.th = th; const rd = $('movdeg'); if (rd) rd.textContent = Math.round(th * 180 / Math.PI) + '°';
-    const sl = $('movsl'); if (sl && document.activeElement !== sl) sl.value = Math.round(th / M.max * 100);
+  function applyMove(k) {
+    const M = S.mov; if (!M) return;
+    M.muscles.forEach((q) => { const it = X().itemOf[q.q.i], E = q.E; if (!it) return; const d = vsub(E.ins, E.org);
+      it.anim = { mode: 3, rot: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]), piv: [0.3 * k, 0, 0], a: E.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))], bul: 0.5 * k }; it.tint = [1, 0.3, 0.12, 0.15 + 0.5 * k]; });
+    M.th = k; const rd = $('movdeg'); if (rd) rd.textContent = Math.round(k * 100) + '%';
+    const sl = $('movsl'); if (sl && document.activeElement !== sl) sl.value = Math.round(k * 100);
     A.redraw();
   }
   async function startMove(mvId) {
     const e = P[S.sel]; if (!e || e.k !== 'muscle') return;
-    if (S.mov && S.mov.piv) stopMove(true);
-    A.toast(T('Preparing the movement…', 'بجهّز الحركة…'), 1500);
+    if (S.mov) stopMove(true);
     await A.ensure('bone'); S.explode = 0; if (A.apply) A.apply(); await new Promise((r) => setTimeout(r, 60));
     const mus = groupItems(e).map((q) => ({ q, E: endsOf(q) })).filter((r) => r.E);
-    const E = endsOf(e); if (!E) { A.toast(T('Cannot animate this muscle', 'مش قادر أحرّك العضلة دي'), 3000); return; }
-    let insB = nearBones(E.ins, 1)[0]; const orgB = nearBones(E.org, 1)[0];
-    if (insB && orgB && insB.q.i === orgB.q.i) {   // both ends touch the same bone (e.g. biceps ends just above the radius): take the next bone further from the origin
-      const cc = (q) => { const V = bverts(q), c = [0, 0, 0]; V.forEach((v) => { c[0] += v[0]; c[1] += v[1]; c[2] += v[2]; }); return vmul(c, 1 / V.length); };
-      const far = vlen(vsub(cc(orgB.q), E.org)), alt = nearBones(E.ins, 8).filter((r) => r.q.i !== orgB.q.i && r.d < 0.08 && vlen(vsub(cc(r.q), E.org)) > far)[0];
-      if (alt) insB = alt;
-    }
-    if (window.__dbgMov) console.log('MOV', JSON.stringify({o: E.org, i: E.ins, ib: insB && insB.q.en, ob: orgB && orgB.q.en, id: insB && insB.d, od: orgB && orgB.d}));
-    if (!insB || !orgB || insB.q.i === orgB.q.i) { A.toast(T('This muscle does not cross a joint I can detect', 'العضلة دي مش بتعدّي مفصل أقدر أحدده'), 3500); return; }
-    const insV = bverts(insB.q), cen = (V) => { const c = [0, 0, 0]; V.forEach((v) => { c[0] += v[0]; c[1] += v[1]; c[2] += v[2]; }); return vmul(c, 1 / V.length); };
-    const cIns = cen(insV), dIns = vlen(vsub(cIns, E.org));
-    // joint = closest pair between the insertion bone and its proximal neighbour (a bone lying nearer to the origin)
-    let best = null;
-    boneItems().forEach((q) => { if (q.i === insB.q.i) return; const V = bverts(q), c = cen(V); if (vlen(vsub(c, E.org)) >= dIns) return;
-      let m = 9, pa = null, pb = null; insV.forEach((a) => V.forEach((b) => { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } }));
-      if (m < 0.04 && (!best || m < best.m)) best = { q, m, p: vmul(vadd(pa, pb), 0.5) }; });
-    if (!best) { A.toast(T('Could not find the joint for this muscle', 'ملقيتش المفصل بتاع العضلة دي'), 3500); return; }
-    const piv = best.p; let axis = vcross(vsub(E.ins, piv), vsub(E.org, piv));
-    if (vlen(axis) < 1e-5) axis = [1, 0, 0]; axis = vnorm(axis);
-    // sign + range: rotate until the muscle has shortened by ~30 % (25°–80°)
-    const L0 = vlen(vsub(E.ins, E.org)); let sign = 1, max = 0.45;
-    { const t = (th, sg) => vlen(vsub(vadd(piv, rotV(rotM(axis, th * sg), vsub(E.ins, piv))), E.org)); if (t(0.2, -1) < t(0.2, 1)) sign = -1;
-      for (let th = 0.1; th <= 1.4; th += 0.02) { max = th; if (t(th, sign) < L0 * 0.7) break; } max = Math.max(0.44, Math.min(1.4, max)); }
-    // followers: bones beyond the joint that touch the moving bone (hand follows the forearm, etc.)
-    const mv = new Set([insB.q.i]), fr = [insB.q], u = vnorm(vsub(cIns, piv));
-    for (let h = 0; h < 3; h++) { const nx = []; fr.forEach((fq) => { const fv = bverts(fq); boneItems().forEach((q) => { if (mv.has(q.i) || q.i === best.q.i || q.i === orgB.q.i) return; const V = bverts(q), c = cen(V);
-      if (vdot(vsub(c, piv), u) <= 0 || vlen(vsub(c, piv)) > 0.7 || vlen(vsub(c, E.org)) < vlen(vsub(piv, E.org)) + 0.02) return; if (mind(V, cen(fv)) > 0.25 && mind(fv, c) > 0.12) return; let m = 9; fv.forEach((a) => { m = Math.min(m, mind(V, a)); }); if (m < 0.02) { mv.add(q.i); nx.push(q); } }); }); fr.length = 0; fr.push(...nx); }
-    const grp = new Set(mus.map((r) => r.q.i));
-    S.focus = new Set([...grp, ...mv, best.q.i, orgB.q.i]); S.att = true; spotKey = '';
-    S.mov = { id: mvId, axis, sign, max, piv, bones: [...mv], muscles: mus.map((r) => ({ q: r.q, E: r.E })), th: 0, t0: performance.now(), play: true, name: (() => { const m = (window.MOVES || []).find((x) => x.id === mvId); return m ? T(m.en, m.ar) : T('Movement', 'الحركة'); })(), joint: T(best.q.en, best.q.ar) };
-    refresh(); if (A.renderChips) A.renderChips();
-    X().cam.flyTo(vadd(piv, vmul(vsub(E.org, piv), 0.3)), Math.max(0.7, L0 * 3.3), null, 0.12);
+    if (!mus.length) { A.toast(T('Cannot animate this muscle', 'مش قادر أحرّك العضلة دي'), 3000); return; }
+    S.att = true; spotKey = '';
+    const mvo = (window.MOVES || []).find((x) => x.id === mvId);
+    S.mov = { id: mvId, max: 1, muscles: mus, th: 0, t0: performance.now(), play: true, name: mvo ? T(mvo.en, mvo.ar) : T('Contraction', 'انقباض العضلة') };
     $('app').classList.remove('psel'); $('panel').classList.add('closed'); $('panel').classList.remove('peek');
     const bar = document.createElement('div'); bar.id = 'movbar';
-    bar.innerHTML = `<div class="mvt">💪 ${esc(S.mov.name)} — ${T('the muscle contracts and pulls', 'العضلة بتتقلّص وبتشدّ')}</div><div class="mvr"><button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><b id="movdeg">0°</b><button data-act="movend">✕</button></div>`;
+    bar.innerHTML = `<div class="mvt">💪 ${esc(S.mov.name)} — ${T('the muscle contracts and relaxes (bones stay still)', 'العضلة بتنقبض وتنبسط (العظم ثابت)')}</div><div class="mvr"><button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><b id="movdeg">0%</b><button data-act="movend">✕</button></div>`;
     $('app').appendChild(bar);
-    $('movsl').addEventListener('input', (ev) => { S.mov.play = false; $('movpl').textContent = '▶'; applyMove(S.mov.max * (+ev.target.value) / 100); });
-    const tick = (now) => { if (!S.mov) return; if (S.mov.play) { const ph = ((now - S.mov.t0) / 2600) % 2, k = ph < 1 ? ph : 2 - ph; applyMove(S.mov.max * (k * k * (3 - 2 * k))); } movRaf = requestAnimationFrame(tick); };
+    $('movsl').addEventListener('input', (ev) => { S.mov.play = false; $('movpl').textContent = '▶'; applyMove(+ev.target.value / 100); });
+    const tick = (now) => { if (!S.mov) return; if (S.mov.play) { const ph = ((now - S.mov.t0) / 2400) % 2, k = ph < 1 ? ph : 2 - ph; applyMove(k * k * (3 - 2 * k)); } movRaf = requestAnimationFrame(tick); };
     movRaf = requestAnimationFrame(tick);
   }
   const movesOf = (e) => (e.mv || []).map((id) => (window.MOVES || []).find((m) => m.id === id)).filter(Boolean);
@@ -228,7 +198,7 @@
     if (!(S.focus && S.att)) await A.acts.attiso();
     const b = $('movbar'); if (b) b.remove(); startMove(id);
   };
-  A.acts.movplay = () => { if (!S.mov) return; S.mov.play = !S.mov.play; if (S.mov.play) S.mov.t0 = performance.now() - 1300 * (S.mov.th / S.mov.max); $('movpl').textContent = S.mov.play ? '⏸' : '▶'; };
+  A.acts.movplay = () => { if (!S.mov) return; S.mov.play = !S.mov.play; if (S.mov.play) S.mov.t0 = performance.now() - 1200 * S.mov.th; $('movpl').textContent = S.mov.play ? '⏸' : '▶'; };
   A.acts.movend = () => { stopMove(); S.focus = null; spotKey = ''; refresh(); if (A.renderChips) A.renderChips(); };
 
   /* Labels are laid out calmly: a stable side per label (with hysteresis), a small fixed number of callouts (rest are quiet dots),
