@@ -48,6 +48,10 @@
     c.beginPath(); c.moveTo(x1, y1); c.lineTo(x1 - Math.cos(a - 0.42) * s, y1 - Math.sin(a - 0.42) * s); c.lineTo(x1 - Math.cos(a + 0.42) * s, y1 - Math.sin(a + 0.42) * s); c.closePath(); c.fill(); c.setLineDash([]);
   }
 
+  /* Labels are laid out calmly: a stable side per label (with hysteresis), a small fixed number of callouts (rest are quiet dots),
+     thin lines (bold only for the selected one), slots that glide instead of jump, and labels fade while the model is being rotated. */
+  const LSX = { set: [], side: new Map(), y: new Map(), a: 1, idleAt: 0, sig: '', key: '' };
+  const lmTimer = { t: 0 };
   A.afterDraw = () => {
     const cv = cvLm(); if (!cv) return;
     const x = X(); if (!x.cam || !x.itemOf) return;
@@ -56,54 +60,84 @@
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
     const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H); hits = [];
     const selBone = S.lm && S.sel >= 0 && P[S.sel].k === 'bone' ? S.sel : -1;
-    if (selBone < 0 && !S.lm && S.lmSel < 0) return;
-    const { vp, eye } = x.cam.matrices();
-    let cand = [];
+    if (selBone < 0 && !S.lm && S.lmSel < 0) { LSX.set = []; LSX.key = ''; return; }
+    const cm = x.cam, { vp, eye } = cm.matrices(), now = performance.now();
+    // ── is the model moving? (camera or explode) ──
+    const sig = [cm.yaw, cm.pitch, cm.dist, cm.target[0], cm.target[1], cm.target[2], S.explode].map((v) => Math.round(v * 2000)).join(',');
+    const moving = sig !== LSX.sig && LSX.sig !== ''; LSX.sig = sig; if (moving) LSX.idleAt = now + 380;
+    const quiet = now >= LSX.idleAt;
+    const tgtA = quiet ? 1 : 0.1; LSX.a += (tgtA - LSX.a) * (quiet ? 0.2 : 0.55); if (Math.abs(LSX.a - tgtA) < 0.015) LSX.a = tgtA;
     const consider = (l, forced) => {
-      const it = x.itemOf[l.bi]; if (!it || !it.visible || it.alpha < 0.3) return;
+      const it = x.itemOf[l.bi]; if (!it || !it.visible || it.alpha < 0.3) return null;
       const p = [l.p[0] + it.offset[0], l.p[1] + it.offset[1], l.p[2] + it.offset[2]];
       const ex = eye[0] - p[0], ey = eye[1] - p[1], ez = eye[2] - p[2], dl = Math.hypot(ex, ey, ez) || 1;
       const back = (l.n[0] * ex + l.n[1] * ey + l.n[2] * ez) / dl < 0.08;           // facing away
-      if (back && !forced) return;
-      if (S.cutOn && S.clipTest && S.clipTest(p)) return;
-      const s = project(p, vp, W, H); if (!s) return;
-      if (s[0] < 6 || s[0] > W - 6 || s[1] < 100 || s[1] > H - 14) return;
-      cand.push({ l, back, sx: s[0], sy: s[1], forced, d: Math.hypot(s[0] - W / 2, s[1] - H / 2) });
+      if (back && !forced) return null;
+      if (S.cutOn && S.clipTest && S.clipTest(p)) return null;
+      const sc = project(p, vp, W, H); if (!sc) return null;
+      if (sc[0] < 6 || sc[0] > W - 6 || sc[1] < 100 || sc[1] > H - 14) return null;
+      return { l, back, sx: sc[0], sy: sc[1], forced, d: Math.hypot(sc[0] - W / 2, sc[1] - H / 2) };
     };
-    if (selBone >= 0) (lmByBone.get(selBone) || []).forEach((l) => consider(l, true));
-    if (S.lm && x.cam.dist < 1.6) {
-      const extra = []; const save = cand; cand = [];
-      LM.forEach((l) => { if (l.bi !== selBone) consider(l, false); });
-      extra.push(...cand); cand = save;
-      extra.sort((a, b) => a.d - b.d); cand.push(...extra.slice(0, selBone >= 0 ? 0 : 14));
-    }
-    if (S.lmSel >= 0 && !cand.some((q) => q.l.i === S.lmSel)) { const l = LM.find((q) => q.i === S.lmSel); if (l) consider(l, true); }
-    if (!cand.length) return;
-    // two-column callout layout
+    // ── candidates ──
+    let pool = [];
+    if (selBone >= 0) (lmByBone.get(selBone) || []).forEach((l) => { const q = consider(l, true); if (q) pool.push(q); });
+    if (S.lm && cm.dist < 1.6 && selBone < 0) { const ex = []; LM.forEach((l) => { const q = consider(l, false); if (q) ex.push(q); }); ex.sort((a, b) => a.d - b.d); pool.push(...ex.slice(0, 14)); }
+    let sel = null;
+    if (S.lmSel >= 0) { sel = pool.find((q) => q.l.i === S.lmSel); if (!sel) { const l = LM.find((q) => q.i === S.lmSel); if (l) { sel = consider(l, true); if (sel) pool.push(sel); } } }
+    if (!pool.length) return;
+    // ── which ones get a callout: re-chosen only when the view is calm (so the set doesn't flicker while rotating) ──
+    const MAXL = W > 700 ? 11 : 7, kind = selBone + '|' + (S.lm ? 1 : 0);
+    const score = (q) => (q.back ? 4000 : 0) + q.d - Math.min(0.04, q.l.d || 0.01) * 3500 - (q.l.i === S.lmSel ? 9999 : 0);
+    if (quiet || LSX.key !== kind || !LSX.set.length) { LSX.key = kind; LSX.set = pool.slice().sort((a, b) => score(a) - score(b)).slice(0, MAXL).map((q) => q.l.i); }
+    if (sel && !LSX.set.includes(sel.l.i)) LSX.set.push(sel.l.i);
+    const labeled = [], dots = [];
+    pool.forEach((q) => (LSX.set.includes(q.l.i) ? labeled : dots).push(q));
+    // ── callout layout (stable sides, gliding slots) ──
     const fs = 13; c.font = `600 ${fs}px system-ui,-apple-system,"Segoe UI",Tahoma,"Noto Naskh Arabic",Arial,sans-serif`; c.textBaseline = 'middle';
-    const dk = dark();
-    const cols = { l: [], r: [] };
-    cand.forEach((q) => { q.txt = T(q.l.en, q.l.ar); q.w = Math.min(W * 0.46, c.measureText(q.txt).width + 18); (q.sx < W / 2 ? cols.l : cols.r).push(q); });
+    const dk = dark(), cols = { l: [], r: [] }, m = W * 0.12;
+    labeled.forEach((q) => {
+      q.txt = T(q.l.en, q.l.ar); q.w = Math.min(W * 0.46, c.measureText(q.txt).width + 18);
+      let sd = LSX.side.get(q.l.i); if (!sd || (sd === 'l' && q.sx > W / 2 + m) || (sd === 'r' && q.sx < W / 2 - m)) sd = q.sx < W / 2 ? 'l' : 'r';
+      LSX.side.set(q.l.i, sd); q.sd = sd; cols[sd].push(q);
+    });
+    let animating = false;
     const place = (arr, right) => {
-      arr.sort((a, b) => a.sy - b.sy); let y = 108;
-      arr.forEach((q) => { y = Math.max(y, Math.min(q.sy - 12, H - 30 - (arr.length - arr.indexOf(q)) * 26)); q.ly = y; y += 26; });
-      arr.forEach((q) => { q.lx = right ? W - 8 - q.w : 8; });
+      arr.sort((a, b) => (quiet ? a.sy - b.sy : (LSX.y.get(a.l.i) ?? a.sy) - (LSX.y.get(b.l.i) ?? b.sy))); let y = 108;
+      arr.forEach((q, i) => { y = Math.max(y, Math.min(q.sy - 12, H - 30 - (arr.length - i) * 26)); q.ty = y; y += 26; });
+      arr.forEach((q) => {
+        const cur = LSX.y.get(q.l.i); q.ly = cur === undefined ? q.ty : cur + (q.ty - cur) * 0.3;
+        if (Math.abs(q.ly - q.ty) < 0.6) q.ly = q.ty; else animating = true; LSX.y.set(q.l.i, q.ly);
+        q.lx = right ? W - 8 - q.w : 8;
+      });
     };
     place(cols.l, false); place(cols.r, true);
-    for (const q of cand) {
-      const sel = q.l.i === S.lmSel, right = q.sx >= W / 2;
+    const A0 = LSX.a;
+    // ── quiet dots for the rest (no lines) ──
+    if (selBone >= 0) for (const q of dots) {
+      if (q.back) continue; const on = q.l.i === S.lmSel;
+      c.globalAlpha = A0 * 0.9; c.fillStyle = dk ? 'rgba(255,255,255,.9)' : 'rgba(20,30,70,.85)'; c.strokeStyle = dk ? 'rgba(10,16,40,.9)' : 'rgba(255,255,255,.9)'; c.lineWidth = 1.5;
+      c.beginPath(); c.arc(q.sx, q.sy, on ? 6 : 3.6, 0, 6.3); c.fill(); c.stroke(); c.globalAlpha = 1;
+      hits.push({ i: q.l.i, rect: [q.sx - 9, q.sy - 9, 18, 18], px: q.sx, py: q.sy });
+    }
+    // ── callouts: thin line for all, bold for the selected one ──
+    for (const q of labeled) {
+      const on = q.l.i === S.lmSel, right = q.sd === 'r';
       const ax = right ? q.lx : q.lx + q.w, ay = q.ly + 11;
-      const col = sel ? '#19e3f2' : (dk ? 'rgba(255,255,255,.88)' : 'rgba(20,30,70,.85)');
-      c.globalAlpha = q.back ? 0.6 : 1; arrow(c, ax, ay, q.sx, q.sy, col, q.back);
-      c.fillStyle = sel ? 'rgba(10,60,80,.96)' : (dk ? 'rgba(14,20,44,.88)' : 'rgba(255,255,255,.94)');
-      c.strokeStyle = sel ? '#19e3f2' : (dk ? 'rgba(255,255,255,.28)' : 'rgba(20,30,70,.25)'); c.lineWidth = sel ? 2 : 1;
+      const col = on ? '#19e3f2' : (dk ? 'rgba(255,255,255,.55)' : 'rgba(20,30,70,.5)');
+      c.globalAlpha = A0 * (q.back ? 0.55 : 1);
+      if (on) arrow(c, ax, ay, q.sx, q.sy, col, q.back);
+      else { c.strokeStyle = col; c.lineWidth = 1; c.setLineDash(q.back ? [4, 4] : []); c.beginPath(); c.moveTo(ax, ay); c.lineTo(q.sx, q.sy); c.stroke(); c.setLineDash([]); c.fillStyle = col; c.beginPath(); c.arc(q.sx, q.sy, 2.6, 0, 6.3); c.fill(); }
+      c.fillStyle = on ? 'rgba(10,60,80,.96)' : (dk ? 'rgba(14,20,44,.88)' : 'rgba(255,255,255,.94)');
+      c.strokeStyle = on ? '#19e3f2' : (dk ? 'rgba(255,255,255,.28)' : 'rgba(20,30,70,.25)'); c.lineWidth = on ? 2 : 1;
       rrect(c, q.lx, q.ly, q.w, 22, 8); c.fill(); c.stroke();
-      c.fillStyle = sel ? '#fff' : (dk ? '#eef1ff' : '#18204a'); c.textAlign = 'center';
+      c.fillStyle = on ? '#fff' : (dk ? '#eef1ff' : '#18204a'); c.textAlign = 'center';
       c.fillText(q.txt, q.lx + q.w / 2, q.ly + 11.5, q.w - 10);
-      if (sel) { c.strokeStyle = '#19e3f2'; c.lineWidth = 2; c.beginPath(); c.arc(q.sx, q.sy, 9, 0, 6.3); c.stroke(); }
+      if (on) { c.strokeStyle = '#19e3f2'; c.lineWidth = 2; c.beginPath(); c.arc(q.sx, q.sy, 9, 0, 6.3); c.stroke(); }
       c.globalAlpha = 1;
       hits.push({ i: q.l.i, rect: [q.lx, q.ly, q.w, 22], px: q.sx, py: q.sy });
     }
+    // keep animating (fade-in after rotation / sliding slots) without needing the user to touch anything
+    if ((animating || LSX.a !== tgtA || !quiet) && !lmTimer.t) lmTimer.t = setTimeout(() => { lmTimer.t = 0; A.redraw(); }, 24);
   };
 
   A.onTap = (x, y) => {
