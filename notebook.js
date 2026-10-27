@@ -66,8 +66,8 @@ if (!window.__nbLoaded) (() => {
   }
   function renderLib() {
     const el = $('nbLib'), bs = LIB.books.slice().sort((a, b) => b.updated - a.updated);
-    el.innerHTML = `<div class="nb-top"><button data-nb="close">✕</button><b class="nb-ttl">📚 ${T('My notebooks', 'دفاتري')}</b><span class="nb-sp"></span><button class="on" data-nb="newbook">➕ ${T('New notebook', 'دفتر جديد')}</button></div><div class="nb-libbody">` +
-      (bs.length ? bs.map((b) => `<div class="nb-card"><button class="nb-cov" data-nb="openbook:${b.id}">${b.thumb ? `<img alt="" src="${b.thumb}">` : '<span>📓</span>'}</button><div class="nb-ct"><b>${esc0(b.title)}</b><small>${b.n} ${T('page(s)', 'صفحة')} · ${new Date(b.updated).toLocaleDateString(ar() ? 'ar-EG' : 'en')}</small></div><div class="nb-cb"><button data-nb="renbook:${b.id}">✎</button><button data-nb="dupbook:${b.id}">⎘</button><button data-nb="delbook:${b.id}">🗑</button></div></div>`).join('') : `<p class="nb-p" style="padding:20px">${T('No notebooks yet.', 'مفيش دفاتر لسه.')}</p>`) + '</div>';
+    el.innerHTML = `<div class="nb-top"><button data-nb="close">✕</button><b class="nb-ttl">📚 ${T('My notebooks', 'دفاتري')}</b><span class="nb-sp"></span><button class="on" data-nb="newbook">➕ ${T('New notebook', 'دفتر جديد')}</button><button data-nb="backup">💾 ${T('Backup', 'نسخة احتياطية')}</button><button data-nb="restore">📥 ${T('Restore', 'استرجاع')}</button></div><div class="nb-libbody">` +
+      (bs.length ? bs.map((b) => `<div class="nb-card"><button class="nb-cov" data-nb="openbook:${b.id}">${b.thumb ? `<img alt="" src="${b.thumb}">` : '<span>📓</span>'}</button><div class="nb-ct"><b>${esc0(b.title)}</b><small>${b.n} ${T('page(s)', 'صفحة')} · ${new Date(b.updated).toLocaleDateString(ar() ? 'ar-EG' : 'en')}</small></div><div class="nb-cb"><button data-nb="renbook:${b.id}">✎</button><button data-nb="dupbook:${b.id}">⎘</button><button data-nb="delbook:${b.id}">🗑</button></div></div>`).join('') : `<p class="nb-p" style="padding:20px">${T('No notebooks yet.', 'مفيش دفاتر لسه.')}</p>`) + `</div><p class="nb-p nb-tip">💡 ${T('Your notebooks live on this device. Tap 💾 Backup now and then to keep a copy you can restore on any phone.', 'دفاترك محفوظة على الجهاز ده. دوس 💾 نسخة احتياطية من وقت للتاني عشان تحتفظ بنسخة ترجّعها على أي موبايل.')}</p>`;
   }
   async function bookAction(k, id) {
     const m = LIB.books.find((x) => x.id === id);
@@ -76,6 +76,34 @@ if (!window.__nbLoaded) (() => {
     if (k === 'renbook') return titleDialog(m.title, async (t) => { m.title = t; await kvSet('lib', LIB); renderLib(); });
     if (k === 'dupbook') { if (!canBook()) return; if (BOOK && BOOK.id === id && NB) await flush(); const d = await kvGet('bk:' + id); if (!d) return; const nid = uid(), c = JSON.parse(JSON.stringify(d)); LIB.books.push({ id: nid, title: m.title + T(' (copy)', ' (نسخة)'), created: Date.now(), updated: Date.now(), n: c.pages.length, thumb: m.thumb }); await kvSet('bk:' + nid, c); await kvSet('lib', LIB); renderLib(); return; }
     if (k === 'delbook') { if (!confirm(T('Delete this notebook for good?', 'مسح الدفتر ده نهائيًا؟'))) return; await kvDel('bk:' + id); LIB.books = LIB.books.filter((x) => x.id !== id); if (BOOK && BOOK.id === id) { BOOK = null; NB = null; } await kvSet('lib', LIB); renderLib(); }
+  }
+  async function backupAll() {
+    try {
+      if (NB && BOOK) await flush(); const books = [];
+      for (const m of LIB.books) { const d = await kvGet('bk:' + m.id); if (d) books.push({ meta: m, data: d }); }
+      if (!books.length) return A.toast(T('Nothing to back up yet', 'مفيش دفاتر تتحفظ لسه'));
+      const blob = new Blob([JSON.stringify({ app: 'anatovia-notebooks', v: 1, at: Date.now(), books })], { type: 'application/json' });
+      const d = new Date(), ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      A.fileOut(blob, 'anatovia-notebooks-' + ds + '.json', 'application/json', { text: T('My Anatovia notebooks backup', 'نسخة احتياطية لدفاتري في Anatovia'), head: T('💾 Backup ready (' + books.length + ' notebooks)', '💾 النسخة الاحتياطية جاهزة (' + books.length + ' دفتر)') });
+    } catch (err) { A.toast(T('Could not create the backup', 'تعذّر إنشاء النسخة الاحتياطية')); }
+  }
+  function restoreAll() {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      try {
+        const j = JSON.parse(await f.text()); if (!j || j.app !== 'anatovia-notebooks' || !Array.isArray(j.books)) throw new Error('bad');
+        let added = 0; const ids = new Set(LIB.books.map((b) => b.id));
+        for (const b of j.books) {
+          if (!b || !b.meta || !b.data || !Array.isArray(b.data.pages) || !b.data.pages.length) continue;
+          const m = { id: b.meta.id, title: String(b.meta.title || T('Notebook', 'دفتر')).slice(0, 60), created: b.meta.created || Date.now(), updated: b.meta.updated || Date.now(), n: b.data.pages.length, thumb: typeof b.meta.thumb === 'string' ? b.meta.thumb : '' };
+          if (!m.id || ids.has(m.id)) { m.id = uid(); m.title += T(' (restored)', ' (مُسترجَع)'); }
+          b.data.imgs = b.data.imgs || {}; ids.add(m.id); LIB.books.push(m); await kvSet('bk:' + m.id, b.data); added++;
+        }
+        await kvSet('lib', LIB); renderLib(); A.toast(added ? T(added + ' notebook(s) restored ✓', 'اتسترجع ' + added + ' دفتر ✓') : T('No notebooks found in this file', 'مفيش دفاتر في الملف ده'), 4000);
+      } catch (err) { A.toast(T('This is not a valid backup file', 'الملف ده مش نسخة احتياطية صالحة'), 4000); }
+    };
+    inp.click();
   }
   function titleDialog(val, cb) {
     const d = dialog(`<h4>${T('Notebook name', 'اسم الدفتر')}</h4><input id="nbTt" type="text" maxlength="60" value="${esc0(val)}" style="width:100%;font-size:18px;border-radius:12px;padding:10px;border:1px solid var(--line);background:var(--surface2);color:var(--text)">`, (dl) => { const t = dl.querySelector('#nbTt').value.trim(); if (t) cb(t); });
@@ -303,6 +331,8 @@ if (!window.__nbLoaded) (() => {
     if (k === 'lib') return showLib();
     if (k === 'rentitle') return titleDialog(BOOK.title, (t) => { BOOK.title = t; setTitle(); save(); });
     if (k === 'newbook') { if (!canBook()) return; return titleDialog(T('Notebook', 'دفتر') + ' ' + (LIB.books.length + 1), async (t) => { const m = await newBook(t); await openBook(m.id); }); }
+    if (k === 'backup') return backupAll();
+    if (k === 'restore') return restoreAll();
     if (k === 'openbook' || k === 'renbook' || k === 'dupbook' || k === 'delbook') return bookAction(k, v);
     if (k === 'tool') { ST.tool = v; ST.sel = null; ctxBar(); if (ST.sheet === 'color' && (v === 'pen' || v === 'hl')) sheet(''), sheet('color'); toolbar(); draw(); return; }
     if (k === 'sheet') { if (v === 'color' && ST.tool !== 'pen' && ST.tool !== 'hl') ST.tool = 'pen'; sheet(v); toolbar(); return; }
