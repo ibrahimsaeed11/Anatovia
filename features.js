@@ -9,6 +9,7 @@
 
   Object.assign(STR, {
     lmBtn: { en: 'Labels', ar: 'التسميات' },
+    belowBtn: { en: 'View from below', ar: 'منظر من تحت' },
     autoBtn: { en: 'Auto-save view', ar: 'حفظ تلقائي' },
     lmColBtn: { en: 'Landmark colors', ar: 'ألوان المعالم' },
     lmHint: { en: 'Labels on: zoom in on a bone and tap a label', ar: 'التسميات شغالة: قرّب على عظمة واضغط على أي اسم' },
@@ -24,7 +25,7 @@
     let lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
     for (const i of set) { const e = P[i]; for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], e.c[k] - e.r * 0.6); hi[k] = Math.max(hi[k], e.c[k] + e.r * 0.6); } }
     const c = [0, 1, 2].map((k) => (lo[k] + hi[k]) / 2), ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
-    X().cam.flyTo([c[0], Math.max(0.05, c[1]), c[2]], Math.max(minD, ext * 1.7 + 0.35), null, Math.max(X().cam.pitch, 0.1)); A.redraw();
+    X().cam.flyTo([c[0], Math.max(0.05, c[1]), c[2]], Math.max(minD, ext * 1.7 + 0.35), null, (X().cam.pitch < 0 ? X().cam.pitch : Math.max(X().cam.pitch, 0.1))); A.redraw();
   }
   async function needLayers(sys) { for (const s of sys) { if (S.layers[s] === 'off') S.layers[s] = 'on'; await A.ensure(s); } }
 
@@ -502,6 +503,7 @@
       <button class="chip ${S.lm ? 'active' : ''}" data-act="lmtoggle">${ic.lm}${t('lmBtn')}</button>
       <button class="chip ${S.lmCol ? 'active' : ''}" data-act="lmcol">🎨 ${t('lmColBtn')}</button>
       <button class="chip ${autoOn() ? 'active' : ''}" data-act="autosave">💾 ${t('autoBtn')}</button>
+      <button class="chip ${(X().cam && X().cam.pitch < -0.3) ? 'active' : ''}" data-act="below">⬆ ${t('belowBtn')}</button>
       <button class="chip" data-act="cases">${ic.ca}${t('casesBtn')}</button>
       <button class="chip ${S.fnOn ? 'active' : ''}" data-act="fn">${ic.fn}${t('fnBtn')}</button>
       <button class="chip ${S.cutOn ? 'active' : ''}" data-act="cut">${ic.cut}${t('cutBtn')}</button>`;
@@ -542,6 +544,7 @@
       if (A.renderChips) A.renderChips(); A.redraw();
     } catch (e) { /* a stale snapshot must never break startup */ }
   }
+  A.acts.below = () => { const cm = X().cam; if (cm.pitch < -0.3) cm.flyTo(cm.target.slice(), cm.distGoal, null, 0.12); else cm.flyTo(cm.target.slice(), cm.distGoal, null, -0.85); setTimeout(() => { if (A.renderChips) A.renderChips(); }, 900); A.redraw(); };
   A.acts.autosave = () => {
     const on = !autoOn(); lsSet(AFLAG, on ? '1' : null);
     if (on) { lsSet(AKEY, snapshot()); A.toast(T('Auto-save is on: the app reopens exactly where you left it', 'الحفظ التلقائي شغال: التطبيق هيفتح بالظبط عند اللي كنت واقف عليه'), 4200); }

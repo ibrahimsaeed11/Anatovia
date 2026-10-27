@@ -29,7 +29,7 @@ function mat4Mul(a, b) {
 }
 
 /* ───────────── orbit camera ───────────── */
-const PITCH_MIN = 0.02;   // never look from below the floor
+const PITCH_MIN = -1.45;  // can look up at the model from below (the floor is hidden then)
 const PITCH_MAX = 1.50;
 class OrbitCamera {
   constructor() {
@@ -85,7 +85,8 @@ class OrbitCamera {
       if (g.yaw !== null) { let d = g.yaw - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); this.yaw += d * k; }
       if (g.pitch !== null) this.pitch += (Math.max(PITCH_MIN, Math.min(PITCH_MAX, g.pitch)) - this.pitch) * k;
       const done = V3.len(V3.sub(g.target, this.target)) < 0.002 && Math.abs(g.dist - this.dist) < 0.004 &&
-        (g.yaw === null || Math.abs(Math.atan2(Math.sin(g.yaw - this.yaw), Math.cos(g.yaw - this.yaw))) < 0.01);
+        (g.yaw === null || Math.abs(Math.atan2(Math.sin(g.yaw - this.yaw), Math.cos(g.yaw - this.yaw))) < 0.01) &&
+        (g.pitch === null || Math.abs(Math.max(PITCH_MIN, Math.min(PITCH_MAX, g.pitch)) - this.pitch) < 0.01);
       if (done) this.goal = null;
       moving = true;
     } else if (Math.abs(this.distGoal - this.dist) > 1e-4) {
@@ -240,7 +241,7 @@ class Renderer {
     const fp = this.floorProg; gl.useProgram(fp.p);
     gl.uniformMatrix4fv(fp.u.uVP, false, vp); gl.uniform3fv(fp.u.uFloorCol, this.floorCol); gl.uniform3fv(fp.u.uLine, this.lineCol); gl.uniform1f(fp.u.uDark, this.floorDark);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.floorBuf); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 12, 0); gl.disableVertexAttribArray(1);
-    if (!this.noFloor) { gl.depthMask(false); gl.drawArrays(gl.TRIANGLE_FAN, 0, this.floorN); gl.depthMask(true); }
+    if (!this.noFloor && eye[1] > 0.02) { gl.depthMask(false); gl.drawArrays(gl.TRIANGLE_FAN, 0, this.floorN); gl.depthMask(true); }
     // model
     const pr = this.prog; gl.useProgram(pr.p);
     gl.uniformMatrix4fv(pr.u.uVP, false, vp); gl.uniform3fv(pr.u.uEye, eye); gl.uniform1f(pr.u.uLight, this.light); gl.uniform4fv(pr.u.uClip, this.clip);

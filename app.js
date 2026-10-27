@@ -176,7 +176,7 @@ A.apply = applyState;
 function partCenter(e) { const it = itemOf[e.i]; const o = it ? it.goalOff : [0, 0, 0]; return [e.c[0] + o[0], Math.max(0.05, e.c[1] + o[1]), e.c[2] + o[2]]; }
 function flyToPart(e) {
   const d = Math.max(0.5, Math.min(3.4, e.r * 5.2 + 0.32));
-  cam.flyTo(partCenter(e), d, null, Math.max(cam.pitch, 0.1)); requestRender();
+  cam.flyTo(partCenter(e), d, null, cam.pitch < 0 ? cam.pitch : Math.max(cam.pitch, 0.1)); requestRender();
 }
 A.flyToPart = flyToPart;
 function flyRegion(reg) {
