@@ -334,3 +334,5 @@ body.nbopen .toast{z-index:90}
 #nbPick[hidden]{display:none}
 #nbPick button{background:#4a5fbf;color:#fff;border:0;border-radius:12px;padding:10px 14px;font-size:15px;font-weight:700}#nbPick button.x{background:#3a4468;padding:10px 12px}
 #nbPick small{flex-basis:100%;text-align:center;color:#a3adcf;font-size:11.5px}
+
+.nb-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;margin-inline-end:36px}.nb-tabs button{flex:0 0 auto;background:#222d52;color:#eef1ff;border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:6px 12px;font-size:14px;cursor:pointer}.nb-tabs button.on{background:#4a5fbf;border-color:#8c9cff}.nb-tabs small{opacity:.7;font-size:11px}

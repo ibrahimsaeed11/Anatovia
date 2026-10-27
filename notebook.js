@@ -60,7 +60,7 @@ if (!window.__nbLoaded) (() => {
     if (it.t === 't') { const b = textBox(it); return { w: b.w, h: b.h }; }
     if (it.t === 'k' || it.t === 'i') {
       const im = getImg(srcOf(it)), asp = im.naturalWidth ? im.naturalHeight / im.naturalWidth : 1;
-      const base = it.t === 'k' ? (it.id.startsWith('b_') ? 150 : it.id.startsWith('k_badge') ? 170 : 110) : it.w;
+      const base = it.t === 'k' ? (/^[bynh]_/.test(it.id) ? 150 : it.id.startsWith('k_badge') ? 170 : 110) : it.w;
       const w = base * it.sc; return { w, h: w * asp };
     }
     return { w: 0, h: 0 };
@@ -215,9 +215,9 @@ if (!window.__nbLoaded) (() => {
       h += `<h4>${hl ? T('Marker color', 'لون الماركر') : T('Pen color', 'لون القلم')}</h4><div class="nb-sws">${sw(hl ? HLC : COLORS, hl ? ST.hc : ST.c, 'col')}<input type="color" class="nb-col" value="${hl ? ST.hc : ST.c}" data-nbin="col"></div>` +
         `<h4>${T('Thickness', 'السُّمك')}</h4><input type="range" min="${hl ? 12 : 2}" max="${hl ? 48 : 22}" value="${hl ? ST.hw : ST.w}" data-nbin="wid" style="width:100%">`;
     } else if (kind === 'stickers') {
-      const B = window.BONO, bl = Object.keys(B.svg).filter((k) => k.startsWith('b_')), kk = Object.keys(B.svg).filter((k) => k.startsWith('k_'));
-      const cell = (k, lab) => `<button class="nb-st" data-nb="stk:${k}"><img alt="" src="${svgSrc(k)}">${lab ? `<small>${lab}</small>` : ''}</button>`;
-      h += `<h4>${T('Bono', 'بونو')}</h4><div class="nb-grid">${bl.map((k) => cell(k, B.labels[k])).join('')}</div><h4>${T('Badges & shapes', 'لافتات وأشكال')}</h4><div class="nb-grid">${kk.map((k) => cell(k, '')).join('')}</div>`;
+      const B = window.BONO, G = B.groups || [], tab = ST.stab && G.some((g) => g.id === ST.stab) ? ST.stab : (G[0] ? G[0].id : 'b'), g = G.find((x) => x.id === tab) || G[0];
+      const cell = (k) => `<button class="nb-st" data-nb="stk:${k}"><img alt="" loading="lazy" src="${svgSrc(k)}">${B.labels[k] ? `<small>${B.labels[k]}</small>` : ''}</button>`;
+      h += `<div class="nb-tabs">${G.map((x) => `<button class="${x.id === tab ? 'on' : ''}" data-nb="stab:${x.id}">${ar() ? x.ar : x.en}${x.sub && ar() ? ' <small>(' + x.sub + ')</small>' : ''}</button>`).join('')}</div><div class="nb-grid">${g.ids.map(cell).join('')}</div>`;
     } else if (kind === 'design') {
       h += `<h4>${T('Paper', 'الورق')}</h4><div class="nb-row">${PAPERS.map(([k, a, e]) => `<button class="${pg.paper === k ? 'on' : ''}" data-nb="paper:${k}">${T(e, a)}</button>`).join('')}</div>` +
         `<h4>${T('Frame', 'الإطار')}</h4><div class="nb-row">${FRAMES.map(([k, a, e]) => `<button class="${pg.frame === k ? 'on' : ''}" data-nb="frame:${k}">${T(e, a)}</button>`).join('')}</div>` +
@@ -245,6 +245,7 @@ if (!window.__nbLoaded) (() => {
     if (k === 'stk') { checkpoint(); const it = { t: 'k', id: v, x: PW / 2 + (Math.random() - 0.5) * 80, y: PH / 2 + (Math.random() - 0.5) * 120, sc: 1.4, r: 0 }; items().push(it); ST.tool = 'select'; ST.sel = it; sheet(''); ctxBar(); toolbar(); draw(); return; }
     if (k === 'paper' || k === 'frame' || k === 'bg' || k === 'c1' || k === 'c2') { pg[k] = v; sheet(''); sheet('design'); draw(); save(); return; }
     if (k === 'designall') { for (const q of NB.pages) { q.paper = pg.paper; q.frame = pg.frame; q.bg = pg.bg; q.c1 = pg.c1; q.c2 = pg.c2; } draw(); save(); A.toast(T('Applied to all pages', 'اتطبّق على كل الصفحات')); return; }
+    if (k === 'stab') { ST.stab = v; sheet(''); sheet('stickers'); return; }
     if (k === 'pick') return startPick();
     if (k === 'op') return doOp(v);
     if (k === 'pdfall') return exportPdf(true); if (k === 'pdfone') return exportPdf(false); if (k === 'img') return exportImg();
