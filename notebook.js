@@ -27,18 +27,60 @@ if (!window.__nbLoaded) (() => {
 
   /* ───────── storage (IndexedDB, fallback localStorage) ───────── */
   const idb = () => new Promise((res, rej) => { const r = indexedDB.open('anatovia-nb', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
-  async function dbGet() {
-    try { const d = await idb(); return await new Promise((res) => { const q = d.transaction('kv').objectStore('kv').get('nb'); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); }
-    catch (e) { try { return JSON.parse(localStorage.getItem('anat_nb') || 'null'); } catch (e2) { return null; } }
+  async function kvGet(key) {
+    try { const d = await idb(); return await new Promise((res) => { const q = d.transaction('kv').objectStore('kv').get(key); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); }
+    catch (e) { try { return JSON.parse(localStorage.getItem('anat_nb_' + key) || 'null'); } catch (e2) { return null; } }
   }
-  async function dbSet() {
-    if (!NB) return;
-    try { const d = await idb(); await new Promise((res, rej) => { const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').put(NB, 'nb'); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
-    catch (e) { try { localStorage.setItem('anat_nb', JSON.stringify(NB)); } catch (e2) { /* storage unavailable */ } }
+  async function kvSet(key, val) {
+    try { const d = await idb(); await new Promise((res, rej) => { const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').put(val, key); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); }
+    catch (e) { try { localStorage.setItem('anat_nb_' + key, JSON.stringify(val)); } catch (e2) { /* storage unavailable */ } }
   }
-  const save = () => { clearTimeout(saveT); saveT = setTimeout(dbSet, 500); };
-  window.addEventListener('pagehide', () => { if (NB) dbSet(); });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && NB) dbSet(); });
+  async function kvDel(key) {
+    try { const d = await idb(); await new Promise((res) => { const tx = d.transaction('kv', 'readwrite'); tx.objectStore('kv').delete(key); tx.oncomplete = res; tx.onerror = res; }); } catch (e) { try { localStorage.removeItem('anat_nb_' + key); } catch (e2) { /* ignore */ } }
+  }
+  let LIB = null, BOOK = null;
+  function thumbOf() { try { const c = document.createElement('canvas'); c.width = 240; c.height = Math.round(240 * PH / PW); const x = c.getContext('2d'); x.scale(240 / PW, 240 / PW); renderTo(x, NB.pages[0]); return c.toDataURL('image/jpeg', 0.6); } catch (e) { return ''; } }
+  async function flush() { if (!NB || !BOOK) return; BOOK.updated = Date.now(); BOOK.n = NB.pages.length; BOOK.thumb = thumbOf(); await kvSet('bk:' + BOOK.id, NB); await kvSet('lib', LIB); }
+  const save = () => { clearTimeout(saveT); saveT = setTimeout(flush, 600); };
+  window.addEventListener('pagehide', () => { if (NB) flush(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && NB) flush(); });
+  async function loadLib() {
+    if (LIB) return; let l = await kvGet('lib');
+    if (!l || !l.books) {
+      l = { v: 2, books: [], last: null }; const old = await kvGet('nb');   // v1 had a single notebook under "nb": keep it as the first book
+      if (old && old.pages && old.pages.length) { const id = uid(); old.imgs = old.imgs || {}; l.books.push({ id, title: T('My notebook', 'دفتري'), created: Date.now(), updated: Date.now(), n: old.pages.length, thumb: '' }); l.last = id; await kvSet('bk:' + id, old); await kvSet('lib', l); }
+    }
+    LIB = l;
+  }
+  async function newBook(title) { const id = uid(), d = { pages: [newPage()], cur: 0, imgs: {} }, m = { id, title, created: Date.now(), updated: Date.now(), n: 1, thumb: '' }; LIB.books.push(m); await kvSet('bk:' + id, d); await kvSet('lib', LIB); return m; }
+  function canBook() { if (LIB.books.length >= 1 && !(A.isPremium && A.isPremium())) { A.paywall('The free plan includes one notebook. Premium gives you unlimited notebooks.', 'النسخة المجانية فيها دفتر واحد. النسخة المميزة تدّيك دفاتر بلا حدود.'); return false; } return true; }
+  async function openBook(id) {
+    if (NB && BOOK) await flush();
+    const m = LIB.books.find((x) => x.id === id); if (!m) return; let d = await kvGet('bk:' + id); if (!d || !d.pages || !d.pages.length) d = { pages: [newPage()], cur: 0, imgs: {} };
+    d.imgs = d.imgs || {}; d.cur = Math.min(d.cur || 0, d.pages.length - 1); NB = d; BOOK = m; LIB.last = id; undo = []; redo = []; ST.sel = null; cur = null; resetView();
+    ov.classList.remove('lib'); sheet(''); setTitle(); ctxBar(); toolbar(); setTimeout(fit, 30); setTimeout(fit, 300);
+  }
+  const setTitle = () => { const el = $('nbTitle'); if (el && BOOK) el.textContent = '📓 ' + BOOK.title; };
+  async function showLib() {
+    if (NB && BOOK) await flush(); ov.classList.add('lib'); renderLib();
+  }
+  function renderLib() {
+    const el = $('nbLib'), bs = LIB.books.slice().sort((a, b) => b.updated - a.updated);
+    el.innerHTML = `<div class="nb-top"><button data-nb="close">✕</button><b class="nb-ttl">📚 ${T('My notebooks', 'دفاتري')}</b><span class="nb-sp"></span><button class="on" data-nb="newbook">➕ ${T('New notebook', 'دفتر جديد')}</button></div><div class="nb-libbody">` +
+      (bs.length ? bs.map((b) => `<div class="nb-card"><button class="nb-cov" data-nb="openbook:${b.id}">${b.thumb ? `<img alt="" src="${b.thumb}">` : '<span>📓</span>'}</button><div class="nb-ct"><b>${esc0(b.title)}</b><small>${b.n} ${T('page(s)', 'صفحة')} · ${new Date(b.updated).toLocaleDateString(ar() ? 'ar-EG' : 'en')}</small></div><div class="nb-cb"><button data-nb="renbook:${b.id}">✎</button><button data-nb="dupbook:${b.id}">⎘</button><button data-nb="delbook:${b.id}">🗑</button></div></div>`).join('') : `<p class="nb-p" style="padding:20px">${T('No notebooks yet.', 'مفيش دفاتر لسه.')}</p>`) + '</div>';
+  }
+  async function bookAction(k, id) {
+    const m = LIB.books.find((x) => x.id === id);
+    if (k === 'openbook') return openBook(id);
+    if (!m) return;
+    if (k === 'renbook') return titleDialog(m.title, async (t) => { m.title = t; await kvSet('lib', LIB); renderLib(); });
+    if (k === 'dupbook') { if (!canBook()) return; if (BOOK && BOOK.id === id && NB) await flush(); const d = await kvGet('bk:' + id); if (!d) return; const nid = uid(), c = JSON.parse(JSON.stringify(d)); LIB.books.push({ id: nid, title: m.title + T(' (copy)', ' (نسخة)'), created: Date.now(), updated: Date.now(), n: c.pages.length, thumb: m.thumb }); await kvSet('bk:' + nid, c); await kvSet('lib', LIB); renderLib(); return; }
+    if (k === 'delbook') { if (!confirm(T('Delete this notebook for good?', 'مسح الدفتر ده نهائيًا؟'))) return; await kvDel('bk:' + id); LIB.books = LIB.books.filter((x) => x.id !== id); if (BOOK && BOOK.id === id) { BOOK = null; NB = null; } await kvSet('lib', LIB); renderLib(); }
+  }
+  function titleDialog(val, cb) {
+    const d = dialog(`<h4>${T('Notebook name', 'اسم الدفتر')}</h4><input id="nbTt" type="text" maxlength="60" value="${esc0(val)}" style="width:100%;font-size:18px;border-radius:12px;padding:10px;border:1px solid var(--line);background:var(--surface2);color:var(--text)">`, (dl) => { const t = dl.querySelector('#nbTt').value.trim(); if (t) cb(t); });
+    setTimeout(() => { const i = d.querySelector('#nbTt'); i.focus(); i.select(); }, 60);
+  }
 
   const page = () => NB.pages[NB.cur];
   const items = () => page().items;
@@ -191,15 +233,15 @@ if (!window.__nbLoaded) (() => {
   }
   function renderTo(c, pg, extra) { drawBg(c, pg); for (const it of pg.items) drawItem(c, it); if (extra) drawItem(c, extra); }
   function draw() {
-    if (!cx) return; if (rafId) return;
+    if (!cx || !NB) return; if (rafId) return;
     rafId = requestAnimationFrame(() => {
-      rafId = 0; if (!cx) return; cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, cv.width, cv.height); cx.setTransform(K * V.z, 0, 0, K * V.z, K * V.ox, K * V.oy);
+      rafId = 0; if (!cx || !NB) return; cx.setTransform(1, 0, 0, 1, 0, 0); cx.clearRect(0, 0, cv.width, cv.height); cx.setTransform(K * V.z, 0, 0, K * V.z, K * V.ox, K * V.oy);
       renderTo(cx, page(), cur);
       if (ST.sel && items().includes(ST.sel)) drawSel(cx, ST.sel);
     });
   }
   function fit() {
-    if (!ov || ov.hidden) return; const st = ov.querySelector('.nb-stage'), r = st.getBoundingClientRect();
+    if (!ov || ov.hidden || ov.classList.contains('lib') || !NB) return; const st = ov.querySelector('.nb-stage'), r = st.getBoundingClientRect();
     const s = Math.min((r.width - 16) / PW, (r.height - 16) / PH), w = Math.max(120, PW * s), h = PH * s, d = Math.min(2.5, window.devicePixelRatio || 1);
     cv.style.width = w + 'px'; cv.style.height = h + 'px'; cv.width = Math.round(w * d); cv.height = Math.round(h * d); K = cv.width / PW; draw();
   }
@@ -209,10 +251,10 @@ if (!window.__nbLoaded) (() => {
   const sw = (list, cur0, key) => list.map((c) => `<button type="button" class="nb-sw ${c === cur0 ? 'on' : ''}" style="background:${c}" data-nb="${key}:${c}"></button>`).join('');
   function shell() {
     ov = document.createElement('div'); ov.id = 'nbx'; ov.dir = ar() ? 'rtl' : 'ltr';
-    ov.innerHTML = `<div class="nb-top"><button data-nb="close">✕</button><b class="nb-ttl">📓 ${T('Bono\'s notebook', 'دفتر بونو')}</b><span class="nb-sp"></span>` +
+    ov.innerHTML = `<div class="nb-top"><button data-nb="close">✕</button><button data-nb="lib">📚</button><b class="nb-ttl" id="nbTitle" data-nb="rentitle"></b><span class="nb-sp"></span>` +
       `<button data-nb="pg:-1">◀</button><span id="nbPg" class="nb-pg"></span><button data-nb="pg:1">▶</button><button data-nb="addpg">➕</button><button data-nb="dup">⎘</button><button data-nb="delpg">🗑</button><button data-nb="export">⬇️</button></div>` +
       `<div class="nb-stage"><canvas id="nbc"></canvas></div><div id="nbCtx" class="nb-ctx" hidden></div><div id="nbSheet" class="nb-sheet" hidden></div>` +
-      `<div class="nb-tools" id="nbTools"></div>`;
+      `<div class="nb-tools" id="nbTools"></div><div id="nbLib" class="nb-lib"></div>`;
     (document.getElementById('app') || document.body).appendChild(ov); cv = ov.querySelector('#nbc'); cx = cv.getContext('2d');
     ov.addEventListener('click', onClick); bindPointer();
   }
@@ -256,8 +298,12 @@ if (!window.__nbLoaded) (() => {
     el.innerHTML = h;
   }
   function onClick(ev) {
-    const b = ev.target.closest('[data-nb]'); if (!b) return; const [k, ...r] = b.dataset.nb.split(':'), v = r.join(':'), pg = page();
+    const b = ev.target.closest('[data-nb]'); if (!b) return; const [k, ...r] = b.dataset.nb.split(':'), v = r.join(':'), pg = NB ? page() : null;
     if (k === 'close') return close();
+    if (k === 'lib') return showLib();
+    if (k === 'rentitle') return titleDialog(BOOK.title, (t) => { BOOK.title = t; setTitle(); save(); });
+    if (k === 'newbook') { if (!canBook()) return; return titleDialog(T('Notebook', 'دفتر') + ' ' + (LIB.books.length + 1), async (t) => { const m = await newBook(t); await openBook(m.id); }); }
+    if (k === 'openbook' || k === 'renbook' || k === 'dupbook' || k === 'delbook') return bookAction(k, v);
     if (k === 'tool') { ST.tool = v; ST.sel = null; ctxBar(); if (ST.sheet === 'color' && (v === 'pen' || v === 'hl')) sheet(''), sheet('color'); toolbar(); draw(); return; }
     if (k === 'sheet') { if (v === 'color' && ST.tool !== 'pen' && ST.tool !== 'hl') ST.tool = 'pen'; sheet(v); toolbar(); return; }
     if (k === 'col') { if (ST.tool === 'hl') ST.hc = v; else ST.c = v; sheet(''); sheet('color'); toolbar(); return; }
@@ -416,6 +462,7 @@ if (!window.__nbLoaded) (() => {
   /* ───────── export ───────── */
   function exportSheet() { sheet(''); const el = $('nbSheet'); ST.sheet = 'export'; el.hidden = false; el.innerHTML = `<button class="nb-x" data-nb="sheet:">✕</button><h4>⬇️ ${T('Save / share', 'حفظ ومشاركة')}</h4><div class="nb-row"><button class="on" data-nb="pdfall">📄 ${T('Whole notebook (PDF)', 'الدفتر كله PDF')}</button><button data-nb="pdfone">📄 ${T('This page (PDF)', 'الصفحة دي PDF')}</button><button data-nb="img">🖼️ ${T('This page (image)', 'الصفحة دي صورة')}</button></div>`; }
   function renderCanvas(pg) { const c = document.createElement('canvas'); c.width = 1240; c.height = Math.round(1240 * PH / PW); const x = c.getContext('2d'); x.scale(c.width / PW, c.width / PW); renderTo(x, pg); return c; }
+  const fname = () => ((BOOK && BOOK.title) || 'notebook').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'notebook';
   const toBlob = (c, type, q) => new Promise((res) => c.toBlob((b) => res(b), type, q));
   async function preload() { const need = []; for (const pg of NB.pages) for (const it of pg.items) if (it.t === 'k' || it.t === 'i') need.push(getImg(srcOf(it))); await Promise.all(need.map((im) => (im.complete && im.naturalWidth ? 0 : new Promise((r) => { im.addEventListener('load', r, { once: true }); im.addEventListener('error', r, { once: true }); })))); }
   function makePdf(list) {
@@ -436,11 +483,11 @@ if (!window.__nbLoaded) (() => {
     try {
       await preload(); const list = [];
       for (const pg of all ? NB.pages : [page()]) { const c = renderCanvas(pg), b = await toBlob(c, 'image/jpeg', 0.9); list.push({ jpg: new Uint8Array(await b.arrayBuffer()), w: c.width, h: c.height }); }
-      const pdf = makePdf(list); A.fileOut(pdf, 'bono-notebook.pdf', 'application/pdf', { text: T('My Anatovia notebook', 'دفتري في Anatovia'), head: T('📄 Notebook PDF', '📄 دفتر المذاكرة PDF') });
+      const pdf = makePdf(list); A.fileOut(pdf, fname() + '.pdf', 'application/pdf', { text: T('My Anatovia notebook', 'دفتري في Anatovia'), head: T('📄 Notebook PDF', '📄 دفتر المذاكرة PDF') });
     } catch (err) { A.toast(T('Could not create the file', 'تعذّر إنشاء الملف')); }
   }
   async function exportImg() {
-    try { await preload(); const b = await toBlob(renderCanvas(page()), 'image/jpeg', 0.92); A.fileOut(b, 'bono-page.jpg', 'image/jpeg', { text: T('My Anatovia notes', 'ملاحظاتي في Anatovia'), head: T('🖼️ Page image', '🖼️ صورة الصفحة') }); }
+    try { await preload(); const b = await toBlob(renderCanvas(page()), 'image/jpeg', 0.92); A.fileOut(b, fname() + '-' + (NB.cur + 1) + '.jpg', 'image/jpeg', { text: T('My Anatovia notes', 'ملاحظاتي في Anatovia'), head: T('🖼️ Page image', '🖼️ صورة الصفحة') }); }
     catch (err) { A.toast(T('Could not create the file', 'تعذّر إنشاء الملف')); }
   }
 
@@ -449,12 +496,15 @@ if (!window.__nbLoaded) (() => {
   async function open() {
     if (A.closeModal) A.closeModal();
     await loadBono(); if (!window.BONO) { A.toast(T('Could not load the stickers', 'تعذّر تحميل الستيكرات')); return; }
-    if (!NB) { const d = await dbGet(); NB = d && d.pages && d.pages.length ? d : { pages: [newPage()], cur: 0, imgs: {} }; NB.imgs = NB.imgs || {}; NB.cur = Math.min(NB.cur || 0, NB.pages.length - 1); }
-    if (!ov) shell(); resetView(); ov.hidden = false; ov.dir = ar() ? 'rtl' : 'ltr'; document.body.classList.add('nbopen'); ST.sel = null; sheet(''); ctxBar(); toolbar(); setTimeout(fit, 30); setTimeout(fit, 300);
-    if (!Store.d.nbHint) { Store.d.nbHint = 1; Store.save(); A.toast(T('Tip: pinch with two fingers to resize/rotate a selected item', 'نصيحة: اقرص بإصبعين لتكبير أو لف العنصر المحدد'), 5000); }
+    await loadLib(); if (!ov) shell();
+    ov.hidden = false; ov.dir = ar() ? 'rtl' : 'ltr'; document.body.classList.add('nbopen'); ST.sel = null;
+    if (!LIB.books.length) { const m = await newBook(T('My notebook', 'دفتري')); await openBook(m.id); }
+    else if (LIB.books.length === 1) await openBook(LIB.books[0].id);
+    else { ov.classList.add('lib'); renderLib(); }
+    if (!Store.d.nbHint) { Store.d.nbHint = 1; Store.save(); A.toast(T('Tip: tap 📚 to keep several separate notebooks', 'نصيحة: دوس 📚 عشان تعمل أكتر من دفتر منفصل'), 5000); }
   }
-  function close() { if (!ov) return; ov.hidden = true; document.body.classList.remove('nbopen'); dbSet(); }
+  function close() { if (!ov) return; ov.hidden = true; document.body.classList.remove('nbopen'); flush(); }
   Object.assign(STR, { nb: { en: 'Bono\'s notebook', ar: 'دفتر بونو' }, nbSub: { en: 'Write, draw, add stickers & 3D parts, save as PDF', ar: 'اكتب وارسم وضيف ستيكرات وأجزاء من المجسم واحفظ PDF' } });
   A.hubExtra = A.hubExtra || {}; A.hubExtra.nb = open;
-  A.nbApi = { open, get NB() { return NB; }, get ST() { return ST; } };
+  A.nbApi = { open, get NB() { return NB; }, get ST() { return ST; }, get LIB() { return LIB; } };
 })();
