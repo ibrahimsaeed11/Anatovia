@@ -9,6 +9,7 @@
 
   Object.assign(STR, {
     lmBtn: { en: 'Labels', ar: 'التسميات' },
+    autoBtn: { en: 'Auto-save view', ar: 'حفظ تلقائي' },
     lmColBtn: { en: 'Landmark colors', ar: 'ألوان المعالم' },
     lmHint: { en: 'Labels on: zoom in on a bone and tap a label', ar: 'التسميات شغالة: قرّب على عظمة واضغط على أي اسم' },
     casesBtn: { en: 'Clinical cases', ar: 'حالات سريرية' },
@@ -500,10 +501,54 @@
     return `<span class="chip sep"></span>
       <button class="chip ${S.lm ? 'active' : ''}" data-act="lmtoggle">${ic.lm}${t('lmBtn')}</button>
       <button class="chip ${S.lmCol ? 'active' : ''}" data-act="lmcol">🎨 ${t('lmColBtn')}</button>
+      <button class="chip ${autoOn() ? 'active' : ''}" data-act="autosave">💾 ${t('autoBtn')}</button>
       <button class="chip" data-act="cases">${ic.ca}${t('casesBtn')}</button>
       <button class="chip ${S.fnOn ? 'active' : ''}" data-act="fn">${ic.fn}${t('fnBtn')}</button>
       <button class="chip ${S.cutOn ? 'active' : ''}" data-act="cut">${ic.cut}${t('cutBtn')}</button>`;
   };
+
+  /* ───────────── optional auto-save of the 3D view (layers, hidden parts, selection, camera…) ───────────── */
+  const AKEY = 'anat_view', AFLAG = 'anat_view_on';
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { /* storage blocked */ } };
+  function autoOn() { return lsGet(AFLAG) === '1'; }
+  function snapshot() {
+    const cm = X().cam, byI = (i) => (P[i] ? P[i].id : null);
+    return JSON.stringify({
+      layers: S.layers, hidden: [...S.hidden].map(byI).filter(Boolean), iso: S.iso >= 0 ? byI(S.iso) : null, sel: S.sel >= 0 ? byI(S.sel) : null,
+      region: S.region || null, explode: S.explode || 0, pulled: [...S.pulled].map(byI).filter(Boolean), moveSet: S.moveSet ? [...S.moveSet] : null,
+      lm: !!S.lm, lmCol: !!S.lmCol, cam: { yaw: cm.yaw, pitch: cm.pitch, dist: cm.distGoal || cm.dist, target: cm.target },
+    });
+  }
+  let lastSnap = '';
+  setInterval(() => {
+    if (!autoOn() || !X().cam || S.quiz || S.mov) return; const sn = snapshot(); if (sn !== lastSnap) { lastSnap = sn; lsSet(AKEY, sn); }
+  }, 1500);
+  addEventListener('pagehide', () => { if (autoOn() && X().cam) lsSet(AKEY, snapshot()); });
+  addEventListener('visibilitychange', () => { if (document.hidden && autoOn() && X().cam) lsSet(AKEY, snapshot()); });
+  async function restoreView() {
+    let v; try { v = JSON.parse(lsGet(AKEY) || 'null'); } catch (e) { v = null; } if (!v) return;
+    const idx = (id) => P.findIndex((e) => e.id === id), x = X();
+    try {
+      for (const k of Object.keys(S.layers)) if (v.layers && v.layers[k]) S.layers[k] = v.layers[k];
+      for (const k of Object.keys(S.layers)) if (S.layers[k] !== 'off') await A.ensure(k);
+      S.hidden = new Set((v.hidden || []).map(idx).filter((i) => i >= 0));
+      S.iso = v.iso ? idx(v.iso) : -1; S.region = v.region || null; S.explode = v.explode || 0;
+      S.pulled = new Set((v.pulled || []).map(idx).filter((i) => i >= 0)); S.moveSet = v.moveSet ? new Set(v.moveSet) : null;
+      S.lm = !!v.lm; S.lmCol = !!v.lmCol;
+      if (v.sel) { const i = idx(v.sel); if (i >= 0) { await A.select(i, { fly: false, noPanel: true, reveal: false }); } }
+      A.apply();
+      if (v.cam && x.cam) { const c = x.cam; c.goal = null; c.yaw = v.cam.yaw; c.pitch = v.cam.pitch; c.dist = c.distGoal = v.cam.dist; c.target = v.cam.target.slice(); }
+      if (A.renderChips) A.renderChips(); A.redraw();
+    } catch (e) { /* a stale snapshot must never break startup */ }
+  }
+  A.acts.autosave = () => {
+    const on = !autoOn(); lsSet(AFLAG, on ? '1' : null);
+    if (on) { lsSet(AKEY, snapshot()); A.toast(T('Auto-save is on: the app reopens exactly where you left it', 'الحفظ التلقائي شغال: التطبيق هيفتح بالظبط عند اللي كنت واقف عليه'), 4200); }
+    else { lsSet(AKEY, null); A.toast(T('Auto-save is off', 'الحفظ التلقائي اتقفل'), 2500); }
+    if (A.renderChips) A.renderChips();
+  };
+  if (autoOn()) { const wait = setInterval(() => { const l = $('loading'); if (l && l.classList.contains('done') && X().cam) { clearInterval(wait); restoreView(); } }, 250); setTimeout(() => clearInterval(wait), 20000); }
   const oldLang = A.onLang;
   A.onLang = () => { fnBar(); cutBar(); if (oldLang) oldLang(); };
 })();
