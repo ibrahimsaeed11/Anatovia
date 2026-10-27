@@ -156,17 +156,17 @@
     A.redraw();
   }
   function applyMove(th) {
-    const M = S.mov; if (!M) return; const R = X().R, m = rotM(M.axis, th * M.sign);
+    const M = S.mov; if (!M || !M.piv) return; const R = X().R, m = rotM(M.axis, th * M.sign), kk = Math.min(1, th / M.max);
     M.bones.forEach((i) => { const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
     M.muscles.forEach((q) => { const it = X().itemOf[q.i], E = q.E; if (!it) return; const d = vsub(E.ins, E.org);
-      it.anim = { mode: 2, rot: m, piv: M.piv, a: E.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))] }; });
+      it.anim = { mode: 2, rot: m, piv: M.piv, a: E.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))], bul: 0.55 * kk }; it.tint = [1, 0.3, 0.12, 0.18 + 0.5 * kk]; });
     M.th = th; const rd = $('movdeg'); if (rd) rd.textContent = Math.round(th * 180 / Math.PI) + '°';
     const sl = $('movsl'); if (sl && document.activeElement !== sl) sl.value = Math.round(th / M.max * 100);
     A.redraw();
   }
-  A.acts.mov = async () => {
+  async function startMove(mvId) {
     const e = P[S.sel]; if (!e || e.k !== 'muscle') return;
-    if (S.mov) return stopMove();
+    if (S.mov && S.mov.piv) stopMove(true);
     A.toast(T('Preparing the movement…', 'بجهّز الحركة…'), 1500);
     await A.ensure('bone'); S.explode = 0; if (A.apply) A.apply(); await new Promise((r) => setTimeout(r, 60));
     const mus = groupItems(e).map((q) => ({ q, E: endsOf(q) })).filter((r) => r.E);
@@ -199,16 +199,34 @@
       if (vdot(vsub(c, piv), u) <= 0 || vlen(vsub(c, piv)) > 0.7 || vlen(vsub(c, E.org)) < vlen(vsub(piv, E.org)) + 0.02) return; if (mind(V, cen(fv)) > 0.25 && mind(fv, c) > 0.12) return; let m = 9; fv.forEach((a) => { m = Math.min(m, mind(V, a)); }); if (m < 0.02) { mv.add(q.i); nx.push(q); } }); }); fr.length = 0; fr.push(...nx); }
     const grp = new Set(mus.map((r) => r.q.i));
     S.focus = new Set([...grp, ...mv, best.q.i, orgB.q.i]); S.att = true; spotKey = '';
-    S.mov = { axis, sign, max, piv, bones: [...mv], muscles: mus.map((r) => ({ q: r.q, E: r.E })), th: 0, t0: performance.now(), play: true, name: T('Movement', 'الحركة'), joint: T(best.q.en, best.q.ar) };
+    S.mov = { id: mvId, axis, sign, max, piv, bones: [...mv], muscles: mus.map((r) => ({ q: r.q, E: r.E })), th: 0, t0: performance.now(), play: true, name: (() => { const m = (window.MOVES || []).find((x) => x.id === mvId); return m ? T(m.en, m.ar) : T('Movement', 'الحركة'); })(), joint: T(best.q.en, best.q.ar) };
     refresh(); if (A.renderChips) A.renderChips();
     X().cam.flyTo(vadd(piv, vmul(vsub(E.org, piv), 0.3)), Math.max(0.7, L0 * 3.3), null, 0.12);
     $('app').classList.remove('psel'); $('panel').classList.add('closed'); $('panel').classList.remove('peek');
     const bar = document.createElement('div'); bar.id = 'movbar';
-    bar.innerHTML = `<button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><b id="movdeg">0°</b><button data-act="movend">✕</button>`;
+    bar.innerHTML = `<div class="mvt">💪 ${esc(S.mov.name)} — ${T('the muscle contracts and pulls', 'العضلة بتتقلّص وبتشدّ')}</div><div class="mvr"><button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><b id="movdeg">0°</b><button data-act="movend">✕</button></div>`;
     $('app').appendChild(bar);
     $('movsl').addEventListener('input', (ev) => { S.mov.play = false; $('movpl').textContent = '▶'; applyMove(S.mov.max * (+ev.target.value) / 100); });
     const tick = (now) => { if (!S.mov) return; if (S.mov.play) { const ph = ((now - S.mov.t0) / 2600) % 2, k = ph < 1 ? ph : 2 - ph; applyMove(S.mov.max * (k * k * (3 - 2 * k))); } movRaf = requestAnimationFrame(tick); };
     movRaf = requestAnimationFrame(tick);
+  }
+  const movesOf = (e) => (e.mv || []).map((id) => (window.MOVES || []).find((m) => m.id === id)).filter(Boolean);
+  const mvName = (m) => T(m.en, m.ar);
+  function pickBar(e, list) {
+    stopMove(); const bar = document.createElement('div'); bar.id = 'movbar'; bar.className = 'pick';
+    bar.innerHTML = `<div class="mvt">${T('Choose the action to see the muscle perform it', 'اختار الحركة اللي عايز تشوف العضلة بتعملها')}</div><div class="mvl">${list.map((m) => `<button data-act="actmv" data-id="${m.id}">${esc(mvName(m))}</button>`).join('')}</div><button class="mvx" data-act="movend">✕</button>`;
+    $('app').appendChild(bar);
+  }
+  /* tap "Movement view": isolate the muscle with its bones automatically, then offer its actions to choose from */
+  A.acts.mov = async () => {
+    const e = P[S.sel]; if (!e || e.k !== 'muscle') return;
+    await A.acts.attiso(); const list = movesOf(e);
+    if (list.length > 1) pickBar(e, list); else startMove(list[0] ? list[0].id : null);
+  };
+  A.acts.actmv = async (el) => {
+    const e = P[S.sel]; if (!e) return; const id = el.dataset.id;
+    if (!(S.focus && S.att)) await A.acts.attiso();
+    const b = $('movbar'); if (b) b.remove(); startMove(id);
   };
   A.acts.movplay = () => { if (!S.mov) return; S.mov.play = !S.mov.play; if (S.mov.play) S.mov.t0 = performance.now() - 1300 * (S.mov.th / S.mov.max); $('movpl').textContent = S.mov.play ? '⏸' : '▶'; };
   A.acts.movend = () => { stopMove(); S.focus = null; spotKey = ''; refresh(); if (A.renderChips) A.renderChips(); };
@@ -399,7 +417,8 @@
     if (e.k === 'muscle' && e.mu) {
       h += `<h4>${T('Origin & insertion on the model (approximate)', 'البداية والنهاية على المجسم (تقريبي)')}</h4>
         <div class="legend2"><div><i style="background:#2ad45c"></i><b>${T('Origin', 'البداية')}</b> ${esc(T(e.mu[0], e.mu[1]) || '')}</div><div><i style="background:#4d8dff"></i><b>${T('Insertion', 'النهاية')}</b> ${esc(T(e.mu[2], e.mu[3]) || '')}</div></div>
-        <div class="actions" style="margin-top:8px"><button class="act ${S.att ? 'on' : ''}" data-act="att">🟢🔵 ${T('Color origin / insertion', 'لوّن البداية والنهاية')}</button><button class="act" data-act="attiso">🦴 ${T('Isolate with its bones', 'اعزلها مع عظامها')}</button><button class="act" data-act="mov">▶ ${T('Movement view', 'شوف الحركة')}</button><button class="act" data-act="attswap">⇄ ${T('Swap ends', 'اعكس البداية/النهاية')}</button></div>`;
+        <div class="actions" style="margin-top:8px"><button class="act ${S.att ? 'on' : ''}" data-act="att">🟢🔵 ${T('Color origin / insertion', 'لوّن البداية والنهاية')}</button><button class="act" data-act="attiso">🦴 ${T('Isolate with its bones', 'اعزلها مع عظامها')}</button><button class="act" data-act="mov">▶ ${T('Movement view', 'شوف الحركة')}</button>
+        </div>${movesOf(e).length ? `<h4>${T('Tap an action to see the muscle perform it', 'اضغط على الحركة عشان تشوف العضلة بتعملها')}</h4><div class="pills">${movesOf(e).map((m) => `<span class="pill2" data-act="actmv" data-id="${m.id}">▶ ${esc(mvName(m))}</span>`).join('')}</div>` : ''}<div class="actions"><button class="act" data-act="attswap">⇄ ${T('Swap ends', 'اعكس البداية/النهاية')}</button></div>`;
     }
     if (e.k === 'bone' && lmByBone.has(e.i)) {
       const ls = lmByBone.get(e.i).slice().sort((a, b) => a.en.localeCompare(b.en));

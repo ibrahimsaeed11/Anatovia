@@ -349,3 +349,10 @@ body.nbopen .toast{z-index:90}
 #movbar button{border:0;background:var(--surface2);color:inherit;width:34px;height:34px;border-radius:50%;font-size:15px;cursor:pointer}
 #movbar input{width:150px}#movbar b{min-width:42px;text-align:center;font-variant-numeric:tabular-nums}
 .legend2 div{display:flex;gap:8px;align-items:flex-start;margin:4px 0;font-size:13px}.legend2 i{flex:none;width:12px;height:12px;border-radius:50%;margin-top:4px}
+#movbar{flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px);border-radius:18px}
+#movbar .mvt{flex:1 0 100%;text-align:center;font-weight:700;font-size:13px}
+#movbar .mvl{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+#movbar .mvl button{width:auto;height:auto;border-radius:99px;padding:7px 12px;font-size:13px}
+#movbar.pick .mvx{position:absolute;top:4px;inset-inline-end:4px;width:26px;height:26px;font-size:12px}
+#movbar .mvr{display:flex;align-items:center;gap:10px;flex:1 0 100%;justify-content:center}
+#movbar{padding:6px 12px;border-radius:16px}
