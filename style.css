@@ -345,9 +345,3 @@ body.nbopen .toast{z-index:90}
 .nb-ct{display:flex;flex-direction:column;gap:2px}.nb-ct b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nb-ct small{color:#a3adcf;font-size:11px}
 .nb-cb{display:flex;gap:6px}.nb-cb button{flex:1;background:#222d52;color:#fff;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:6px 0;font-size:15px;cursor:pointer}
 .nb-ttl{cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:36vw}
-
-#movbar{position:absolute;left:50%;transform:translateX(-50%);top:112px;z-index:30;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 24px)}
-#movbar .mvt{font-weight:700;font-size:13px;text-align:center}
-#movbar .mvr{display:flex;align-items:center;gap:10px}
-#movbar button{border:0;background:var(--surface2);color:inherit;width:34px;height:34px;border-radius:50%;font-size:15px;cursor:pointer}
-#movbar input{width:150px;direction:ltr}#movbar b{min-width:42px;text-align:center;font-variant-numeric:tabular-nums}
