@@ -85,6 +85,7 @@ if (!window.__extrasLoaded) (() => {
     const cv = $('drw'); if (!cv) return; const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height);
     const dpr = cv.width / cv.clientWidth;
     for (const s of DR.strokes.concat(DR.cur ? [DR.cur] : [])) {
+      if (s.t !== undefined) { c.save(); const fs = s.fs * dpr; c.font = `700 ${fs}px system-ui, 'Segoe UI', Tahoma, sans-serif`; c.textBaseline = 'top'; c.textAlign = 'left'; c.direction = /[\u0590-\u08FF]/.test(s.t) ? 'rtl' : 'ltr'; c.lineJoin = 'round'; c.lineWidth = fs * 0.16; c.strokeStyle = s.c === '#111827' || s.c === '#ffffff' ? (s.c === '#ffffff' ? '#111827' : '#ffffff') : '#111827'; c.fillStyle = s.c; s.t.split('\n').forEach((ln, i) => { c.strokeText(ln, s.x * dpr, s.y * dpr + i * fs * 1.2); c.fillText(ln, s.x * dpr, s.y * dpr + i * fs * 1.2); }); c.restore(); continue; }
       if (!s.p.length) continue; c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = s.w * dpr;
       if (s.e) c.globalCompositeOperation = 'destination-out'; else c.strokeStyle = s.c;
       c.beginPath(); c.moveTo(s.p[0][0] * dpr, s.p[0][1] * dpr);
@@ -102,7 +103,7 @@ if (!window.__extrasLoaded) (() => {
     if (!b) { b = document.createElement('div'); b.id = 'drwbar'; $('app').appendChild(b); }
     b.innerHTML = DCOL.map((c) => `<button class="sw ${!DR.erase && DR.color === c ? 'on' : ''}" style="background:${c}" data-act="drwcol" data-c="${c}"></button>`).join('') +
       [3, 6, 12].map((w) => `<button class="${DR.w === w ? 'on' : ''}" data-act="drww" data-w="${w}">${w === 3 ? '·' : w === 6 ? '•' : '●'}</button>`).join('') +
-      `<button class="${DR.erase ? 'on' : ''}" data-act="drwer">🧽</button><button data-act="drwundo">↩️</button><button data-act="drwclr">🗑️</button>` +
+      `<button class="${DR.txt ? 'on' : ''}" data-act="drwtxt" title="${T('Type text', 'اكتب نص')}">Aa</button><button class="${DR.erase ? 'on' : ''}" data-act="drwer">🧽</button><button data-act="drwundo">↩️</button><button data-act="drwclr">🗑️</button>` +
       `<button class="${DR.move ? 'on' : ''}" data-act="drwmv" title="${T('Move the model', 'حرّك المجسم')}">🖐️</button><button data-act="drwsave">📤</button><button data-act="draw" title="${T('Close drawing', 'إنهاء الرسم')}">⏹️</button>`;
     placePanel(b, f);
   }
@@ -131,7 +132,7 @@ if (!window.__extrasLoaded) (() => {
   }
   function drwBind(cv) {
     const pos = (ev) => { const r = cv.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
-    cv.addEventListener('pointerdown', (ev) => { if (DR.move) return; if (DR.open) { DR.open = false; drwBar(); } cv.setPointerCapture(ev.pointerId); DR.cur = { c: DR.color, w: DR.erase ? DR.w * 3 : DR.w, e: DR.erase, p: [pos(ev)] }; drwRedraw(); ev.preventDefault(); });
+    cv.addEventListener('pointerdown', (ev) => { if (DR.move) return; if (DR.txt && !DR.erase) { if (DR.open) { DR.open = false; drwBar(); } const q = pos(ev); if (!textBlur()) textAt(q[0], q[1]); ev.preventDefault(); return; } if (DR.open) { DR.open = false; drwBar(); } cv.setPointerCapture(ev.pointerId); DR.cur = { c: DR.color, w: DR.erase ? DR.w * 3 : DR.w, e: DR.erase, p: [pos(ev)] }; drwRedraw(); ev.preventDefault(); });
     cv.addEventListener('pointermove', (ev) => { if (!DR.cur) return; const p = pos(ev), l = DR.cur.p[DR.cur.p.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 1.5) { DR.cur.p.push(p); drwRedraw(); } });
     const end = () => { if (DR.cur) { DR.strokes.push(DR.cur); DR.cur = null; drwRedraw(); } };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
@@ -144,16 +145,30 @@ if (!window.__extrasLoaded) (() => {
       let cv = $('drw'); if (!cv) { cv = document.createElement('canvas'); cv.id = 'drw'; $('view').appendChild(cv); drwBind(cv); }
       cv.className = DR.move ? 'mv' : ''; drwFit(); addEventListener('resize', drwFit);
       A.toast(T('Draw on the model. Tap 🖐️ to rotate it — your drawing stays on the screen, not on the model.', 'ارسم على المجسم. دوس 🖐️ عشان تحرّكه — الرسم بيفضل على الشاشة مش على المجسم.'), 5200);
-    } else { const cv = $('drw'); if (cv) cv.remove(); DR.strokes = []; DR.cur = null; removeEventListener('resize', drwFit); }
+    } else { const cv = $('drw'); if (cv) cv.remove(); DR.txt = false; const ti = $('drwtxt'); if (ti) { ti.value = ''; ti.remove(); } DR.strokes = []; DR.cur = null; removeEventListener('resize', drwFit); }
     drwBar(); if (A.renderChips) A.renderChips();
   };
+  /* typed text on the drawing layer */
+  function textBlur() { const i = $('drwtxt'); if (!i) return false; i.blur(); return true; }
+  function textAt(x, y) {
+    const v = $('view'); if (!v) return; const col = DR.color, fs = 14 + DR.w * 2;
+    const i = document.createElement('textarea'); i.id = 'drwtxt'; i.rows = 1; i.placeholder = T('Type here…', 'اكتب هنا…');
+    i.style.cssText = `position:absolute;z-index:36;left:${Math.max(4, Math.min(v.clientWidth - 150, x))}px;top:${Math.max(4, y)}px;width:min(220px,calc(100% - 20px));min-height:${fs + 14}px;font:700 ${Math.max(16, fs)}px system-ui,Tahoma,sans-serif;color:${col};background:rgba(15,23,42,.55);border:1.5px dashed ${col};border-radius:8px;padding:4px 8px;outline:none;resize:none;direction:auto`;
+    i.addEventListener('input', () => { i.style.height = 'auto'; i.style.height = i.scrollHeight + 'px'; });
+    let done = false;
+    const commit = () => { if (done) return; done = true; const t = i.value.replace(/\s+$/, ''); i.remove(); if (t) { DR.strokes.push({ t, x, y, fs, c: col }); drwRedraw(); } };
+    i.addEventListener('blur', commit);
+    i.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); i.blur(); } else if (e.key === 'Escape') { i.value = ''; i.blur(); } });
+    v.appendChild(i); setTimeout(() => i.focus(), 30);
+  }
+  A.acts.drwtxt = () => { DR.txt = !DR.txt; if (DR.txt) { DR.erase = false; DR.move = false; const cv = $('drw'); if (cv) { cv.className = ''; cv.style.cursor = 'text'; } A.toast(T('Tap where you want the text, type, then press Enter ✔', 'دوس مكان ما تحب تكتب، اكتب، وبعدين Enter ✔'), 4200); } else { const cv = $('drw'); if (cv) cv.style.cursor = ''; } drwBar(); };
   A.acts.drwopen = () => { DR.open = !DR.open; drwBar(); };
   A.acts.drwcol = (el) => { DR.color = el.dataset.c; DR.erase = false; drwBar(); };
   A.acts.drww = (el) => { DR.w = +el.dataset.w; drwBar(); };
-  A.acts.drwer = () => { DR.erase = !DR.erase; drwBar(); };
+  A.acts.drwer = () => { DR.erase = !DR.erase; if (DR.erase) DR.txt = false; drwBar(); };
   A.acts.drwundo = () => { DR.strokes.pop(); drwRedraw(); };
   A.acts.drwclr = () => { DR.strokes = []; drwRedraw(); };
-  A.acts.drwmv = () => { DR.move = !DR.move; const cv = $('drw'); if (cv) cv.className = DR.move ? 'mv' : ''; drwBar(); };
+  A.acts.drwmv = () => { DR.move = !DR.move; if (DR.move) DR.txt = false; const cv = $('drw'); if (cv) cv.className = DR.move ? 'mv' : ''; drwBar(); };
   A.acts.drwsave = () => {
     const gl = $('gl'), lm = $('lm'), dv = $('drw'); if (!gl) return;
     A.R.draw(A.cam); if (A.afterDraw) A.afterDraw();
