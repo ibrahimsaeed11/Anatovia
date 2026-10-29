@@ -34,6 +34,7 @@ if (!window.__extrasLoaded) (() => {
 #drwfab{position:absolute;left:0;top:0;touch-action:none;z-index:35;width:50px;height:50px;border-radius:50%;border:2px solid var(--accent);background:var(--surface);color:inherit;font-size:22px;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;padding:0}#drwfab.on{background:var(--accent);color:#fff}
 #drwbar{position:absolute;left:0;top:0;z-index:34;width:min(252px,calc(100vw - 24px));display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;padding:8px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}
 #drwbar button{border:2px solid transparent;background:var(--surface2);color:inherit;min-width:34px;height:34px;border-radius:10px;font-size:15px;cursor:pointer;padding:0 8px}
+#drwtxtwrap{position:absolute;inset:0;z-index:36;pointer-events:none}#drwtxtwrap .tb{position:absolute;left:0;top:0;display:flex;flex-direction:column;gap:5px;align-items:center;padding:5px 6px;border-radius:12px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 20px rgba(0,0,0,.4);pointer-events:auto;max-width:calc(100vw - 16px)}#drwtxtwrap .tb .r{display:flex;gap:4px;align-items:center;justify-content:center}#drwtxtwrap .tb button{border:2px solid transparent;background:var(--surface2);color:inherit;min-width:30px;height:30px;border-radius:9px;font-size:13px;font-weight:700;padding:0 7px;cursor:pointer}#drwtxtwrap .tb .sw{width:22px;min-width:22px;height:22px;border-radius:50%;padding:0;border:1.5px solid rgba(255,255,255,.5)}#drwtxtwrap textarea{pointer-events:auto;box-sizing:border-box;background:rgba(15,23,42,.55);border:1.5px dashed;border-radius:8px;padding:4px 8px;outline:none;resize:none;overflow:auto}
 #drwbar button.on{border-color:var(--accent)}#drwbar .sw{width:26px;min-width:26px;height:26px;border-radius:50%;padding:0}
 .mn-card{border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:12px;margin:10px 0}.mn-card b{display:block;margin-bottom:6px}
 .mn-q{font-size:17px;font-weight:800;line-height:1.5;direction:ltr;text-align:left;color:var(--accent)}.mn-ex{font-size:13px;opacity:.85;margin-top:6px;line-height:1.7}
@@ -81,11 +82,39 @@ if (!window.__extrasLoaded) (() => {
   /* ───────────────────────── 2. drawing on the model ───────────────────────── */
   const DR = { on: false, move: false, color: '#ff4d6d', w: 4, erase: false, strokes: [], cur: null };
   const DCOL = ['#ff4d6d', '#ffd23f', '#3ddc84', '#4dabf7', '#ffffff', '#111827'];
+  const FONTS = { sans: "system-ui,'Segoe UI',Tahoma,sans-serif", serif: "Georgia,'Times New Roman',Amiri,serif", hand: "'Comic Sans MS','Segoe Print','Bradley Hand',cursive", mono: "ui-monospace,Consolas,'Courier New',monospace" };
+  const FNAME = { sans: ['Normal', 'عادي'], serif: ['Formal', 'رسمي'], hand: ['Hand', 'يد'], mono: ['Mono', 'ثابت'] };
+  DR.fs = 22; DR.ff = 'sans';
+  function wrapLines(c, text, maxW) {
+    const out = [];
+    for (const para of text.split('\n')) {
+      let line = '';
+      for (const w of para.split(' ')) {
+        const test = line ? line + ' ' + w : w;
+        if (!line || c.measureText(test).width <= maxW) line = test; else { out.push(line); line = w; }
+        while (c.measureText(line).width > maxW && line.length > 1) { let n = line.length; while (n > 1 && c.measureText(line.slice(0, n)).width > maxW) n--; out.push(line.slice(0, n)); line = line.slice(n); }
+      }
+      out.push(line);
+    }
+    return out;
+  }
+  function drawText(c, s, dpr) {
+    c.save(); const fs = s.fs * dpr; c.font = `700 ${fs}px ${FONTS[s.ff] || FONTS.sans}`; c.textBaseline = 'top'; c.lineJoin = 'round'; c.lineWidth = fs * 0.16;
+    const dark = '#111827', light = '#ffffff'; c.strokeStyle = s.c === dark ? light : dark; c.fillStyle = s.c;
+    const lines = wrapLines(c, s.t, s.w * dpr); let mw = 0;
+    lines.forEach((ln, i) => {
+      const rtl = /[֐-ࣿ]/.test(ln); c.direction = rtl ? 'rtl' : 'ltr'; c.textAlign = rtl ? 'right' : 'left';
+      const x = (rtl ? s.x + s.w : s.x) * dpr, y = s.y * dpr + i * fs * 1.25;
+      c.strokeText(ln, x, y); c.fillText(ln, x, y); mw = Math.max(mw, c.measureText(ln).width);
+    });
+    s.bb = [s.x, s.y, s.w, lines.length * s.fs * 1.25]; c.restore();
+  }
+  function hitText(q) { for (let i = DR.strokes.length - 1; i >= 0; i--) { const s = DR.strokes[i]; if (s.t !== undefined && s.bb && q[0] >= s.bb[0] - 8 && q[0] <= s.bb[0] + s.bb[2] + 8 && q[1] >= s.bb[1] - 8 && q[1] <= s.bb[1] + s.bb[3] + 8) return s; } return null; }
   function drwRedraw() {
     const cv = $('drw'); if (!cv) return; const c = cv.getContext('2d'); c.clearRect(0, 0, cv.width, cv.height);
     const dpr = cv.width / cv.clientWidth;
     for (const s of DR.strokes.concat(DR.cur ? [DR.cur] : [])) {
-      if (s.t !== undefined) { c.save(); const fs = s.fs * dpr; c.font = `700 ${fs}px system-ui, 'Segoe UI', Tahoma, sans-serif`; c.textBaseline = 'top'; c.textAlign = 'left'; c.direction = /[\u0590-\u08FF]/.test(s.t) ? 'rtl' : 'ltr'; c.lineJoin = 'round'; c.lineWidth = fs * 0.16; c.strokeStyle = s.c === '#111827' || s.c === '#ffffff' ? (s.c === '#ffffff' ? '#111827' : '#ffffff') : '#111827'; c.fillStyle = s.c; s.t.split('\n').forEach((ln, i) => { c.strokeText(ln, s.x * dpr, s.y * dpr + i * fs * 1.2); c.fillText(ln, s.x * dpr, s.y * dpr + i * fs * 1.2); }); c.restore(); continue; }
+      if (s.t !== undefined) { if (!s.edit) drawText(c, s, dpr); continue; }
       if (!s.p.length) continue; c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = s.w * dpr;
       if (s.e) c.globalCompositeOperation = 'destination-out'; else c.strokeStyle = s.c;
       c.beginPath(); c.moveTo(s.p[0][0] * dpr, s.p[0][1] * dpr);
@@ -132,9 +161,28 @@ if (!window.__extrasLoaded) (() => {
   }
   function drwBind(cv) {
     const pos = (ev) => { const r = cv.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
-    cv.addEventListener('pointerdown', (ev) => { if (DR.move) return; if (DR.txt && !DR.erase) { if (DR.open) { DR.open = false; drwBar(); } const q = pos(ev); if (!textBlur()) textAt(q[0], q[1]); ev.preventDefault(); return; } if (DR.open) { DR.open = false; drwBar(); } cv.setPointerCapture(ev.pointerId); DR.cur = { c: DR.color, w: DR.erase ? DR.w * 3 : DR.w, e: DR.erase, p: [pos(ev)] }; drwRedraw(); ev.preventDefault(); });
-    cv.addEventListener('pointermove', (ev) => { if (!DR.cur) return; const p = pos(ev), l = DR.cur.p[DR.cur.p.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 1.5) { DR.cur.p.push(p); drwRedraw(); } });
-    const end = () => { if (DR.cur) { DR.strokes.push(DR.cur); DR.cur = null; drwRedraw(); } };
+    cv.addEventListener('pointerdown', (ev) => {
+      if (DR.move) return;
+      if (DR.txt && !DR.erase) {
+        if (DR.open) { DR.open = false; drwBar(); }
+        const q = pos(ev); ev.preventDefault();
+        if ($('drwtxtwrap')) { document.activeElement && document.activeElement.blur && document.activeElement.blur(); return; }
+        const h = hitText(q);
+        if (h) { DR.tdrag = { s: h, dx: q[0] - h.x, dy: q[1] - h.y, moved: false, sx: q[0], sy: q[1] }; cv.setPointerCapture(ev.pointerId); }
+        else textEdit(null, q[0], q[1]);
+        return;
+      }
+      if (DR.open) { DR.open = false; drwBar(); }
+      cv.setPointerCapture(ev.pointerId); DR.cur = { c: DR.color, w: DR.erase ? DR.w * 3 : DR.w, e: DR.erase, p: [pos(ev)] }; drwRedraw(); ev.preventDefault();
+    });
+    cv.addEventListener('pointermove', (ev) => {
+      if (DR.tdrag) { const q = pos(ev), d = DR.tdrag; if (!d.moved && Math.hypot(q[0] - d.sx, q[1] - d.sy) > 6) d.moved = true; if (d.moved) { d.s.x = Math.max(0, Math.min(cv.clientWidth - 40, q[0] - d.dx)); d.s.y = Math.max(0, Math.min(cv.clientHeight - 24, q[1] - d.dy)); drwRedraw(); } return; }
+      if (!DR.cur) return; const p = pos(ev), l = DR.cur.p[DR.cur.p.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 1.5) { DR.cur.p.push(p); drwRedraw(); }
+    });
+    const end = () => {
+      if (DR.tdrag) { const d = DR.tdrag; DR.tdrag = null; if (!d.moved) textEdit(d.s); return; }
+      if (DR.cur) { DR.strokes.push(DR.cur); DR.cur = null; drwRedraw(); }
+    };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   }
   function drwFit() { const cv = $('drw'), v = $('view'); if (!cv || !v) return; const dpr = Math.min(2, window.devicePixelRatio || 1), w = v.clientWidth, h = v.clientHeight; if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); drwRedraw(); } }
@@ -145,21 +193,46 @@ if (!window.__extrasLoaded) (() => {
       let cv = $('drw'); if (!cv) { cv = document.createElement('canvas'); cv.id = 'drw'; $('view').appendChild(cv); drwBind(cv); }
       cv.className = DR.move ? 'mv' : ''; drwFit(); addEventListener('resize', drwFit);
       A.toast(T('Draw on the model. Tap 🖐️ to rotate it — your drawing stays on the screen, not on the model.', 'ارسم على المجسم. دوس 🖐️ عشان تحرّكه — الرسم بيفضل على الشاشة مش على المجسم.'), 5200);
-    } else { const cv = $('drw'); if (cv) cv.remove(); DR.txt = false; const ti = $('drwtxt'); if (ti) { ti.value = ''; ti.remove(); } DR.strokes = []; DR.cur = null; removeEventListener('resize', drwFit); }
+    } else { const cv = $('drw'); if (cv) cv.remove(); DR.txt = false; const tw = $('drwtxtwrap'); if (tw) tw.remove(); DR.strokes = []; DR.cur = null; removeEventListener('resize', drwFit); }
     drwBar(); if (A.renderChips) A.renderChips();
   };
-  /* typed text on the drawing layer */
-  function textBlur() { const i = $('drwtxt'); if (!i) return false; i.blur(); return true; }
-  function textAt(x, y) {
-    const v = $('view'); if (!v) return; const col = DR.color, fs = 14 + DR.w * 2;
-    const i = document.createElement('textarea'); i.id = 'drwtxt'; i.rows = 1; i.placeholder = T('Type here…', 'اكتب هنا…');
-    i.style.cssText = `position:absolute;z-index:36;left:${Math.max(4, Math.min(v.clientWidth - 150, x))}px;top:${Math.max(4, y)}px;width:min(220px,calc(100% - 20px));min-height:${fs + 14}px;font:700 ${Math.max(16, fs)}px system-ui,Tahoma,sans-serif;color:${col};background:rgba(15,23,42,.55);border:1.5px dashed ${col};border-radius:8px;padding:4px 8px;outline:none;resize:none;direction:auto`;
-    i.addEventListener('input', () => { i.style.height = 'auto'; i.style.height = i.scrollHeight + 'px'; });
+  /* typed text on the drawing layer: wraps inside the screen, font size / type / colour, tap a text to edit it, drag it to move it */
+  function textEdit(s, x, y) {
+    const v = $('view'); if (!v || $('drwtxtwrap')) return;
+    const W = v.clientWidth, H = v.clientHeight, isNew = !s;
+    if (isNew) { x = Math.max(6, Math.min(W - 120, x)); s = { t: '', x, y: Math.max(6, Math.min(H - 60, y)), fs: DR.fs, ff: DR.ff, c: DR.color, w: Math.min(280, W - x - 8) }; }
+    s.edit = true; if (!isNew) drwRedraw();
+    const wrap = document.createElement('div'); wrap.id = 'drwtxtwrap';
+    const tb = document.createElement('div'); tb.className = 'tb';
+    tb.innerHTML = `<div class="r"><button data-k="dn">A−</button><button data-k="up">A+</button><button data-k="ff"></button><button data-k="del">🗑️</button><button data-k="ok">✔</button></div><div class="r">` + DCOL.map((c) => `<button class="sw" data-k="c" data-c="${c}" style="background:${c}"></button>`).join('') + `</div>`;
+    const ta = document.createElement('textarea'); ta.rows = 1; ta.value = s.t; ta.placeholder = T('Type here…', 'اكتب هنا…'); ta.setAttribute('dir', 'auto');
+    wrap.appendChild(tb); wrap.appendChild(ta); v.appendChild(wrap);
+    const style = () => {
+      ta.style.cssText = `width:${s.w}px;font:700 ${Math.max(16, s.fs)}px ${FONTS[s.ff]};color:${s.c};border-color:${s.c}`;
+      ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, H * 0.4) + 'px';
+      tb.querySelector('[data-k=ff]').textContent = T(FNAME[s.ff][0], FNAME[s.ff][1]);
+      const th = tb.offsetHeight || 80, top = s.y >= th + 12 ? s.y - th - 6 : s.y + ta.offsetHeight + 6; tb.style.left = Math.max(4, Math.min(W - tb.offsetWidth - 4, s.x)) + 'px'; tb.style.top = Math.max(4, Math.min(H - tb.offsetHeight - 4, top)) + 'px';
+      ta.style.position = 'absolute'; ta.style.left = s.x + 'px'; ta.style.top = s.y + 'px';
+    };
     let done = false;
-    const commit = () => { if (done) return; done = true; const t = i.value.replace(/\s+$/, ''); i.remove(); if (t) { DR.strokes.push({ t, x, y, fs, c: col }); drwRedraw(); } };
-    i.addEventListener('blur', commit);
-    i.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); i.blur(); } else if (e.key === 'Escape') { i.value = ''; i.blur(); } });
-    v.appendChild(i); setTimeout(() => i.focus(), 30);
+    const commit = (remove) => {
+      if (done) return; done = true; s.t = ta.value.replace(/\s+$/, ''); delete s.edit; wrap.remove();
+      const k = DR.strokes.indexOf(s); if (!s.t || remove) { if (k >= 0) DR.strokes.splice(k, 1); } else if (k < 0) DR.strokes.push(s);
+      DR.fs = s.fs; DR.ff = s.ff; drwRedraw();
+    };
+    tb.addEventListener('pointerdown', (e) => e.preventDefault());
+    tb.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return; const k = b.dataset.k;
+      if (k === 'dn') s.fs = Math.max(12, s.fs - 3); else if (k === 'up') s.fs = Math.min(72, s.fs + 3);
+      else if (k === 'ff') { const ks = Object.keys(FONTS); s.ff = ks[(ks.indexOf(s.ff) + 1) % ks.length]; }
+      else if (k === 'c') { s.c = b.dataset.c; DR.color = s.c; }
+      else if (k === 'del') { commit(true); return; } else if (k === 'ok') { commit(); return; }
+      style();
+    });
+    ta.addEventListener('input', style);
+    ta.addEventListener('blur', () => setTimeout(() => { if (!done && document.activeElement !== ta) commit(); }, 0));
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (isNew) commit(true); else commit(); } });
+    style(); setTimeout(() => { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }, 30);
   }
   A.acts.drwtxt = () => { DR.txt = !DR.txt; if (DR.txt) { DR.erase = false; DR.move = false; const cv = $('drw'); if (cv) { cv.className = ''; cv.style.cursor = 'text'; } A.toast(T('Tap where you want the text, type, then press Enter ✔', 'دوس مكان ما تحب تكتب، اكتب، وبعدين Enter ✔'), 4200); } else { const cv = $('drw'); if (cv) cv.style.cursor = ''; } drwBar(); };
   A.acts.drwopen = () => { DR.open = !DR.open; drwBar(); };
