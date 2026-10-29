@@ -31,7 +31,8 @@ if (!window.__extrasLoaded) (() => {
 #covx .cr .ok{background:#2f9e44;color:#fff;border-color:transparent}#covx .cr .no{background:#e03131;color:#fff;border-color:transparent}
 #covx .cc{font-size:12px;opacity:.7}
 #drw{position:absolute;inset:0;z-index:33;touch-action:none;cursor:crosshair}#drw.mv{pointer-events:none}
-#drwbar{position:absolute;left:50%;transform:translateX(-50%);top:112px;z-index:34;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;padding:8px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}
+#drwfab{position:absolute;right:12px;bottom:150px;z-index:35;width:50px;height:50px;border-radius:50%;border:2px solid var(--accent);background:var(--surface);color:inherit;font-size:22px;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;padding:0}#drwfab.on{background:var(--accent);color:#fff}
+#drwbar{position:absolute;right:12px;bottom:208px;z-index:34;width:min(252px,calc(100vw - 24px));display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;padding:8px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}
 #drwbar button{border:2px solid transparent;background:var(--surface2);color:inherit;min-width:34px;height:34px;border-radius:10px;font-size:15px;cursor:pointer;padding:0 8px}
 #drwbar button.on{border-color:var(--accent)}#drwbar .sw{width:26px;min-width:26px;height:26px;border-radius:50%;padding:0}
 .mn-card{border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:12px;margin:10px 0}.mn-card b{display:block;margin-bottom:6px}
@@ -93,16 +94,19 @@ if (!window.__extrasLoaded) (() => {
     }
   }
   function drwBar() {
-    let b = $('drwbar'); if (!DR.on) { if (b) b.remove(); return; }
+    let b = $('drwbar'), f = $('drwfab'); if (!DR.on) { if (b) b.remove(); if (f) f.remove(); DR.open = false; return; }
+    if (!f) { f = document.createElement('button'); f.id = 'drwfab'; f.setAttribute('data-act', 'drwopen'); $('app').appendChild(f); }
+    f.className = DR.open ? 'on' : ''; f.textContent = DR.open ? '✕' : '🎨'; f.title = T('Drawing tools', 'أدوات الرسم');
+    if (!DR.open) { if (b) b.remove(); return; }
     if (!b) { b = document.createElement('div'); b.id = 'drwbar'; $('app').appendChild(b); }
     b.innerHTML = DCOL.map((c) => `<button class="sw ${!DR.erase && DR.color === c ? 'on' : ''}" style="background:${c}" data-act="drwcol" data-c="${c}"></button>`).join('') +
       [3, 6, 12].map((w) => `<button class="${DR.w === w ? 'on' : ''}" data-act="drww" data-w="${w}">${w === 3 ? '·' : w === 6 ? '•' : '●'}</button>`).join('') +
       `<button class="${DR.erase ? 'on' : ''}" data-act="drwer">🧽</button><button data-act="drwundo">↩️</button><button data-act="drwclr">🗑️</button>` +
-      `<button class="${DR.move ? 'on' : ''}" data-act="drwmv" title="${T('Move the model', 'حرّك المجسم')}">🖐️</button><button data-act="drwsave">📤</button><button data-act="draw">✕</button>`;
+      `<button class="${DR.move ? 'on' : ''}" data-act="drwmv" title="${T('Move the model', 'حرّك المجسم')}">🖐️</button><button data-act="drwsave">📤</button><button data-act="draw" title="${T('Close drawing', 'إنهاء الرسم')}">⏹️</button>`;
   }
   function drwBind(cv) {
     const pos = (ev) => { const r = cv.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
-    cv.addEventListener('pointerdown', (ev) => { if (DR.move) return; cv.setPointerCapture(ev.pointerId); DR.cur = { c: DR.color, w: DR.erase ? DR.w * 3 : DR.w, e: DR.erase, p: [pos(ev)] }; drwRedraw(); ev.preventDefault(); });
+    cv.addEventListener('pointerdown', (ev) => { if (DR.move) return; if (DR.open) { DR.open = false; drwBar(); } cv.setPointerCapture(ev.pointerId); DR.cur = { c: DR.color, w: DR.erase ? DR.w * 3 : DR.w, e: DR.erase, p: [pos(ev)] }; drwRedraw(); ev.preventDefault(); });
     cv.addEventListener('pointermove', (ev) => { if (!DR.cur) return; const p = pos(ev), l = DR.cur.p[DR.cur.p.length - 1]; if (Math.hypot(p[0] - l[0], p[1] - l[1]) > 1.5) { DR.cur.p.push(p); drwRedraw(); } });
     const end = () => { if (DR.cur) { DR.strokes.push(DR.cur); DR.cur = null; drwRedraw(); } };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
@@ -118,6 +122,7 @@ if (!window.__extrasLoaded) (() => {
     } else { const cv = $('drw'); if (cv) cv.remove(); DR.strokes = []; DR.cur = null; removeEventListener('resize', drwFit); }
     drwBar(); if (A.renderChips) A.renderChips();
   };
+  A.acts.drwopen = () => { DR.open = !DR.open; drwBar(); };
   A.acts.drwcol = (el) => { DR.color = el.dataset.c; DR.erase = false; drwBar(); };
   A.acts.drww = (el) => { DR.w = +el.dataset.w; drwBar(); };
   A.acts.drwer = () => { DR.erase = !DR.erase; drwBar(); };
