@@ -117,6 +117,7 @@ async function ensure(sys) {
       if (e.pk !== pk) continue;
       const it = R.addPacked(Packs.part(bytes, e.o), e.id, e.i);
       it.color = colorFor(e); itemOf[e.i] = it;
+      if (e.rt) it.root = { n: e.rt.slice(0, 3), d: e.rt[3], col: [0.93, 0.86, 0.68] };
     }
   }
   S.loaded[sys] = true; hideToast();
@@ -158,6 +159,7 @@ function applyState(noRender) {
       if (S.sel >= 0 && P[S.sel] && P[S.sel].sys === 'nerve' && e.sys === 'nerve' && e.i !== S.sel && alpha > 0.4) alpha = 0.4;
       if (S.focus && !S.focus.has(e.i)) { alpha = Math.min(alpha, e.sys === 'bone' ? 0.16 : 0.05); pick = false; }
       if (S.quizOnly && !S.quizOnly(e)) { vis = false; }
+      if (e.k === 'tooth' && !!e.dec !== (S.dent === 'dec') && e.i !== S.sel && !(S.hl && S.hl.has(e.i)) && !(S.focus && S.focus.has(e.i))) vis = false;   // permanent / deciduous dentition toggle
     }
     it.visible = vis; it.alpha = alpha; it.pickable = vis && pick && alpha > 0.5;
     let tint = [0, 0, 0, 0];
@@ -199,6 +201,7 @@ async function select(i, opts = {}) {
   if (e.lk && !(A.isPremium && A.isPremium())) { if (A.paywall) A.paywall('This structure is part of Premium (vessels, nerves, brain, organs, ligaments and small muscles).', 'التركيب ده ضمن النسخة المميزة (الأوعية والأعصاب والمخ والأعضاء والأربطة والعضلات الصغيرة).'); return; }
   if (opts.reveal !== false) await reveal(e);
   S.sel = i; Store.touchDay();
+  if (e.k === 'tooth') S.dent = e.dec ? 'dec' : 'perm';
   applyState();
   if (opts.fly !== false) flyToPart(e);
   if (!opts.noPanel) openPanel();
@@ -246,6 +249,7 @@ A.renderPanel = renderPanel;
 A.acts.learn = () => { const s = Store.d, id = P[S.sel].id; if (s.learned[id]) delete s.learned[id]; else s.learned[id] = 1; Store.save(); Store.touchDay(); renderPanel(); };
 A.acts.fav = () => { const s = Store.d, id = P[S.sel].id; if (s.fav[id]) delete s.fav[id]; else s.fav[id] = 1; Store.save(); renderPanel(); };
 A.acts.hide = () => { const i = S.sel; S.hidden.add(i); S.hideStack.push(i); S.sel = -1; closePanel(); applyState(); toast(S.lang === 'ar' ? 'تم الإخفاء — اضغط «تراجع» لإرجاعها' : 'Hidden — tap Undo to bring it back'); };
+A.acts.dent = () => { S.dent = S.dent === 'dec' ? 'perm' : 'dec'; if (S.sel >= 0 && P[S.sel] && P[S.sel].k === 'tooth' && !!P[S.sel].dec !== (S.dent === 'dec')) { S.sel = -1; closePanel(); } applyState(); toast(S.dent === 'dec' ? t('dentDecTip') : t('dentPermTip')); };
 A.acts.iso = () => { S.iso = S.iso === S.sel ? -1 : S.sel; applyState(); renderPanel(); };
 A.acts.pull = () => { const i = S.sel; if (S.pulled.has(i)) S.pulled.delete(i); else S.pulled.add(i); applyState(); flyToPart(P[i]); renderPanel(); };
 A.acts.goto = (el) => select(+el.dataset.i);
@@ -269,6 +273,7 @@ function renderChips() {
   if (S.hideStack.length) h += `<button class="chip" data-act="undo">${ICON.undo}${t('undo')}</button>`;
   if (S.hidden.size || S.iso >= 0 || S.region || S.pulled.size || S.moveSet || S.focus || S.cutOn || S.fnOn) h += `<button class="chip" data-act="showall">${ICON.all}${t('showAll')}</button>`;
   if (A.extraChips) h += A.extraChips();
+  if (S.layers.bone !== 'off') h += `<button class="chip ${S.dent === 'dec' ? 'active' : ''}" data-act="dent">🦷 ${S.dent === 'dec' ? t('dentDec') : t('dentPerm')}</button>`;
   h += `<button class="chip ${S.spin ? 'active' : ''}" data-act="spin">${ICON.spin}${t('spin')}</button>`;
   h += `<button class="chip" data-act="resetview">${ICON.reset}${t('resetView')}</button>`;
   nav.innerHTML = h;

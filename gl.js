@@ -130,7 +130,7 @@ precision mediump float;
 #endif
 varying vec3 vN; varying vec3 vP;
 #SPOTDECL
-uniform vec3 uColor; uniform vec4 uTint; uniform vec3 uEye; uniform vec3 uKey; uniform vec3 uFill; uniform float uAlpha; uniform float uLight; uniform vec4 uClip;
+uniform vec3 uColor; uniform vec4 uTint; uniform vec3 uEye; uniform vec3 uKey; uniform vec3 uFill; uniform float uAlpha; uniform float uLight; uniform vec4 uClip; uniform vec4 uTa; uniform vec4 uTr;
 void main(){
   bool clipOn = dot(uClip.xyz, uClip.xyz) > 0.0;
   if (clipOn && dot(vP, uClip.xyz) > uClip.w) discard;
@@ -140,7 +140,9 @@ void main(){
   float d1 = max(dot(n, uKey), 0.0), d2 = max(dot(n, uFill), 0.0);
   float hemi = n.y * 0.5 + 0.5;
   vec3 amb = mix(vec3(0.24,0.22,0.22), vec3(0.50,0.52,0.56), hemi);
-  vec3 base = mix(uColor, uTint.rgb, uTint.a);
+  vec3 base = uColor;
+  if (uTr.w > 0.5) { float kr = smoothstep(-0.0009, 0.0009, dot(vP, uTa.xyz) - uTa.w); base = mix(uColor, uTr.xyz, kr); }   // tooth: root tinted below the cervical plane
+  base = mix(base, uTint.rgb, uTint.a);
 #SPOTLOOP
   vec3 col = base * (amb + d1 * 0.74 + d2 * 0.24);
   vec3 h = normalize(uKey + v);
@@ -180,7 +182,7 @@ class Renderer {
     this.gl = gl;
     let nsp = 32; try { const mv = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS); nsp = Math.max(0, Math.min(32, Math.floor((mv - 24) / 2))); } catch (e) { nsp = 0; } if (nsp < 8) nsp = 0;
     this.nsp = nsp;
-    this.prog = this._program(VS, FS.replace('#SPOTDECL', SPOT_DECL(nsp)).replace('#SPOTLOOP', SPOT_LOOP(nsp)), ['uVP', 'uOff', 'uLo', 'uSpan', 'uColor', 'uTint', 'uEye', 'uKey', 'uFill', 'uAlpha', 'uLight', 'uClip', 'uRot', 'uPiv', 'uMode', 'uK', 'uA', 'uDL'].concat(nsp ? ['uSp', 'uSc', 'uSn'] : []));
+    this.prog = this._program(VS, FS.replace('#SPOTDECL', SPOT_DECL(nsp)).replace('#SPOTLOOP', SPOT_LOOP(nsp)), ['uVP', 'uOff', 'uLo', 'uSpan', 'uColor', 'uTint', 'uEye', 'uKey', 'uFill', 'uAlpha', 'uLight', 'uClip', 'uRot', 'uPiv', 'uMode', 'uK', 'uA', 'uDL', 'uTa', 'uTr'].concat(nsp ? ['uSp', 'uSc', 'uSn'] : []));
     this.pickProg = this._program(VS, FS_PICK, ['uVP', 'uOff', 'uLo', 'uSpan', 'uId', 'uClip', 'uRot', 'uPiv', 'uMode', 'uK', 'uA', 'uDL']);
     this.floorProg = this._program(VS_FLOOR, FS_FLOOR, ['uVP', 'uFloorCol', 'uLine', 'uDark']);
     this.items = []; this.fbo = null; this.pickW = 0; this.pickH = 0; this.dpr = 1;
@@ -263,6 +265,7 @@ class Renderer {
         this._bind(it, pr);
         gl.uniform3fv(pr.u.uOff, it.offset); gl.uniform3fv(pr.u.uColor, it.color); gl.uniform4fv(pr.u.uTint, it.tint);
         gl.uniform1f(pr.u.uAlpha, it.alpha);
+        { const rt = it.root; if (rt) { gl.uniform4f(pr.u.uTa, rt.n[0], rt.n[1], rt.n[2], rt.d + rt.n[0] * it.offset[0] + rt.n[1] * it.offset[1] + rt.n[2] * it.offset[2]); gl.uniform4f(pr.u.uTr, rt.col[0], rt.col[1], rt.col[2], 1); } else gl.uniform4f(pr.u.uTr, 0, 0, 0, 0); }
         { const an = it.anim; if (an) { gl.uniform1f(pr.u.uMode, an.mode); gl.uniform1f(pr.u.uK, an.k || 0); gl.uniformMatrix3fv(pr.u.uRot, false, an.rot); gl.uniform3fv(pr.u.uPiv, an.piv); gl.uniform3fv(pr.u.uA, an.a); gl.uniform4fv(pr.u.uDL, an.dl); } else gl.uniform1f(pr.u.uMode, 0); }
         if (this.nsp) { const sp = it.spots; if (sp) { gl.uniform4fv(pr.u.uSp, sp.pos); gl.uniform3fv(pr.u.uSc, sp.col); gl.uniform1f(pr.u.uSn, sp.n); } else gl.uniform1f(pr.u.uSn, 0); }
         gl.drawElements(gl.TRIANGLES, it.count, gl.UNSIGNED_SHORT, 0);
