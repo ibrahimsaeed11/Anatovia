@@ -22,7 +22,7 @@ window.JOINTS = [
     mmt: [
       ['Flexion', 'ثني', 'Anterior deltoid, coracobrachialis', 'الدالية الأمامية، الغرابية العضدية', 'C5–C6', /^(Deltoid \(Clavicular|Coracobrachialis)/],
       ['Extension', 'بسط', 'Latissimus dorsi, teres major', 'العريضة الظهرية، المدورة الكبرى', 'C6–C8', /^(Latissimus|Teres major)/],
-      ['Abduction', 'تبعيد', 'Deltoid (middle), supraspinatus', 'الدالية (الوسطى)، فوق الشوكة', 'C4–C6', /^(Deltoid \(Acromial|Supraspinatus)/],
+      ['Abduction', 'تبعيد', 'Deltoid (middle), supraspinatus', 'الدالية (الوسطى)، فوق الشوكة', 'C5–C6', /^(Deltoid \(Acromial|Supraspinatus)/],
       ['External rotation', 'تدوير خارجي', 'Infraspinatus, teres minor', 'تحت الشوكة، المدورة الصغرى', 'C5–C6', /^(Infraspinatus|Teres minor)/],
       ['Internal rotation', 'تدوير داخلي', 'Subscapularis, pectoralis major', 'تحت الكتف، الصدرية الكبرى', 'C5–C7', /^(Subscapularis|Pectoralis major)/],
       ['Scapular protraction', 'دفع الكتف للأمام', 'Serratus anterior', 'المنشارية الأمامية', 'C5–C7', /^Serratus anterior/],
@@ -131,7 +131,7 @@ window.JOINTS = [
   },
   {
     id: 'cervical', en: 'Cervical spine', ar: 'العمود الفقري العنقي', reg: 'spine', bones: /^(Atlas|Axis|Cervical|Vertebra prominens)/i,
-    rom: [['Flexion', 'ثني', '0–45°'], ['Extension', 'بسط', '0–45°'], ['Lateral flexion', 'ميل جانبي', '0–45°'], ['Rotation', 'دوران', '0–60° (some sources 0–80°)']],
+    rom: [['Flexion', 'ثني', '0–45°'], ['Extension', 'بسط', '0–45°'], ['Lateral flexion', 'ميل جانبي', '0–45°'], ['Rotation', 'دوران', '0–80°']],
     mmt: [
       ['Flexion', 'ثني', 'Sternocleidomastoid, longus colli', 'القترائية الترقوية الخشائية، الطويلة العنقية', 'CN XI, C1–C6', /^(Sternocleidomastoid|Longus colli)/],
       ['Extension', 'بسط', 'Splenius, semispinalis, upper trapezius', 'الصفيحية، نصف الشوكية، شبه المنحرفة العلوية', 'C1–T1 / CN XI', /^(Splenius|Semispinalis|Trapezius \(Descending)/],
