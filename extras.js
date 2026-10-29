@@ -31,6 +31,7 @@ if (!window.__extrasLoaded) (() => {
 #covx .cr .ok{background:#2f9e44;color:#fff;border-color:transparent}#covx .cr .no{background:#e03131;color:#fff;border-color:transparent}
 #covx .cc{font-size:12px;opacity:.7}
 #drw{position:absolute;inset:0;z-index:33;touch-action:none;cursor:crosshair}#drw.mv{pointer-events:none}
+#panel .rate-row,.rate-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 2px;font-size:13px;opacity:.95}.rate-row .chip{height:30px;padding:0 10px;font-size:12.5px}.rate-row .chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 #drwfab{position:absolute;left:0;top:0;touch-action:none;z-index:35;width:50px;height:50px;border-radius:50%;border:2px solid var(--accent);background:var(--surface);color:inherit;font-size:22px;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;padding:0}#drwfab.on{background:var(--accent);color:#fff}
 #drwbar{position:absolute;left:0;top:0;z-index:34;width:min(252px,calc(100vw - 24px));display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;padding:8px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}
 #drwbar button{border:2px solid transparent;background:var(--surface2);color:inherit;min-width:34px;height:34px;border-radius:10px;font-size:15px;cursor:pointer;padding:0 8px}
@@ -280,6 +281,9 @@ if (!window.__extrasLoaded) (() => {
   /* ───────────────────────── 4. read-aloud ───────────────────────── */
   const canSpeak = 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
   let speaking = false;
+  const RATES = [[0.65, 'Very slow', 'بطيء جداً'], [0.8, 'Slow', 'بطيء'], [0.95, 'Normal', 'عادي'], [1.15, 'Fast', 'سريع']];
+  const getRate = () => { try { const r = parseFloat(localStorage.getItem('anat_rate')); if (r >= 0.5 && r <= 1.5) return r; } catch (err) { /* ignore */ } return 0.8; };
+  let lastSaid = null;
   const pickVoice = (lang) => { try { const v = speechSynthesis.getVoices(), want = lang.slice(0, 2).toLowerCase(); return v.find((x) => x.lang.replace('_', '-').toLowerCase() === lang.toLowerCase()) || v.find((x) => x.lang.toLowerCase().startsWith(want)) || null; } catch (err) { return null; } };
   function textFor(e, lang) {
     const i = lang === 'ar' ? 1 : 0, parts = [(lang === 'ar' ? e.ar : e.en)];
@@ -288,19 +292,26 @@ if (!window.__extrasLoaded) (() => {
     if (e.pt) parts.push(e.pt[i]);
     return parts.filter(Boolean).join('. ').replace(/\s+/g, ' ');
   }
-  function say(e) {
+  function say(e, force) {
     if (!canSpeak) return A.toast(T('Voice is not available on this device', 'الصوت مش متاح على الجهاز ده'), 3000);
-    if (speaking) { try { speechSynthesis.cancel(); } catch (err) { /* ignore */ } speaking = false; return A.toast(T('Stopped', 'اتوقف'), 1500); }
+    if (speaking && !force) { try { speechSynthesis.cancel(); } catch (err) { /* ignore */ } speaking = false; return A.toast(T('Stopped', 'اتوقف'), 1500); }
+    lastSaid = e;
     let lang = ar() ? 'ar' : 'en', v = pickVoice(lang === 'ar' ? 'ar-EG' : 'en-US');
     if (!v && lang === 'ar') { lang = 'en'; v = pickVoice('en-US'); A.toast(T('', 'جهازك مفيهوش صوت عربي، هقرأ بالإنجليزي. نزّل صوت عربي من إعدادات الجهاز.'), 4200); }
     const chunks = textFor(e, lang).match(/[^.؟!]+[.؟!]?/g) || [textFor(e, lang)];
     try {
       speechSynthesis.cancel(); speaking = true;
-      chunks.forEach((c, k) => { const u = new SpeechSynthesisUtterance(c.trim()); u.lang = lang === 'ar' ? 'ar-EG' : 'en-US'; u.rate = 0.92; if (v) u.voice = v; if (k === chunks.length - 1) u.onend = () => { speaking = false; }; u.onerror = () => { speaking = false; }; speechSynthesis.speak(u); });
+      chunks.forEach((c, k) => { const u = new SpeechSynthesisUtterance(c.trim()); u.lang = lang === 'ar' ? 'ar-EG' : 'en-US'; u.rate = getRate(); if (v) u.voice = v; if (k === chunks.length - 1) u.onend = () => { speaking = false; }; u.onerror = () => { speaking = false; }; speechSynthesis.speak(u); });
       A.toast('🔊 ' + T('Reading… tap again to stop', 'بقرأ… اضغط تاني للإيقاف'), 2500);
     } catch (err) { speaking = false; }
   }
   A.acts.listen = (el) => { const e = P[+el.dataset.i]; if (e) say(e); };
+  A.acts.lrate = (el) => {
+    const r = parseFloat(el.dataset.r); try { localStorage.setItem('anat_rate', String(r)); } catch (err) { /* ignore */ }
+    document.querySelectorAll('[data-act="lrate"]').forEach((b) => b.classList.toggle('on', parseFloat(b.dataset.r) === r));
+    if (speaking && lastSaid) { say(lastSaid, true); }   // re-read at the new speed
+    else A.toast('🔊 ' + T('Reading speed: ', 'سرعة القراءة: ') + T(RATES.find((x) => x[0] === r)[1], RATES.find((x) => x[0] === r)[2]), 1600);
+  };
 
   /* panel: mnemonics + listen button */
   const waitFor = (fn, cb) => { const t0 = setInterval(() => { if (fn()) { clearInterval(t0); cb(); } }, 200); setTimeout(() => clearInterval(t0), 15000); };
@@ -309,7 +320,7 @@ if (!window.__extrasLoaded) (() => {
     A.panelExtra = (e) => {
       let h = prev ? prev(e) : '';
       const ms = mnFor(e);
-      h += `<div class="actions" style="margin-top:10px"><button class="act" data-act="listen" data-i="${e.i}">🔊 ${T('Listen to the explanation', 'اسمع الشرح')}</button></div>`;
+      h += `<div class="actions" style="margin-top:10px"><button class="act" data-act="listen" data-i="${e.i}">🔊 ${T('Listen to the explanation', 'اسمع الشرح')}</button></div><div class="rate-row"><span>${T('Speed', 'السرعة')}</span>${RATES.map((x) => `<button class="chip ${getRate() === x[0] ? 'on' : ''}" data-act="lrate" data-r="${x[0]}">${T(x[1], x[2])}</button>`).join('')}</div>`;
       if (ms.length) h += `<h4>📝 ${T('Memory aid', 'قصة حفظ')}</h4>${ms.map(mnCard).join('')}`;
       return h;
     };
