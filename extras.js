@@ -31,8 +31,8 @@ if (!window.__extrasLoaded) (() => {
 #covx .cr .ok{background:#2f9e44;color:#fff;border-color:transparent}#covx .cr .no{background:#e03131;color:#fff;border-color:transparent}
 #covx .cc{font-size:12px;opacity:.7}
 #drw{position:absolute;inset:0;z-index:33;touch-action:none;cursor:crosshair}#drw.mv{pointer-events:none}
-#drwfab{position:absolute;right:12px;bottom:150px;z-index:35;width:50px;height:50px;border-radius:50%;border:2px solid var(--accent);background:var(--surface);color:inherit;font-size:22px;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;padding:0}#drwfab.on{background:var(--accent);color:#fff}
-#drwbar{position:absolute;right:12px;bottom:208px;z-index:34;width:min(252px,calc(100vw - 24px));display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;padding:8px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}
+#drwfab{position:absolute;left:0;top:0;touch-action:none;z-index:35;width:50px;height:50px;border-radius:50%;border:2px solid var(--accent);background:var(--surface);color:inherit;font-size:22px;box-shadow:0 6px 20px rgba(0,0,0,.4);cursor:pointer;padding:0}#drwfab.on{background:var(--accent);color:#fff}
+#drwbar{position:absolute;left:0;top:0;z-index:34;width:min(252px,calc(100vw - 24px));display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;padding:8px 10px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 20px)}
 #drwbar button{border:2px solid transparent;background:var(--surface2);color:inherit;min-width:34px;height:34px;border-radius:10px;font-size:15px;cursor:pointer;padding:0 8px}
 #drwbar button.on{border-color:var(--accent)}#drwbar .sw{width:26px;min-width:26px;height:26px;border-radius:50%;padding:0}
 .mn-card{border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:12px;margin:10px 0}.mn-card b{display:block;margin-bottom:6px}
@@ -95,14 +95,39 @@ if (!window.__extrasLoaded) (() => {
   }
   function drwBar() {
     let b = $('drwbar'), f = $('drwfab'); if (!DR.on) { if (b) b.remove(); if (f) f.remove(); DR.open = false; return; }
-    if (!f) { f = document.createElement('button'); f.id = 'drwfab'; f.setAttribute('data-act', 'drwopen'); $('app').appendChild(f); }
+    if (!f) { f = document.createElement('button'); f.id = 'drwfab'; $('app').appendChild(f); fabInit(f); }
     f.className = DR.open ? 'on' : ''; f.textContent = DR.open ? '✕' : '🎨'; f.title = T('Drawing tools', 'أدوات الرسم');
+    placeFab(f);
     if (!DR.open) { if (b) b.remove(); return; }
     if (!b) { b = document.createElement('div'); b.id = 'drwbar'; $('app').appendChild(b); }
     b.innerHTML = DCOL.map((c) => `<button class="sw ${!DR.erase && DR.color === c ? 'on' : ''}" style="background:${c}" data-act="drwcol" data-c="${c}"></button>`).join('') +
       [3, 6, 12].map((w) => `<button class="${DR.w === w ? 'on' : ''}" data-act="drww" data-w="${w}">${w === 3 ? '·' : w === 6 ? '•' : '●'}</button>`).join('') +
       `<button class="${DR.erase ? 'on' : ''}" data-act="drwer">🧽</button><button data-act="drwundo">↩️</button><button data-act="drwclr">🗑️</button>` +
       `<button class="${DR.move ? 'on' : ''}" data-act="drwmv" title="${T('Move the model', 'حرّك المجسم')}">🖐️</button><button data-act="drwsave">📤</button><button data-act="draw" title="${T('Close drawing', 'إنهاء الرسم')}">⏹️</button>`;
+    placePanel(b, f);
+  }
+  /* the floating pencil button can be dragged anywhere; its position is remembered */
+  function fabPos() { try { const p = JSON.parse(localStorage.getItem('anat_drwfab')); if (p && isFinite(p.x) && isFinite(p.y)) return p; } catch (e) {} return null; }
+  function placeFab(f) {
+    const app = $('app'), W = app.clientWidth, H = app.clientHeight; let p = DR.fab || fabPos() || { x: W - 62, y: H - 210 };
+    p = { x: Math.max(6, Math.min(W - 56, p.x)), y: Math.max(6, Math.min(H - 56, p.y)) }; DR.fab = p; f.style.left = p.x + 'px'; f.style.top = p.y + 'px';
+  }
+  function placePanel(b, f) {
+    if (!b || !f) return; const app = $('app'), W = app.clientWidth, H = app.clientHeight, p = DR.fab || { x: W - 62, y: H - 210 };
+    const bw = b.offsetWidth || 250, bh = b.offsetHeight || 150;
+    let x = Math.max(8, Math.min(W - bw - 8, p.x + 25 - bw / 2)), y = p.y - bh - 8; if (y < 8) y = Math.min(H - bh - 8, p.y + 58);
+    b.style.left = x + 'px'; b.style.top = y + 'px';
+  }
+  function fabInit(f) {
+    let sx = 0, sy = 0, ox = 0, oy = 0, moved = false, down = false;
+    f.addEventListener('pointerdown', (ev) => { down = true; moved = false; sx = ev.clientX; sy = ev.clientY; ox = (DR.fab || fabPos() || { x: 0 }).x; oy = (DR.fab || fabPos() || { y: 0 }).y; f.setPointerCapture(ev.pointerId); ev.preventDefault(); });
+    f.addEventListener('pointermove', (ev) => {
+      if (!down) return; const dx = ev.clientX - sx, dy = ev.clientY - sy;
+      if (!moved && Math.hypot(dx, dy) > 6) moved = true;
+      if (moved) { DR.fab = { x: ox + dx, y: oy + dy }; placeFab(f); const b = $('drwbar'); if (b) placePanel(b, f); }
+    });
+    const up = () => { if (!down) return; down = false; if (moved) { try { localStorage.setItem('anat_drwfab', JSON.stringify(DR.fab)); } catch (e) {} } else { DR.open = !DR.open; drwBar(); } };
+    f.addEventListener('pointerup', up); f.addEventListener('pointercancel', () => { down = false; });
   }
   function drwBind(cv) {
     const pos = (ev) => { const r = cv.getBoundingClientRect(); return [ev.clientX - r.left, ev.clientY - r.top]; };
