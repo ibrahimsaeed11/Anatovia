@@ -111,13 +111,13 @@ class OrbitCamera {
 const VS = `
 attribute vec3 aPos; attribute vec3 aNor;
 uniform mat4 uVP; uniform vec3 uOff; uniform vec3 uLo; uniform vec3 uSpan;
-uniform mat3 uRot; uniform vec3 uPiv; uniform float uMode; uniform vec3 uA; uniform vec4 uDL;
+uniform mat3 uRot; uniform vec3 uPiv; uniform float uMode; uniform float uK; uniform vec3 uA; uniform vec4 uDL;
 varying vec3 vN; varying vec3 vP;
 void main(){
   vec3 p = uLo + aPos * uSpan + uOff; vec3 n = aNor;
-  if (uMode > 0.5) {   // 1 = rigid rotation about a joint pivot, 2 = muscle skinned between a fixed origin end (uA) and the rotating insertion end
+  if (uMode > 0.5) {   // 1 = rigid rotation about a joint pivot; 2 = muscle: only the part nearest the insertion (fraction beyond uK) follows the rotating bone, the belly stays anchored
     vec3 q = uPiv + uRot * (p - uPiv); vec3 nn = uRot * aNor; float w = 1.0;
-    if (uMode > 1.5) { w = clamp(dot(p - uA, uDL.xyz) / uDL.w, 0.0, 1.0); w = w * w * (3.0 - 2.0 * w); }
+    if (uMode > 1.5) { float tt = clamp(dot(p - uA, uDL.xyz) / uDL.w, 0.0, 1.0); float x = clamp((tt - uK) / max(1.0 - uK, 0.05), 0.0, 1.0); w = x * x * (3.0 - 2.0 * x); }
     p = mix(p, q, w); n = mix(aNor, nn, w);
   }
   vP = p; vN = n; gl_Position = uVP * vec4(p,1.0);
@@ -180,8 +180,8 @@ class Renderer {
     this.gl = gl;
     let nsp = 32; try { const mv = gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS); nsp = Math.max(0, Math.min(32, Math.floor((mv - 24) / 2))); } catch (e) { nsp = 0; } if (nsp < 8) nsp = 0;
     this.nsp = nsp;
-    this.prog = this._program(VS, FS.replace('#SPOTDECL', SPOT_DECL(nsp)).replace('#SPOTLOOP', SPOT_LOOP(nsp)), ['uVP', 'uOff', 'uLo', 'uSpan', 'uColor', 'uTint', 'uEye', 'uKey', 'uFill', 'uAlpha', 'uLight', 'uClip', 'uRot', 'uPiv', 'uMode', 'uA', 'uDL'].concat(nsp ? ['uSp', 'uSc', 'uSn'] : []));
-    this.pickProg = this._program(VS, FS_PICK, ['uVP', 'uOff', 'uLo', 'uSpan', 'uId', 'uClip', 'uRot', 'uPiv', 'uMode', 'uA', 'uDL']);
+    this.prog = this._program(VS, FS.replace('#SPOTDECL', SPOT_DECL(nsp)).replace('#SPOTLOOP', SPOT_LOOP(nsp)), ['uVP', 'uOff', 'uLo', 'uSpan', 'uColor', 'uTint', 'uEye', 'uKey', 'uFill', 'uAlpha', 'uLight', 'uClip', 'uRot', 'uPiv', 'uMode', 'uK', 'uA', 'uDL'].concat(nsp ? ['uSp', 'uSc', 'uSn'] : []));
+    this.pickProg = this._program(VS, FS_PICK, ['uVP', 'uOff', 'uLo', 'uSpan', 'uId', 'uClip', 'uRot', 'uPiv', 'uMode', 'uK', 'uA', 'uDL']);
     this.floorProg = this._program(VS_FLOOR, FS_FLOOR, ['uVP', 'uFloorCol', 'uLine', 'uDark']);
     this.items = []; this.fbo = null; this.pickW = 0; this.pickH = 0; this.dpr = 1;
     this.floorY = -0.002; this.floorCol = [0.55, 0.6, 0.7]; this.lineCol = [1, 1, 1]; this.floorDark = 1; this.light = 1; this.clip = [0, 0, 0, 0];
@@ -263,7 +263,7 @@ class Renderer {
         this._bind(it, pr);
         gl.uniform3fv(pr.u.uOff, it.offset); gl.uniform3fv(pr.u.uColor, it.color); gl.uniform4fv(pr.u.uTint, it.tint);
         gl.uniform1f(pr.u.uAlpha, it.alpha);
-        { const an = it.anim; if (an) { gl.uniform1f(pr.u.uMode, an.mode); gl.uniformMatrix3fv(pr.u.uRot, false, an.rot); gl.uniform3fv(pr.u.uPiv, an.piv); gl.uniform3fv(pr.u.uA, an.a); gl.uniform4fv(pr.u.uDL, an.dl); } else gl.uniform1f(pr.u.uMode, 0); }
+        { const an = it.anim; if (an) { gl.uniform1f(pr.u.uMode, an.mode); gl.uniform1f(pr.u.uK, an.k || 0); gl.uniformMatrix3fv(pr.u.uRot, false, an.rot); gl.uniform3fv(pr.u.uPiv, an.piv); gl.uniform3fv(pr.u.uA, an.a); gl.uniform4fv(pr.u.uDL, an.dl); } else gl.uniform1f(pr.u.uMode, 0); }
         if (this.nsp) { const sp = it.spots; if (sp) { gl.uniform4fv(pr.u.uSp, sp.pos); gl.uniform3fv(pr.u.uSc, sp.col); gl.uniform1f(pr.u.uSn, sp.n); } else gl.uniform1f(pr.u.uSn, 0); }
         gl.drawElements(gl.TRIANGLES, it.count, gl.UNSIGNED_SHORT, 0);
       }
