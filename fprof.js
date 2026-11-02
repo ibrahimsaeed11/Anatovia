@@ -36,6 +36,12 @@ window.__fprofLoaded = true;
     if (p.note) h += `<div class="advice" style="margin-bottom:10px">🚧 ${T('Content made specifically for your faculty is being prepared. Meanwhile you have the full 3D anatomy, quizzes and flashcards.', 'المحتوى المخصص لكليتك بيتجهّز. في الوقت ده معاك التشريح 3D الكامل والاختبارات والبطاقات.')}</div>`;
     return h;
   };
+  A.facLine = () => {
+    const c = (A.acct && A.acct.fac) || A.facCode(), F = window.ANAT_FACS && ANAT_FACS[c], pr = A.profile ? A.profile() : {};
+    const yr = { int: T('Intern', 'امتياز'), grad: T('Graduate', 'خريج') }[pr.yr] || (pr.yr ? T('Year ', 'السنة ') + pr.yr : '');
+    return [F ? (S.lang === 'ar' ? F.ar : F.en) : '', yr].filter(Boolean).join(' · ');
+  };
+  A.facNote = () => (prof().note ? `<div class="advice">🚧 ${T('Content made specifically for your faculty is being prepared. Meanwhile you have the full 3D anatomy, quizzes and flashcards.', 'المحتوى المخصص لكليتك بيتجهّز. في الوقت ده معاك التشريح 3D الكامل والاختبارات والبطاقات.')}</div>` : '');
   A.onFaculty = (fromGate) => {
     const p = prof(); document.documentElement.style.setProperty('--fac', p.color);
     if (fromGate && p.start && A.flyRegion) { try { A.flyRegion(p.start); } catch (e) { /* ignore */ } }
