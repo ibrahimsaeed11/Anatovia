@@ -9,7 +9,7 @@ window.__fprofLoaded = true;
   const PROF = {
     pt: { hide: ['dent', 'dent3d'], first: [], color: '#ff9f45' },
     med: { hide: ['dent', 'dent3d', 'moves', 'tcards', 'calc'], first: [], color: '#5b9dff' },
-    dent: { hide: ['moves', 'tcards', 'calc', 'spinal'], first: ['dent', 'dent3d', 'quiz', 'cards'], color: '#3fd8c8', start: 'head' },
+    dent: { hide: ['moves', 'tcards', 'calc', 'spinal', 'exam', 'nmap'], first: ['dent', 'dent3d', 'quiz', 'cards'], color: '#3fd8c8', start: 'head' },
     nurs: { hide: ['dent', 'dent3d', 'moves', 'tcards', 'calc', 'spinal'], first: [], color: '#5fd68a', note: true },
     vet: { hide: ['dent', 'dent3d', 'moves', 'tcards', 'calc', 'spinal'], first: [], color: '#c79a5b', note: true },
     ahs: { hide: ['dent', 'dent3d', 'tcards', 'calc', 'spinal'], first: [], color: '#a68bff', note: true },
@@ -19,7 +19,7 @@ window.__fprofLoaded = true;
   };
   const FALLBACK = { hide: ['dent', 'dent3d'], first: [], color: '#E3B95B' };
   const LOOK = () => window.ANAT_FACLOOK || {};
-  const view = () => { try { return Store.d.viewFac || ''; } catch (e) { return ''; } };
+  const view = () => ''; // the faculty is fixed by the account — no "view as another faculty" any more
   A.facCode = () => view() || (A.acct && A.acct.fac) || '';
   const prof = () => PROF[A.facCode()] || FALLBACK;
 
@@ -37,7 +37,7 @@ window.__fprofLoaded = true;
     return h;
   };
   A.facLine = () => {
-    const c = (A.acct && A.acct.fac) || A.facCode(), F = window.ANAT_FACS && ANAT_FACS[c], pr = A.profile ? A.profile() : {};
+    const c = A.facCode(), F = window.ANAT_FACS && ANAT_FACS[c], pr = A.profile ? A.profile() : {};
     const yr = { int: T('Intern', 'امتياز'), grad: T('Graduate', 'خريج') }[pr.yr] || (pr.yr ? T('Year ', 'السنة ') + pr.yr : '');
     return [F ? (S.lang === 'ar' ? F.ar : F.en) : '', yr].filter(Boolean).join(' · ');
   };
@@ -53,14 +53,11 @@ window.__fprofLoaded = true;
     const fn = F[mine] ? (S.lang === 'ar' ? F[mine].ar : F[mine].en) : '';
     const yr = { int: T('Intern', 'امتياز'), grad: T('Graduate', 'خريج') }[pr.yr] || (pr.yr ? T('Year ', 'السنة ') + pr.yr : '');
     const row = (k, v) => v ? `<div class="pf-row"><span>${k}</span><b>${esc(v)}</b></div>` : '';
-    const chips = Object.keys(F).map((k) => `<button class="opt ${c === k ? 'sel' : ''}" data-act="fview" data-c="${k}">${(LOOK()[k] || ['🎓'])[0]} ${esc(S.lang === 'ar' ? F[k].ar : F[k].en)}${k === mine ? ' ★' : ''}</button>`).join('');
     const dent = !(prof().hide || []).includes('dent') && A.hubExtra && A.hubExtra.dent ? `<button class="btn wide" style="margin-top:8px" data-act="godent">🦷 ${T('Dentistry content', 'محتوى طب الأسنان')}</button>` : '';
     return `<div class="pf-card">${row(T('Name', 'الاسم'), pr.name)}${row(T('University', 'الجامعة'), uni)}${row(T('Faculty', 'الكلية'), fn)}${row(T('Study year', 'السنة الدراسية'), yr)}</div>` + dent +
-      `<p class="tiny">${T('Your faculty is saved on your account and cannot be changed (contact us if it is wrong).', 'كليتك محفوظة على حسابك ومش بتتغيّر (كلمنا لو فيها غلط).')}</p>` +
-      `<h4>${T('View the app as', 'اعرض التطبيق كأنك من')}</h4><p class="tiny">${T('Only changes what is shown on this device — useful to see another faculty’s tools.', 'بيغيّر المعروض على الجهاز ده بس — مفيد لو عايز تشوف أدوات كلية تانية.')}</p><div class="row">${chips}</div>`;
+      `<p class="tiny">${T('Your faculty is saved on your account and cannot be changed (contact us if it is wrong).', 'كليتك محفوظة على حسابك ومش بتتغيّر (كلمنا لو فيها غلط).')}</p>`;
   };
   A.acts.godent = () => { if (A.hubExtra && A.hubExtra.dent) A.hubExtra.dent(); };
-  A.acts.fview = (el) => { const k = el.dataset.c; Store.d.viewFac = k === ((A.acct && A.acct.fac) || '') ? '' : k; Store.save(); A.onFaculty(); A.rerenderModal(); };
   A.onFaculty(); [1500, 4000, 9000].forEach((ms) => setTimeout(() => A.onFaculty(), ms));
   const css = document.createElement('style'); css.textContent = '.pf-card{border:1px solid var(--line);border-radius:14px;padding:4px 14px;margin:10px 0;background:var(--surface2)}.pf-row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line)}.pf-row:last-child{border:0}.pf-row span{color:var(--muted)}.fbadge{display:flex;gap:12px;align-items:center;padding:12px 14px;margin-bottom:10px;border-radius:16px;background:color-mix(in srgb,var(--fc,var(--accent)) 16%,var(--surface2));border:1px solid color-mix(in srgb,var(--fc,var(--accent)) 55%,transparent)}.fbadge .fe{font-size:28px}.fbadge b{display:block}.fbadge small{color:var(--muted)}.hub button .em{background:color-mix(in srgb,var(--fac,var(--accent)) 24%,transparent)}'; document.head.appendChild(css);
 })();
