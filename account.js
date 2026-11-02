@@ -13,8 +13,8 @@
   const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } } };
 
   Object.assign(STR, {
-    account: { en: 'Account & Premium', ar: 'الحساب والاشتراك' },
-    accountSub: { en: 'Sign in · activate a premium code', ar: 'تسجيل الدخول · تفعيل كود الاشتراك' },
+    account: { en: 'My account', ar: 'حسابي' },
+    accountSub: { en: 'Profile · subscription · activation code', ar: 'بياناتك · الاشتراك · كود التفعيل' },
   });
   A.hubExtra = Object.assign(A.hubExtra || {}, { account: () => open() });
 
@@ -55,6 +55,7 @@
     if (st.authKnown && (st.data || !st.user)) { cache = st.user ? { email, until, limited, tu, tl, fx } : null; ls.set(LS, JSON.stringify(cache)); }
     facAsk();
     refresh();
+    try { if (A.onAcct) A.onAcct(); } catch (e) { /* gate not ready */ }
     try { if (A.apply) A.apply(); } catch (e) { /* scene not ready yet */ }
     try { if (A.acct.trial && A.acct.until - Date.now() < 864e5 && ls.get('anatovia_tw') !== new Date().toDateString()) { ls.set('anatovia_tw', new Date().toDateString()); setTimeout(() => A.toast && A.toast(T('⏳ Your free trial ends within a day', '⏳ التجربة المجانية هتخلص خلال يوم')), 2500); } } catch (e) { /* ignore */ }
   }
@@ -63,7 +64,7 @@
   let facTry = 0;
   function facAsk() {
     try {
-      if (!(st.authKnown && st.user && st.data) || A.acct.unverified || A.acct.uni || facTry || ls.get('anatovia_fp') === new Date().toDateString()) return;
+      if (window.__gateOn || !(st.authKnown && st.user && st.data) || A.acct.unverified || A.acct.uni || facTry || ls.get('anatovia_fp') === new Date().toDateString()) return;
       facTry = 1;
       const go = (n) => setTimeout(() => {
         if (A.acct.uni) return;
@@ -77,6 +78,13 @@
     } catch (e) { /* ignore */ }
   }
   /* save uni + fac ONCE (rules reject any later change by the student) */
+  /* name + study year (optional fields — if the rules do not allow them yet we just keep them on this device) */
+  A.setProfile = async (name, yr) => {
+    ls.set('anatovia_prof', JSON.stringify({ name, yr }));
+    if (!st.user || !db) return false;
+    try { await db.collection('users').doc(st.user.uid).update({ name, yr }); const s = await db.collection('users').doc(st.user.uid).get(); st.data = s.data(); return true; } catch (e) { return false; }
+  };
+  A.profile = () => { let p = null; try { p = JSON.parse(ls.get('anatovia_prof') || 'null'); } catch (e) { p = null; } const d = st.data || {}; return { name: d.name || (p && p.name) || '', yr: d.yr || (p && p.yr) || '', email: A.acct.email || '' }; };
   A.setFac = async (uni, fac) => {
     if (!st.user || !db) throw new Error('auth');
     const ref = db.collection('users').doc(st.user.uid);
@@ -138,6 +146,7 @@
     'auth/operation-not-allowed': ['This sign-in method is not enabled yet.', 'طريقة الدخول هذه غير مفعّلة بعد.'],
     'auth/unauthorized-domain': ['This website address is not authorised in Firebase.', 'عنوان الموقع غير مصرّح به في Firebase.'],
   };
+  A.errText = (e) => errText(e);
   const errText = (e) => { const p = ERR[e && e.code]; return p ? T(p[0], p[1]) : T('Something went wrong, try again.', 'حدث خطأ، حاول مرة أخرى.'); };
   const say = (m, ok) => { st.msg = m || ''; st.ok = !!ok; st.busy = false; refresh(); };
 
@@ -227,6 +236,15 @@
       else say(T('Not verified yet — open the link we sent to your e-mail first.', 'لسه ما اتأكدش — افتح الرابط اللي بعتناه على بريدك الأول.'));
     } catch (e) { say(errText(e)); }
   }
+  /* used by the sign-in gate (gate.js) */
+  A.gateAuth = {
+    ready: async () => { try { await ensure(); } catch (e) { return false; } for (let i = 0; i < 40 && !st.authKnown && st.ready; i++) await new Promise((r) => setTimeout(r, 150)); return st.ready; },
+    state: () => ({ ready: st.ready, known: st.authKnown, user: st.user, data: st.data, loading: st.loading }),
+    email: async (kind, email, pass) => { if (kind === 'up') { const cr = await auth.createUserWithEmailAndPassword(email, pass); try { await cr.user.sendEmailVerification(); st.sent = Date.now(); } catch (e2) { /* resend later */ } } else await auth.signInWithEmailAndPassword(email, pass); },
+    google: async () => { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); },
+    reset: async (email) => { await auth.sendPasswordResetEmail(email); },
+    out: async () => { try { await auth.signOut(); } catch (e) { /* ignore */ } },
+  };
   async function out() { try { await auth.signOut(); } catch (e) { /* ignore */ } st.msg = ''; }
 
   A.acts.acc = (el) => {
@@ -293,7 +311,7 @@
       ? `السلام عليكم، عايز أشترك في Anatovia.\nالباقة: ${pl.ar}\nالسعر: ${pl.egp} جنيه\nإيميلي على التطبيق: ${A_.email || ''}`
       : `Hello, I'd like to subscribe to Anatovia.\nPlan: ${pl.en}\nPrice: ${pl.egp} EGP\nMy e-mail in the app: ${A_.email || ''}`;
     const trialCard = (!A_.premium && !A_.trialUsed && !A_.limited) ? `<div class="advice" style="margin:10px 0">🎁 <b>${T('Try Premium free for 3 days', 'جرّب النسخة المميزة 3 أيام مجانًا')}</b><div class="tiny">${T('One time per account — no payment needed.', 'مرة واحدة لكل حساب — من غير دفع.')}</div><button class="btn primary wide" style="margin-top:8px" data-act="acc" data-k="trial" ${st.busy ? 'disabled' : ''}>${T('Start my free trial', 'ابدأ تجربتي المجانية')}</button></div>` : '';
-    return head + `<div class="acc-card"><b dir="ltr">${esc(A_.email || '')}</b>${badge}</div>${lim}${msgBox()}` + trialCard +
+    return head + `<div class="acc-card"><b dir="ltr">${esc(A_.email || '')}</b>${badge}</div>${A.profileBlock ? A.profileBlock() : ''}${lim}${msgBox()}` + trialCard +
       plansHtml(true) + `<div class="row contact-row" style="margin-top:8px"><a class="btn contact wa" href="${waLink(buy)}" target="_blank" rel="noopener">💬 ${T('Subscribe on WhatsApp — ', 'اشترك على واتساب — ')}${T(pl.en, pl.ar)} · ${num(pl.egp)} ${T('EGP', 'جنيه')}</a></div>` +
       `<div class="lab">${T('Already have a code?', 'عندك كود؟')}</div><div class="acc-form"><input id="accCode" dir="ltr" autocapitalize="characters" autocomplete="off" placeholder="ANAT-XXXX-XXXX"><button class="btn primary wide" data-primary data-act="acc" data-k="redeem" ${st.busy ? 'disabled' : ''}>${T('Activate', 'تفعيل')}</button></div>${msgBox()}` +
       `<div class="row" style="margin-top:14px"><button class="btn danger" data-act="acc" data-k="out">${T('Sign out', 'تسجيل الخروج')}</button></div>`;

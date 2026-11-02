@@ -18,10 +18,11 @@
   const contactHtml = () => `<div class="row contact-row"><a class="btn contact wa" href="https://wa.me/201050761015?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}" target="_blank" rel="noopener">💬 ${S.lang === 'ar' ? 'واتساب' : 'WhatsApp'}</a><a class="btn contact ig" href="https://www.instagram.com/anatovia.eg" target="_blank" rel="noopener">📸 ${S.lang === 'ar' ? 'آخر التحديثات' : 'Latest updates'}</a></div>`;
   /* ───────── hub ───────── */
   A.openHub = () => A.modal(() => {
-    const items = [['account', '👤'], ['daily', '🔥'], ['nb', '📓'], ['ready', '📊'], ['quiz', '🎯'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['board', '🏅'], ['duel', '⚔️'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['stats', '⏱️'], ['mnem', '📝'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
+    let items = [['account', '👤'], ['daily', '🔥'], ['nb', '📓'], ['ready', '📊'], ['quiz', '🎯'], ['dent', '🦷'], ['dent3d', '🦷'], ['splan', '🗓️'], ['lmq', '📍'], ['exam', '🩺'], ['tcards', '🧪'], ['nmap', '🗺️'], ['calc', '🧮'], ['board', '🏅'], ['duel', '⚔️'], ['spinal', '🧬'], ['play', '📅'], ['badges', '🏆'], ['cards', '🧠'], ['moves', '🏃'], ['progress', '📈'], ['stats', '⏱️'], ['mnem', '📝'], ['favs', '⭐'], ['tour', '🧭'], ['about', 'ℹ️']];
+    if (A.facHub) items = A.facHub(items);
     const ac = A.acct || {}, dl = Math.max(0, Math.ceil(((ac.until || 0) - Date.now()) / 864e5));
     const trialBar = ac.trial ? `<div class="advice">🎁 ${TT('Free trial — ' + dl + ' day(s) left', 'التجربة المجانية — باقي ' + dl + ' يوم')}</div>` : !ac.premium ? `<button type="button" class="btn wide" style="margin-bottom:10px" data-act="pwacc">🎁 ${TT('Try Premium free for 3 days', 'جرّب النسخة المميزة 3 أيام مجانًا')}</button>` : '';
-    return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p>${trialBar}<div class="hub">` +
+    return `<h2>${t('study')}</h2><p class="lead">${t('tagline')}</p>${A.facBadge ? A.facBadge() : ''}${trialBar}<div class="hub">` +
       items.map(([k, em]) => `<button type="button" data-act="hub" data-k="${k}"><span class="em">${em}</span><span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`).join('') + '</div>'+ `<div class="contact-bar">${contactHtml()}</div>`;
   });
   const HUB_PAID = { splan: ['Study plan is part of Premium.', 'خطة المذاكرة ضمن النسخة المميزة.'], spinal: ['Spinal nerve tables are part of Premium.', 'جداول الأعصاب الشوكية ضمن النسخة المميزة.'] };
@@ -627,6 +628,9 @@
   if (window.__anat) window.__anat.study = A.quizApi;
   /* tour.js is injected from here so a stale index.html can never leave the Study button dead */
   Object.assign(STR, { tour: { en: 'How to use', ar: 'شرح الاستخدام' }, tourSub: { en: 'A quick tour of the app', ar: 'جولة سريعة تعرّفك على التطبيق' } });
+  if (!window.__fprofLoaded) { const sc14 = document.createElement('script'); sc14.src = 'fprof.js'; document.body.appendChild(sc14); }
+  if (!window.__tooth3dLoaded) { const sc15 = document.createElement('script'); sc15.src = 'tooth3d.js'; document.body.appendChild(sc15); }
+  if (!window.__dentLoaded) { const sc13 = document.createElement('script'); sc13.src = 'dental.js'; document.body.appendChild(sc13); }
   if (!window.__motionLoaded) { const sc12 = document.createElement('script'); sc12.src = 'motion.js'; document.body.appendChild(sc12); }
   if (!window.__extrasLoaded) { const sc11 = document.createElement('script'); sc11.src = 'extras.js'; document.body.appendChild(sc11); }
   if (!window.__nbLoaded) { const sc10 = document.createElement('script'); sc10.src = 'notebook.js'; document.body.appendChild(sc10); }

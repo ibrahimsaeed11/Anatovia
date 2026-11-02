@@ -61,8 +61,10 @@ service cloud.firestore {
         && request.resource.data.devices.size() <= 2;
 
       allow update: if request.auth != null && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'devices', 'premiumUntil', 'lastCode', 'provider', 'verified', 'lastSeen', 'trialUsed', 'trialAt', 'trialDev', 'uni', 'fac', 'facAt'])
+        && request.resource.data.keys().hasOnly(['email', 'createdAt', 'devices', 'premiumUntil', 'lastCode', 'provider', 'verified', 'lastSeen', 'trialUsed', 'trialAt', 'trialDev', 'uni', 'fac', 'facAt', 'name', 'yr'])
         && facOk()
+        && request.resource.data.get('name', '').size() <= 40
+        && request.resource.data.get('yr', '').size() <= 6
         && request.resource.data.devices.size() <= 2
         && (resource.data.get('trialUsed', false) == false || request.resource.data.get('trialUsed', false) == true)
         && (request.resource.data.get('premiumUntil', null) == resource.data.get('premiumUntil', null) || (verified() && redeemOk()) || trialOk());

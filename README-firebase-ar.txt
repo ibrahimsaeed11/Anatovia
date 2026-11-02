@@ -9,7 +9,7 @@
       (لو ظهر خطأ أحمر ابعتلي نصه).
 
 3) افتح: https://ibrahimsaeed11.github.io/Anatovia/admin.html
-   ادخل بحساب Google (ibrahim1162006@gmail.com) ← ولّد أكواد ← ابعتها للطالب.
+   ادخل بحساب Google (ibrahim1162006@gmail.com أو anaselbieli@gmail.com) ← ولّد أكواد ← ابعتها للطالب.
 
 4) الطالب: من التطبيق ← دراسة ← الحساب والاشتراك ← يعمل حساب ← يكتب الكود.
 

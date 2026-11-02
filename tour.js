@@ -41,6 +41,6 @@ if (!window.__tourLoaded) (() => {
   const wait = setInterval(() => {
     const l = $('loading'); if (!l || !l.classList.contains('done')) return;
     clearInterval(wait);
-    if (!Store.d.tourSeen) setTimeout(start, 400);
+    if (!Store.d.tourSeen) { const go = () => { if (window.__gateOn) return setTimeout(go, 600); setTimeout(start, 900); }; setTimeout(go, 400); }   // wait until the sign-in gate is closed
   }, 300);
 })();
