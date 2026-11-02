@@ -19,7 +19,7 @@
     'محتوى تعليمي مبدئي — القيم تختلف بين المراجع والمرضى؛ راجعها مع المشرف أو المراجع الحديثة.');
 
   /* ───────────── hub entries ───────────── */
-  A.hubExtra = { exam: () => openExam(), lmq: () => openLmqSetup() };
+  A.hubExtra = Object.assign(A.hubExtra || {}, { exam: () => openExam(), lmq: () => openLmqSetup() });
 
   /* ───────────── helpers ───────────── */
   const baseNm = (e) => e.baseEn;

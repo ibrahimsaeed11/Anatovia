@@ -394,3 +394,14 @@ body.nbopen .toast{z-index:90}
 .h2 .ft .lk svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .h2 .ft .so{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);border:1px solid var(--line);color:var(--text)}
 .h2 .ft .so svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.h2 .ins{display:grid;gap:10px;padding:14px;border-radius:18px;background:color-mix(in srgb,var(--accent) 12%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+.h2 .ins h5{margin:0;font-size:14px;display:flex;align-items:center;gap:8px}.h2 .ins h5 svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:var(--accent);flex:none}
+:root[data-theme="light"] .h2 .ins h5 svg{color:var(--text)}
+.h2 .ins p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.7}
+.h2 .ins .r{display:grid;gap:8px}
+.h2 .ins button{height:44px;border-radius:12px;font-weight:700;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:7px;background:var(--surface2);border:1px solid var(--line);color:var(--text)}
+.h2 .ins button.p{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+.h2 .ins button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.h2 .ins a{font-size:12.5px;color:var(--muted);text-decoration:underline;text-underline-offset:3px;justify-self:start;cursor:pointer}
+.h2 .okrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:2px 4px}.h2 .okrow b{color:var(--good)}

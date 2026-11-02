@@ -46,10 +46,26 @@
     const big = (k) => `<button type="button" class="bg ${k === 'daily' ? 'w' : ''}" data-act="hub" data-k="${k}" data-q="${q(k)}">${hubIco(k)}<span><b>${t(k)}</b><small>${t(k + 'Sub')}</small></span></button>`;
     const tile = (k) => `<button type="button" class="tl2" data-act="hub" data-k="${k}" data-q="${q(k)}"><i>${hubIco(k)}</i>${t(k)}${lock(k)}</button>`;
     const sec = (title, arr, fn) => (arr.length ? `<section class="hs"><h4>${title}</h4><div class="${fn === big ? 'big' : 'tiles'}">${arr.map(fn).join('')}</div></section>` : '');
+    const standalone = (() => { try { return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { return false; } })();
+    const installed = standalone || !!Store.d.installed, offDone = !!Store.d.offlineDone, ios = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+    const IC = { ph: '<svg viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg>', dl: '<svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>' };
+    let ins = '';
+    if (installed && offDone) ins = `<div class="okrow"><b>✓</b> ${TT('App installed and ready offline', 'التطبيق مثبّت وجاهز بدون إنترنت')}</div>`;
+    else {
+      const btns = [];
+      if (!installed && A.deferredPrompt) btns.push(`<button type="button" class="p" data-act="doinstall">${IC.ph} ${TT('Install the app', 'ثبّت التطبيق')}</button>`);
+      if (!offDone) btns.push(`<button type="button" class="${btns.length ? '' : 'p'}" data-act="offline">${IC.dl} ${TT('Download models', 'نزّل المجسمات')}</button>`);
+      const how = !installed && !A.deferredPrompt ? `<p>${ios ? TT('1) Tap the Share button in Safari<br>2) Choose “Add to Home Screen”', '١) اضغط زرار المشاركة في سفاري<br>٢) اختار «إضافة إلى الشاشة الرئيسية»') : TT('Open your browser menu and choose “Install app” / “Add to Home screen”.', 'افتح قايمة المتصفح واختار «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».')}</p>` : '';
+      ins = `<div class="ins"><h5>${IC.ph} ${installed ? TT('Use it without internet', 'اشتغل بدون إنترنت') : TT('Install the app & use it offline', 'ثبّت التطبيق واشتغل بدون إنترنت')}</h5>` +
+        (how || `<p>${TT('Opens from your home screen like any app, and your 3D models stay with you without internet.', 'يفتح من شاشتك الرئيسية زي أي تطبيق، ومجسماتك تفضل معاك من غير نت.')}</p>`) +
+        (btns.length ? `<div class="r" style="grid-template-columns:${btns.length > 1 ? '1fr 1fr' : '1fr'}">${btns.join('')}</div>` : '') +
+        `<a data-act="hub" data-k="tour">${TT('First time? Take the quick tour', 'أول مرة؟ شوف جولة سريعة')}</a></div>`;
+    }
     const wa = `https://wa.me/201050761015?text=${encodeURIComponent(S.lang === 'ar' ? 'السلام عليكم، عندي استفسار عن Anatovia' : 'Hello, I have a question about Anatovia')}`;
     return `<div class="h2"><h2>${t('study')}</h2>` +
       `<button type="button" class="acc" data-act="hub" data-k="account"><span class="av">${esc((who || '?').trim().charAt(0).toUpperCase())}</span><span><b>${esc(who)}</b><small>${esc(A.facLine ? A.facLine() : '')}</small></span><span class="pl">${pill}</span></button>` +
       (A.facNote ? A.facNote() : '') +
+      ins +
       `<input class="sr" type="search" autocomplete="off" placeholder="${TT('Search tools…', 'ابحث في الأدوات…')}">` +
       sec(TT('Start here', 'ابدأ من هنا'), g.start, big) + sec(TT('Study', 'ذاكر'), g.study, tile) + sec(TT('Your faculty', 'كليتك'), g.fac, tile) + sec(TT('Compete & track', 'تحدّى وتابع'), g.track, tile) +
       `<div class="ft">${g.foot.map((k) => `<button type="button" class="lk" data-act="hub" data-k="${k}">${hubIco(k)}${t(k)}</button>`).join('')}` +
@@ -654,10 +670,11 @@
       `<h4>${t('importantNotes')}</h4><div class="pt">${t('limits')}</div><h4>BodyParts3D</h4><p class="pn-sum">${t('credits')}</p>` +
       `<p class="lead" style="font-size:12px">${P.length} parts · v7</p>`);
   }
+  window.addEventListener('appinstalled', () => { try { Store.d.installed = 1; Store.save(); A.deferredPrompt = null; A.rerenderModal(); } catch (e) { /* ignore */ } });
   A.acts.doinstall = async () => { const p = A.deferredPrompt; if (!p) return; p.prompt(); try { await p.userChoice; } catch (e) { /* ignore */ } A.deferredPrompt = null; A.rerenderModal(); };
   A.acts.offline = async (el) => {
     el.disabled = true; el.textContent = '…';
-    try { for (const s of SYSTEMS) { await A.ensure(s); } A.toast(t('offlineDone'), 4000); el.textContent = '✓ ' + t('offlineDone'); } catch (e) { el.textContent = '✕'; el.disabled = false; }
+    try { for (const s of SYSTEMS) { await A.ensure(s); } Store.d.offlineDone = 1; Store.save(); A.toast(t('offlineDone'), 4000); el.textContent = '✓ ' + t('offlineDone'); setTimeout(() => A.rerenderModal(), 900); } catch (e) { el.textContent = '✕'; el.disabled = false; }
   };
   A.onLang = () => { if (Q && !Q.done && S.quiz) renderQuizBar(); };
   A.quizApi = { startQuiz, get Q() { return Q; }, finishQuiz, clueOf, repList };
