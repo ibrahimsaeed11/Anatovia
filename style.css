@@ -405,3 +405,15 @@ body.nbopen .toast{z-index:90}
 .h2 .ins button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .h2 .ins a{font-size:12.5px;color:var(--muted);text-decoration:underline;text-underline-offset:3px;justify-self:start;cursor:pointer}
 .h2 .okrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);padding:2px 4px}.h2 .okrow b{color:var(--good)}
+
+/* update card with Bono peeking from behind it */
+@keyframes updpeek{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-12px) rotate(3deg)}}
+@keyframes updjump{0%{transform:translateY(0) scale(1)}45%{transform:translateY(-34px) scale(1.12) rotate(-6deg)}100%{transform:translateY(-22px) scale(1.08)}}
+@keyframes updin{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+#updW{position:fixed;inset-inline:14px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:70;max-width:420px;margin-inline:auto;animation:updin .45s cubic-bezier(.2,.9,.3,1.2)}
+#updW .bn{position:absolute;bottom:calc(100% - 34px);inset-inline-end:26px;width:96px;height:96px;z-index:1;animation:updpeek 1.6s ease-in-out infinite;pointer-events:none}
+#updW.go .bn{animation:updjump .7s ease-out forwards}#updW .bn svg{width:100%;height:100%;display:block}
+#updW .updc{position:relative;z-index:2;padding:16px;border-radius:22px;background:var(--surface);border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);box-shadow:0 18px 50px rgba(0,0,10,.55)}
+#updW h5{margin:0 0 3px;font-size:15px}#updW p{margin:0 0 12px;font-size:12.5px;color:var(--muted);line-height:1.5}
+#updW .r{display:flex;gap:8px}#updW button{height:44px;border-radius:12px;font-weight:700;font-size:14px;padding:0 16px}
+#updW .p{flex:1;background:var(--accent);color:var(--accent-ink)}#updW .g{background:none;color:var(--muted);border:1px solid var(--line)}

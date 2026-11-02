@@ -292,6 +292,7 @@ function renderChips() {
   h += tl('resetview', ICON.reset, t('resetView'), false);
   if (S.hideStack.length) h += tl('undo', ICON.undo, t('undo'), false);
   if (S.hidden.size || S.iso >= 0 || S.region || S.pulled.size || S.moveSet || S.focus || S.cutOn || S.fnOn) h += tl('showall', ICON.all, t('showAll'), false);
+  if (A.updPending) h += tl('updshow', '<svg viewBox="0 0 24 24" class="ico"><path d="M20 12a8 8 0 1 1-2.5-5.8M20 4v5h-5"/></svg>', ar ? 'تحديث جديد' : 'New update', true);
   const extra = A.extraChips ? A.extraChips() : '';
   if (extra) h += tl('more', MORE_ICO, ar ? 'المزيد' : 'More', !!S.moreOpen);
   h += '</div>';
@@ -496,17 +497,28 @@ async function boot() {
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     let want = false;
     navigator.serviceWorker.register('sw.js').then((reg) => {
-      const bar = () => {
-        if (!navigator.serviceWorker.controller || document.getElementById('updBar')) return;   // first install → nothing to update
-        const ar = S.lang === 'ar', b = document.createElement('div'); b.id = 'updBar'; b.setAttribute('role', 'status');
-        b.innerHTML = `<button type="button" class="upd-go">🔄 ${ar ? 'في تحديث جديد — اضغط للتحديث' : 'New update — tap to refresh'}</button><button type="button" class="upd-x" aria-label="close">✕</button>`;
-        b.querySelector('.upd-go').onclick = () => {
-          want = true; const w = reg.waiting;
-          if (w) w.postMessage({ type: 'SKIP_WAITING' }); else location.reload();
-          setTimeout(() => location.reload(), 4000);                                        // safety net
+      let snooze = false;
+      const ar = () => S.lang === 'ar';
+      const showCard = () => {
+        if (document.getElementById('updW') || snooze) return;
+        if (S.quiz) { setTimeout(showCard, 5000); return; }                                   // never interrupt a running quiz
+        const draw = () => {
+          const w = document.createElement('div'); w.id = 'updW'; w.setAttribute('role', 'status');
+          w.innerHTML = `<div class="bn">${(window.BONO && BONO.svg.b_cheer) || ''}</div><div class="updc"><h5>${ar() ? 'بونو جابلك تحديث جديد! 🎁' : 'Bono brought you an update! 🎁'}</h5><p>${ar() ? 'فيه مميزات وتحسينات جديدة. هيتحدّث لما تدوس بس.' : 'New features and fixes. It only updates when you tap.'}</p><div class="r"><button type="button" class="p">${ar() ? 'حدّث دلوقتي' : 'Update now'}</button><button type="button" class="g">${ar() ? 'بعدين' : 'Later'}</button></div></div>`;
+          w.querySelector('.p').onclick = () => {
+            want = true; w.classList.add('go'); w.querySelector('.bn').innerHTML = (window.BONO && BONO.svg.b_happy) || ''; w.querySelector('.p').textContent = ar() ? 'جاري التحديث…' : 'Updating…'; w.querySelector('.g').remove();
+            setTimeout(() => { const x = reg.waiting; if (x) x.postMessage({ type: 'SKIP_WAITING' }); else location.reload(); }, 700);
+            setTimeout(() => location.reload(), 5000);                                         // safety net
+          };
+          w.querySelector('.g').onclick = () => { w.remove(); snooze = true; A.updPending = true; if (A.renderChips) A.renderChips(); setTimeout(() => { snooze = false; showCard(); }, 2 * 3600 * 1000); };
+          document.body.appendChild(w);
         };
-        b.querySelector('.upd-x').onclick = () => b.remove();
-        document.body.appendChild(b);
+        if (window.BONO) draw(); else { const sc = document.createElement('script'); sc.src = 'bono.js'; sc.onload = draw; sc.onerror = draw; document.body.appendChild(sc); }
+      };
+      A.acts.updshow = () => { snooze = false; A.updPending = false; if (A.renderChips) A.renderChips(); showCard(); };
+      const bar = () => {
+        if (!navigator.serviceWorker.controller) return;                                        // first install → nothing to update
+        showCard();
       };
       if (reg.waiting) bar();
       reg.addEventListener('updatefound', () => { const w = reg.installing; if (w) w.addEventListener('statechange', () => { if (w.state === 'installed') bar(); }); });
