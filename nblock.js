@@ -16,7 +16,27 @@ window.__nblockLoaded = true;
     bone: 'FMA52748', ian: 'Z_ne_inferior_alveolar_nerve_l', lingual: 'Z_ne_lingual_nerve_l', mental: 'Z_ne_mental_nerve_l', buccal: 'Z_ne_buccal_nerve_l',
     teeth: ['Z_te_lower_medial_incisor_l', 'Z_te_lower_lateral_incisor_l', 'Z_te_lower_canine_l', 'Z_te_lower_first_premolar_l', 'Z_te_lower_second_premolar_l', 'Z_te_lower_first_molar_tooth_l', 'Z_te_lower_second_molar_tooth_l', 'Z_te_lower_third_molar_l'],
   };
-  const VIEWS = { side: { yaw: 1.05, pit: 0.32 }, back: { yaw: 2.3, pit: 0.25 }, top: { yaw: 1.1, pit: 1.2 } };
+  const VIEWS = { side: { yaw: 1.05, pit: 0.32 }, back: { yaw: 2.3, pit: 0.25 }, top: { yaw: 1.1, pit: 1.2 }, front: { yaw: 0.45, pit: 0.2 } };
+  /* the injections: where the needle comes from, default view, and what the result says (DRAFT texts) */
+  const INJ = {
+    ianb: { en: 'Inferior alveolar (IANB)', ar: 'العصب السنخي السفلي (IANB)', src: [-0.02, 1.4585, 0.16], view: 'side',
+      ok: ['All lower teeth on this side (31–38) up to the midline; the lower lip and chin (mental nerve).', 'كل أسنان الفك السفلي في الجهة دي (31–38) لحد خط الوسط، والشفة السفلية والذقن (العصب الذقني).'],
+      no: ['The buccal gum around the molars (needs a long buccal nerve block). The tongue goes numb if the lingual nerve was reached too.', 'لثة الدهليزي عند الأضراس (محتاجة حقنة العصب الشدقي الطويل). واللسان بيتخدّر لو العصب اللساني اتأثر كمان.'],
+      hint: ['Aim at the nerve just before it enters the mandibular foramen, on the inner side of the ramus.', 'وجّه ناحية العصب قبل ما يدخل ثقبة الفك السفلي مباشرةً، على السطح الداخلي للرامس.'] },
+    buccal: { en: 'Long buccal', ar: 'العصب الشدقي الطويل', src: [0.05, 1.476, 0.2], view: 'side',
+      ok: ['The buccal gum and cheek lining of the lower molars (36–38) — soft tissue only; the teeth stay sensitive.', 'لثة الدهليزي وبطانة الخد عند الأضراس السفلية (36–38) — أنسجة رخوة بس، والأسنان نفسها لسه حاسّة.'],
+      no: ['The teeth themselves (needs an inferior alveolar block) and the tongue side.', 'الأسنان نفسها (محتاجة حقنة السنخي السفلي) وناحية اللسان.'],
+      hint: ['Aim at the buccal nerve where it crosses the front of the ramus, level with the last molar.', 'وجّه ناحية العصب الشدقي وهو بيعدّي قدّام الرامس، على مستوى آخر ضرس.'] },
+    mental: { en: 'Mental nerve', ar: 'العصب الذقني', src: [0.04, 1.446, 0.225], view: 'front',
+      ok: ['The lower lip, chin and the buccal gum in front of the mental foramen (premolars to midline) — soft tissue.', 'الشفة السفلية والذقن ولثة الدهليزي قدّام الثقبة الذقنية (من الضواحك لخط الوسط) — أنسجة رخوة.'],
+      no: ['Pulpal anesthesia of the teeth (unless the incisive nerve is blocked too) and the lingual tissues.', 'تخدير لب الأسنان (إلا لو العصب القاطع اتخدّر كمان) وأنسجة ناحية اللسان.'],
+      hint: ['Aim at the mental foramen, between the two premolars, near the root apices.', 'وجّه ناحية الثقبة الذقنية، بين الضاحكين قريب من قمم الجذور.'] },
+  };
+  const SCEN = [
+    { k: 'ianb', en: 'You need to treat the lower first molar (36). Which block numbs the tooth?', ar: 'عايز تعالج الضرس السفلي الأول (36). أنهي حقنة تخدّر السنّة؟' },
+    { k: 'buccal', en: 'The tooth is numb but the patient still feels pain at the buccal gum of 37 while you place a clamp. Which block completes it?', ar: 'السنّة اتخدّرت بس المريض لسه حاسس بألم في لثة الدهليزي عند 37 وإنت بتركّب المشبك. أنهي حقنة تكمّل بيها؟' },
+    { k: 'mental', en: 'The patient needs stitches in the lower lip on this side, with no need to numb the teeth. Which block is enough?', ar: 'المريض محتاج غُرز في الشفة السفلية الناحية دي ومش محتاج تخدّر الأسنان. أنهي حقنة تكفي؟' },
+  ];
   const TC = [0.022, 1.472, 0.14], DIST = 0.27;
   const SRC = [-0.02, 1.4585, 0.16]; // syringe comes from the opposite premolar region
 
@@ -24,7 +44,7 @@ window.__nblockLoaded = true;
   css.textContent = '.nbstage{position:relative;height:min(50vh,400px);border-radius:18px;overflow:hidden;background:radial-gradient(circle at 50% 40%,var(--surface2),var(--bg2));border:1px solid var(--line);touch-action:none}.nbstage canvas{width:100%;height:100%;display:block;cursor:grab}' +
     '.nbmsg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;color:var(--muted);font-size:14px;pointer-events:none}.nbhud{position:absolute;inset-inline:10px;top:8px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}' +
     '.nbhud span{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11.5px;color:var(--text)}.nbmeter{height:8px;border-radius:6px;background:var(--surface2);border:1px solid var(--line);margin:8px 2px 2px;overflow:hidden}.nbmeter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#E5534B,#E3B95B,#3DBE7A);transition:width .12s}' +
-    '.nbbtns{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px}.nbbtns .btn{flex:1;min-width:76px}.nbres{border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:12px 14px;margin:8px 0}.nbres b{font-size:16px;display:block}.nbres p{margin:6px 0 0;font-size:13.5px;line-height:1.7}.nbres.ok{border-color:#3DBE7A}.nbres.no{border-color:#E5534B}.nbstars{font-size:22px;letter-spacing:3px;color:var(--gold)}';
+    '.nbbtns{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px}.nbbtns .btn{flex:1;min-width:76px}.nbres{border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:12px 14px;margin:8px 0}.nbres b{font-size:16px;display:block}.nbres p{margin:6px 0 0;font-size:13.5px;line-height:1.7}.nbres.ok{border-color:#3DBE7A}.nbres.no{border-color:#E5534B}.nbstars{font-size:22px;letter-spacing:3px;color:var(--gold)}.seg2{display:flex;gap:6px;margin:6px 0}.seg2 .btn{flex:1}.nbchips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:none}.nbchips::-webkit-scrollbar{display:none}.nbchips button{flex:none;border:1px solid var(--line);background:var(--surface2);color:var(--text);border-radius:999px;padding:7px 13px;font-size:13px;font-family:inherit;cursor:pointer}.nbchips button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}';
   document.head.appendChild(css);
 
   /* ───────── mesh helpers ───────── */
@@ -77,8 +97,13 @@ window.__nblockLoaded = true;
     // target: most posterior / superior end of the inferior alveolar nerve (≈ where it enters the mandibular foramen)
     const ian = M[IDS.ian].P; let best = -1e9, bi = 0;
     for (let i = 0; i < ian.length / 3; i++) { const s = -ian[i * 3 + 2] + ian[i * 3 + 1] * 0.5; if (s > best) { best = s; bi = i; } }
-    const T0 = [ian[bi * 3], ian[bi * 3 + 1], ian[bi * 3 + 2]];
-    const st = { gl, dead: false, tip: [T0[0] - 0.012, T0[1] + 0.012, T0[2] + 0.03], view: 'side', result: null, hint: false, T0 };
+    const TG = { ianb: [ian[bi * 3], ian[bi * 3 + 1], ian[bi * 3 + 2]] };
+    const near = (arr, ref, skipMin) => { let bd = 1e9, bj = 0; for (let i = 0; i < arr.length / 3; i++) { const d = Math.hypot(arr[i * 3] - ref[0], arr[i * 3 + 1] - ref[1], arr[i * 3 + 2] - ref[2]); if (d < bd) { bd = d; bj = i; } } return [arr[bj * 3], arr[bj * 3 + 1], arr[bj * 3 + 2]]; };
+    TG.buccal = near(M[IDS.buccal].P, [0.0292 + 0.012, 1.4679 + 0.004, 0.1332 + 0.002]);
+    { const mp = M[IDS.mental].P, ip = M[IDS.ian].P; let bd = 1e9, bj = 0; for (let i = 0; i < mp.length / 3; i++) for (let j = 0; j < ip.length / 3; j += 3) { const d = Math.hypot(mp[i * 3] - ip[j * 3], mp[i * 3 + 1] - ip[j * 3 + 1], mp[i * 3 + 2] - ip[j * 3 + 2]); if (d < bd) { bd = d; bj = i; } } TG.mental = [mp[bj * 3], mp[bj * 3 + 1], mp[bj * 3 + 2]]; }
+    const st = { gl, dead: false, tip: [0, 0, 0], view: 'side', result: null, hint: false, sel: 'ianb', T0: TG.ianb, src: INJ.ianb.src };
+    st.pick = (k) => { st.sel = k; st.T0 = TG[k]; st.src = INJ[k].src; st.view = INJ[k].view; st.tip = [st.T0[0] - 0.012, st.T0[1] + 0.012, st.T0[2] + 0.03]; st.result = null; };
+    st.pick('ianb');
     const draw = (m, col, a, em, off) => {
       gl.uniform3fv(U.uC, col); gl.uniform1f(U.uA, a); gl.uniform3fv(U.uE, em || [0, 0, 0]); gl.uniform3fv(U.uT, off || [0, 0, 0]);
       gl.bindBuffer(gl.ARRAY_BUFFER, m.bp); gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 3, gl.FLOAT, false, 0, 0);
@@ -94,16 +119,16 @@ window.__nblockLoaded = true;
       gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true);
       const { eye } = cam(), up = st.view === 'top' ? [0, 0, -1] : [0, 1, 0], vp = mul(persp(FOV, w / h, 0.01, 3), look(eye, TC, up));
       gl.uniformMatrix4fv(U.uVP, false, vp); gl.uniform3fv(U.uEye, eye); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      const ok = st.result && st.result.stars >= 2, glow = ok ? [0.55, 0.4, 0] : [0.12, 0.08, 0];
-      IDS.teeth.forEach((id) => draw(G[id], ok ? [0.35, 0.95, 0.6] : [0.97, 0.95, 0.9], 1, ok ? [0, 0.28, 0.12] : [0, 0, 0]));
-      draw(G[IDS.ian], [1, 0.82, 0.25], 1, glow); draw(G[IDS.mental], [1, 0.82, 0.25], 1, glow); draw(G[IDS.lingual], [0.55, 0.8, 1], 1, [0, 0.05, 0.12]); draw(G[IDS.buccal], [0.9, 0.55, 0.9], 1, [0.06, 0, 0.06]);
+      const ok = st.result && st.result.stars >= 2, gl1 = [0.55, 0.4, 0], dim = [0.12, 0.08, 0], isI = st.sel === 'ianb';
+      IDS.teeth.forEach((id) => draw(G[id], ok && isI ? [0.35, 0.95, 0.6] : [0.97, 0.95, 0.9], 1, ok && isI ? [0, 0.28, 0.12] : [0, 0, 0]));
+      draw(G[IDS.ian], [1, 0.82, 0.25], 1, ok && isI ? gl1 : dim); draw(G[IDS.mental], [1, 0.82, 0.25], 1, ok && (isI || st.sel === 'mental') ? gl1 : dim); draw(G[IDS.lingual], [0.55, 0.8, 1], 1, [0, 0.05, 0.12]); draw(G[IDS.buccal], [0.9, 0.55, 0.9], 1, ok && st.sel === 'buccal' ? [0.6, 0.15, 0.6] : [0.06, 0, 0.06]);
       // syringe
-      const tip = st.tip, dir = norm([tip[0] - SRC[0], tip[1] - SRC[1], tip[2] - SRC[2]]), back = (k) => [SRC[0] - dir[0] * k, SRC[1] - dir[1] * k, SRC[2] - dir[2] * k], O = [0, 0, 0];
+      const SRC = st.src, tip = st.tip, dir = norm([tip[0] - SRC[0], tip[1] - SRC[1], tip[2] - SRC[2]]), back = (k) => [SRC[0] - dir[0] * k, SRC[1] - dir[1] * k, SRC[2] - dir[2] * k], O = [0, 0, 0];
       upd(needle, cylData(tip, SRC, 0.00035, 0.0004, 8)); upd(hub, cylData(SRC, back(0.006), 0.0012, 0.0018, 10)); upd(barrel, cylData(back(0.006), back(0.06), 0.0045, 0.0045, 16)); upd(flange, cylData(back(0.058), back(0.061), 0.0085, 0.0085, 16)); upd(plunger, cylData(back(0.06), back(0.078), 0.0016, 0.0016, 10));
       draw(needle, [0.9, 0.9, 0.95], 1, [0.1, 0.1, 0.12], O); draw(hub, [0.3, 0.55, 0.95], 1, [0, 0.05, 0.15], O); draw(barrel, [0.8, 0.9, 1], 1, [0.02, 0.05, 0.1], O); draw(flange, [0.3, 0.55, 0.95], 1, null, O); draw(plunger, [0.9, 0.9, 0.95], 1, null, O);
       gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
       draw(G[IDS.bone], [0.92, 0.86, 0.74], 0.42, [0.03, 0.025, 0.02]);
-      if (st.result) { const c = ok ? [0.3, 0.9, 0.5] : [0.95, 0.3, 0.3]; draw(ringS, c, 0.28, ok ? [0, 0.25, 0.1] : [0.3, 0, 0], T0); draw(dotS, c, 1, ok ? [0, 0.3, 0.12] : [0.35, 0, 0], T0); }
+      if (st.result) { const c = ok ? [0.3, 0.9, 0.5] : [0.95, 0.3, 0.3]; draw(ringS, c, 0.28, ok ? [0, 0.25, 0.1] : [0.3, 0, 0], st.T0); draw(dotS, c, 1, ok ? [0, 0.3, 0.12] : [0.35, 0, 0], st.T0); }
       gl.disable(gl.DEPTH_TEST); draw(dotS, [1, 0.85, 0.3], 1, [0.5, 0.35, 0], tip);
       if (ui.onFrame) ui.onFrame(st);
       requestAnimationFrame(frame);
@@ -116,48 +141,68 @@ window.__nblockLoaded = true;
     cv.addEventListener('pointerdown', (e) => { if (st.result && st.result.stars >= 2) return; cv.setPointerCapture(e.pointerId); const h = hit(e.clientX, e.clientY); off = [st.tip[0] - h[0], st.tip[1] - h[1], st.tip[2] - h[2]]; });
     cv.addEventListener('pointermove', (e) => { if (!off) return; const h = hit(e.clientX, e.clientY); st.tip = [Math.max(-0.03, Math.min(0.07, h[0] + off[0])), Math.max(1.42, Math.min(1.52, h[1] + off[1])), Math.max(0.08, Math.min(0.2, h[2] + off[2]))]; st.result = null; if (ui.onMove) ui.onMove(st); });
     const up = () => { off = null; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
-    st.dist = () => Math.hypot(st.tip[0] - T0[0], st.tip[1] - T0[1], st.tip[2] - T0[2]);
+    st.dist = () => Math.hypot(st.tip[0] - st.T0[0], st.tip[1] - st.T0[1], st.tip[2] - st.T0[2]);
     requestAnimationFrame(frame);
     return st;
   }
 
   /* ───────── UI ───────── */
   const STARS = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
-  function page() {
-    return `<h2>💉 ${T('Local anesthesia simulator', 'محاكي التخدير الموضعي')}</h2>` +
-      `<p class="lead">${T('Inferior alveolar nerve block (left side of the patient). Drag to move the needle tip to the nerve entry just before the mandibular foramen, switch the view to adjust depth, then inject.', 'حقنة العصب السنخي السفلي (الجهة اليسرى للمريض). اسحب علشان تحرّك طرف الإبرة لمدخل العصب قبل ثقبة الفك السفلي، وغيّر الزاوية تظبط العمق، وبعدين احقن.')}</p>` +
-      `<div class="nbstage" id="nbstage"><canvas id="nbcv"></canvas><div class="nbmsg" id="nbmsg">${T('Loading the jaw…', 'جارِ تحميل الفك…')}</div><div class="nbhud"><span id="nbview"></span><span id="nbtry">0</span></div></div>` +
-      `<div class="nbmeter" id="nbmeterw" style="display:none"><i id="nbmeter"></i></div>` +
-      `<div class="nbbtns"><button class="btn" data-act="nbview" data-v="side">${T('Side', 'جانبي')}</button><button class="btn" data-act="nbview" data-v="back">${T('Behind', 'من ورا')}</button><button class="btn" data-act="nbview" data-v="top">${T('Top', 'من فوق')}</button></div>` +
-      `<div class="nbbtns"><button class="btn primary" data-act="nbinject">💉 ${T('Inject', 'احقن')}</button><button class="btn" data-act="nbhint">${T('Hint', 'تلميح')}</button><button class="btn" data-act="nbreset">${T('Restart', 'من الأول')}</button></div>` +
-      `<div id="nbres"></div><p class="tiny" style="text-align:center;margin-top:8px">${T('Draft — the target position and texts are pending review by a dentist.', 'مبدئي — مكان الهدف والنصوص لسه بتتراجع من طبيب أسنان.')}</p>`;
+  const VN = { side: ['Side view', 'منظر جانبي'], back: ['Behind view', 'منظر من ورا'], top: ['Top view', 'منظر من فوق'], front: ['Front view', 'منظر من قدام'] };
+  let tries = 0, mode = 'free', scen = 0, score = 0, asked = 0;
+  const nm = (k) => T(INJ[k].en, INJ[k].ar);
+  function topHtml() {
+    const sel = cur ? cur.sel : 'ianb';
+    const seg = `<div class="seg2"><button class="btn ${mode === 'free' ? 'primary' : ''}" data-act="nbmode" data-m="free">${T('Free practice', 'تدريب حر')}</button><button class="btn ${mode === 'quiz' ? 'primary' : ''}" data-act="nbmode" data-m="quiz">${T('Quiz', 'اختبار')}</button></div>`;
+    const chips = `<div class="nbchips">${Object.keys(INJ).map((k) => `<button data-act="nbsel" data-k="${k}" class="${sel === k ? 'on' : ''}">${esc(nm(k))}</button>`).join('')}</div>`;
+    const sc = mode === 'quiz' ? `<div class="nbres"><small>${T('Case', 'حالة')} ${asked + 1} · ${T('Score', 'النتيجة')} ${score}/${asked}</small><b>${T(SCEN[scen].en, SCEN[scen].ar)}</b><p class="tiny">${T('Choose the right injection below, then aim the needle and inject.', 'اختار الحقنة الصح من تحت، وبعدين وجّه الإبرة واحقن.')}</p></div>`
+      : `<p class="lead">${T(INJ[sel].hint[0], INJ[sel].hint[1])}</p>`;
+    return seg + sc + chips;
   }
-  let tries = 0;
-  const VN = { side: ['Side view', 'منظر جانبي'], back: ['Behind view', 'منظر من ورا'], top: ['Top view', 'منظر من فوق'] };
+  const renderTop = () => { const el = $('nbtop'); if (el) el.innerHTML = topHtml(); };
+  function page() {
+    return `<h2>💉 ${T('Local anesthesia simulator', 'محاكي التخدير الموضعي')}</h2><div id="nbtop">${topHtml()}</div>` +
+      `<div class="nbstage" id="nbstage"><canvas id="nbcv"></canvas><div class="nbmsg" id="nbmsg">${T('Loading the jaw…', 'جارِ تحميل الفك…')}</div><div class="nbhud"><span id="nbview"></span><span id="nbtry">${T('Tries: ', 'محاولات: ')}0</span></div></div>` +
+      `<div class="nbmeter" id="nbmeterw" style="display:none"><i id="nbmeter"></i></div>` +
+      `<div class="nbbtns"><button class="btn" data-act="nbview" data-v="side">${T('Side', 'جانبي')}</button><button class="btn" data-act="nbview" data-v="front">${T('Front', 'من قدام')}</button><button class="btn" data-act="nbview" data-v="back">${T('Behind', 'من ورا')}</button><button class="btn" data-act="nbview" data-v="top">${T('Top', 'من فوق')}</button></div>` +
+      `<div class="nbbtns"><button class="btn primary" data-act="nbinject">💉 ${T('Inject', 'احقن')}</button><button class="btn" data-act="nbhint">${T('Hint', 'تلميح')}</button><button class="btn" data-act="nbreset">${T('Restart', 'من الأول')}</button></div>` +
+      `<div id="nbres"></div><p class="tiny" style="text-align:center;margin-top:8px">${T('Draft — target positions and texts are pending review by a dentist.', 'مبدئي — أماكن الأهداف والنصوص لسه بتتراجع من طبيب أسنان.')}</p>`;
+  }
   function open() {
-    stop(); tries = 0;
+    stop(); tries = 0; mode = 'free'; scen = 0; score = 0; asked = 0;
     A.modal(page);
     const cv = $('nbcv'), msg = $('nbmsg');
     loadMeshes().then((M) => {
       if (!cv.isConnected) return;
       try {
-        const setView = () => { const el = $('nbview'); if (el) el.textContent = T(VN[cur.view][0], VN[cur.view][1]); };
-        cur = start(cv, M, { onMove: () => { $('nbres').innerHTML = ''; }, onFrame: (s) => { if (s.hint) { const d = s.dist(), m = $('nbmeter'); if (m) m.style.width = Math.max(4, Math.min(100, 100 - d * 4000)) + '%'; } } });
-        msg.remove(); setView(); $('nbtry').textContent = T('Tries: 0', 'محاولات: 0'); cur.setView = setView;
+        cur = start(cv, M, { onMove: () => { const r = $('nbres'); if (r) r.innerHTML = ''; }, onFrame: (s) => { if (s.hint) { const d = s.dist(), m = $('nbmeter'); if (m) m.style.width = Math.max(4, Math.min(100, 100 - d * 4000)) + '%'; } } });
+        cur.setView = () => { const el = $('nbview'); if (el) el.textContent = T(VN[cur.view][0], VN[cur.view][1]); };
+        msg.remove(); cur.setView(); renderTop();
       } catch (e) { msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); }
     }).catch(() => { if (msg.isConnected) msg.textContent = T('Could not load the models — they need an internet connection the first time.', 'مقدرناش نحمّل المجسمات — أول مرة بتحتاج إنترنت.'); });
   }
   A.acts.nbview = (el) => { if (cur) { cur.view = el.dataset.v; cur.setView(); } };
   A.acts.nbhint = () => { if (!cur) return; cur.hint = !cur.hint; const w = $('nbmeterw'); if (w) w.style.display = cur.hint ? '' : 'none'; };
-  A.acts.nbreset = () => { if (!cur) return; cur.tip = [cur.T0[0] - 0.012, cur.T0[1] + 0.012, cur.T0[2] + 0.03]; cur.result = null; $('nbres').innerHTML = ''; };
+  A.acts.nbreset = () => { if (!cur) return; cur.pick(cur.sel); cur.setView(); $('nbres').innerHTML = ''; };
+  A.acts.nbsel = (el) => { if (!cur) return; cur.pick(el.dataset.k); cur.setView(); $('nbres').innerHTML = ''; renderTop(); };
+  A.acts.nbmode = (el) => { mode = el.dataset.m; scen = Math.floor(Math.random() * SCEN.length); score = 0; asked = 0; if (cur) { $('nbres').innerHTML = ''; } renderTop(); };
+  A.acts.nbnext = () => { scen = (scen + 1 + Math.floor(Math.random() * (SCEN.length - 1))) % SCEN.length; if (cur) cur.pick(cur.sel); $('nbres').innerHTML = ''; renderTop(); };
   A.acts.nbinject = () => {
-    if (!cur) return; const d = cur.dist(), stars = d <= 0.0045 ? 3 : d <= 0.009 ? 2 : d <= 0.014 ? 1 : 0; tries++; cur.result = { stars, d };
+    if (!cur) return; const d = cur.dist(), stars = d <= 0.0045 ? 3 : d <= 0.009 ? 2 : d <= 0.014 ? 1 : 0, k = cur.sel, I = INJ[k]; tries++; cur.result = { stars, d };
     const tr = $('nbtry'); if (tr) tr.textContent = T('Tries: ', 'محاولات: ') + tries;
-    let h;
-    if (stars >= 2) h = `<div class="nbres ok"><div class="nbstars">${STARS(stars)}</div><b>${stars === 3 ? T('Excellent — the needle is at the nerve.', 'ممتاز — الإبرة عند العصب بالظبط.') : T('Good — close enough for a working block.', 'كويس — قريب كفاية والتخدير هيشتغل.')}</b>` +
-      `<p>${T('The inferior alveolar nerve is blocked. Numb now: all lower teeth on this side (31–38) up to the midline, the lower lip and chin (mental nerve).', 'العصب السنخي السفلي اتخدّر. هيتخدّر دلوقتي: كل أسنان الفك السفلي في الجهة دي (31–38) لحد خط الوسط، والشفة السفلية والذقن (العصب الذقني).')}</p>` +
-      `<p><b>${T('Not numb yet:', 'لسه مش متخدّر:')}</b> ${T('the buccal gum around the molars (needs a long buccal nerve block). The tongue goes numb if the lingual nerve was reached too.', 'لثة الدهليزي عند الأضراس (محتاجة حقنة العصب الشدقي الطويل). واللسان بيتخدّر لو العصب اللساني اتأثر كمان.')}</p></div>`;
-    else h = `<div class="nbres no"><b>${stars === 1 ? T('Too far — only a weak effect.', 'بعيد شوية — تأثير ضعيف.') : T('Missed — no numbness.', 'غلط — مفيش تخدير.')}</b><p>${T('Use “Hint”, rotate the view and move the tip again. Aim at the nerve just before it enters the mandible.', 'جرّب «تلميح»، وغيّر الزاوية وحرّك الطرف تاني. وجّه ناحية العصب قبل ما يدخل عظم الفك مباشرةً.')}</p></div>`;
+    const ok = stars >= 2;
+    let h = '';
+    if (mode === 'quiz') {
+      const right = k === SCEN[scen].k; asked++; if (right && ok) score++;
+      h = right && ok ? `<div class="nbres ok"><div class="nbstars">${STARS(stars)}</div><b>${T('Correct injection and good aim.', 'حقنة صح وتصويب كويس.')}</b></div>`
+        : right ? `<div class="nbres no"><b>${T('Right injection, but the aim missed.', 'الحقنة صح بس التصويب غلط.')}</b><p>${T(I.hint[0], I.hint[1])}</p></div>`
+          : `<div class="nbres no"><b>${T('Wrong injection for this case.', 'الحقنة دي غلط للحالة دي.')}</b><p>${T('Correct: ', 'الصح: ')}${esc(nm(SCEN[scen].k))}</p></div>`;
+      h += `<div class="nbbtns"><button class="btn primary" data-act="nbnext">${T('Next case', 'الحالة اللي بعدها')}</button></div>`;
+      renderTop();
+    }
+    if (ok && (mode === 'free' || k === SCEN[scen].k)) h += `<div class="nbres ok"><b>${stars === 3 ? T('Excellent — the needle is at the nerve.', 'ممتاز — الإبرة عند العصب بالظبط.') : T('Good — close enough for a working block.', 'كويس — قريب كفاية والتخدير هيشتغل.')} ${mode === 'free' ? '<span class="nbstars">' + STARS(stars) + '</span>' : ''}</b>` +
+      `<p><b>${T('Numb now:', 'اتخدّر دلوقتي:')}</b> ${T(I.ok[0], I.ok[1])}</p><p><b>${T('Not numb:', 'لسه مش متخدّر:')}</b> ${T(I.no[0], I.no[1])}</p></div>`;
+    else if (mode === 'free') h = `<div class="nbres no"><b>${stars === 1 ? T('Too far — only a weak effect.', 'بعيد شوية — تأثير ضعيف.') : T('Missed — no numbness.', 'غلط — مفيش تخدير.')}</b><p>${T('Use “Hint”, rotate the view and move the tip again. ', 'جرّب «تلميح»، وغيّر الزاوية وحرّك الطرف تاني. ')}${T(I.hint[0], I.hint[1])}</p></div>`;
     $('nbres').innerHTML = h;
   };
   waitFor(() => A.hubExtra && A.modal, () => { A.hubExtra.dentnb = open; });
