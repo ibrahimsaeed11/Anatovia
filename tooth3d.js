@@ -3,6 +3,7 @@
    teeth3d/<key>.bin only when opened (and then cached by the service worker). Models: University of Dundee School of Dentistry, CC BY 4.0. */
 'use strict';
 window.__tooth3dLoaded = true;
+['tooth-lm.js', 'tooth-parts.js'].forEach((u) => { if (!document.querySelector('script[src="' + u + '"]')) { const e = document.createElement('script'); e.src = u; document.body.appendChild(e); } });
 (function () {
   const T = (en, ar) => (S.lang === 'ar' ? ar : en);
   const $ = (id) => document.getElementById(id);
@@ -64,7 +65,7 @@ window.__tooth3dLoaded = true;
     'vec3 c=base*(.30+.18*h+d)+vec3(sp)+vec3(rim);gl_FragColor=vec4(pow(c,vec3(.95)),1.0);}';
 
   let cur = null; // current viewer
-  function stop() { if (cur) { cur.dead = true; try { const x = cur.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* ignore */ } cur = null; } }
+  function stop() { if (window.ToothParts) ToothParts.detach(); if (cur) { cur.dead = true; try { const x = cur.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* ignore */ } cur = null; } }
 
   function sh(gl, type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
 
@@ -120,6 +121,7 @@ window.__tooth3dLoaded = true;
         bind(p.bp, 'aPos', 3); bind(p.bn, 'aNor', 3); bind(p.bu, 'aUv', 2);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, p.bi); gl.drawElements(gl.TRIANGLES, p.n, gl.UNSIGNED_SHORT, 0);
       });
+      if (st.after) st.after(mat4Mul(proj, view), eye);
       requestAnimationFrame(frame);
     }
     /* pointer: one finger / mouse rotates, two fingers pinch, wheel zooms */
@@ -146,11 +148,11 @@ window.__tooth3dLoaded = true;
     A.modal(() => `<h2>🦷 <span dir="ltr">${f}</span></h2><div class="t3stage" id="t3stage"><canvas id="t3cv"></canvas><div class="t3msg" id="t3msg">${T('Loading…', 'جارِ التحميل…')}</div></div>` +
       `<div class="t3info"><b>${T(k[0], k[1])}${curVar ? ' — ' + T('Cusp of Carabelli', 'حدبة كاربيللي') : ''}</b><small>${T(QUAD[q][0], QUAD[q][1])} · FDI <span dir="ltr">${f}</span> · ${T('permanent', 'دائمة')}</small></div>` +
       `<div class="row" style="margin-top:6px"><button class="btn" data-act="t3list">← ${T('All teeth', 'كل الأسنان')}</button><button class="btn" data-act="t3reset">⟲ ${T('Reset view', 'رجّع الزاوية')}</button>` +
-      (hasVar ? `<button class="btn ${curVar ? 'primary' : ''}" data-act="t3var">${curVar ? T('Normal first molar', 'الضرس الأول العادي') : T('With Carabelli cusp', 'مع حدبة كاربيللي')}</button>` : '') + `</div>`);
+      (hasVar ? `<button class="btn ${curVar ? 'primary' : ''}" data-act="t3var">${curVar ? T('Normal first molar', 'الضرس الأول العادي') : T('With Carabelli cusp', 'مع حدبة كاربيللي')}</button>` : '') + `</div><div id="t3parts"></div>`);
     const msg = $('t3msg'), cv = $('t3cv');
     load(keyOf(f, curVar)).then((d) => {
       if (curF !== f || !cv.isConnected) return;
-      try { cur = viewer(cv, d, mirrored(f)); msg.remove(); } catch (e) { msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); }
+      try { cur = viewer(cv, d, mirrored(f)); msg.remove(); if (window.ToothParts) ToothParts.attach(keyOf(f, curVar), cur, mirrored(f), $('t3stage'), $('t3parts')); } catch (e) { msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); }
     }).catch(() => { if (msg.isConnected) msg.textContent = T('Could not load this tooth — it needs an internet connection the first time.', 'مقدرناش نحمّل السنّة دي — أول مرة بتحتاج إنترنت.'); });
   }
   A.acts.t3open = (el) => open(+el.dataset.f);
