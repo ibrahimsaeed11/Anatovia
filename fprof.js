@@ -7,17 +7,17 @@ window.__fprofLoaded = true;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   /* hide = hub items that do not apply; first = items pinned to the top; note = faculty content still being prepared */
   const PROF = {
-    pt: { hide: ['dent', 'dent3d', 'dentnb'], first: [], color: '#ff9f45' },
-    med: { hide: ['dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc'], first: [], color: '#5b9dff' },
-    dent: { hide: ['moves', 'tcards', 'calc', 'spinal', 'exam', 'nmap'], first: ['dent', 'dent3d', 'dentnb', 'quiz', 'cards'], color: '#3fd8c8', start: 'head' },
-    nurs: { hide: ['dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: [], color: '#5fd68a', note: true },
-    vet: { hide: ['dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: [], color: '#c79a5b', note: true },
-    ahs: { hide: ['dent', 'dent3d', 'dentnb', 'tcards', 'calc', 'spinal'], first: [], color: '#a68bff', note: true },
-    pe: { hide: ['dent', 'dent3d', 'dentnb', 'tcards', 'spinal'], first: ['moves'], color: '#ffd23f', note: true },
-    pharm: { hide: ['dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: [], color: '#ff7aa8', note: true },
-    other: { hide: ['dent', 'dent3d', 'dentnb', 'tcards', 'calc', 'spinal'], first: [], color: '#E3B95B' },
+    pt: { hide: ['pjourney', 'dent', 'dent3d', 'dentnb'], first: [], color: '#ff9f45' },
+    med: { hide: ['pjourney', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc'], first: [], color: '#5b9dff' },
+    dent: { hide: ['pjourney', 'moves', 'tcards', 'calc', 'spinal', 'exam', 'nmap'], first: ['dent', 'dent3d', 'dentnb', 'quiz', 'cards'], color: '#3fd8c8', start: 'head' },
+    nurs: { hide: ['dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: ['pjourney'], color: '#5fd68a', note: true },
+    vet: { hide: ['pjourney', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: [], color: '#c79a5b', note: true },
+    ahs: { hide: ['pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'calc', 'spinal'], first: [], color: '#a68bff', note: true },
+    pe: { hide: ['pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'spinal'], first: ['moves'], color: '#ffd23f', note: true },
+    pharm: { hide: ['pjourney', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: [], color: '#ff7aa8', note: true },
+    other: { hide: ['pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'calc', 'spinal'], first: [], color: '#E3B95B' },
   };
-  const FALLBACK = { hide: ['dent', 'dent3d', 'dentnb'], first: [], color: '#E3B95B' };
+  const FALLBACK = { hide: ['pjourney', 'dent', 'dent3d', 'dentnb'], first: [], color: '#E3B95B' };
   const LOOK = () => window.ANAT_FACLOOK || {};
   const view = () => ''; // the faculty is fixed by the account — no "view as another faculty" any more
   A.facCode = () => view() || (A.acct && A.acct.fac) || '';
