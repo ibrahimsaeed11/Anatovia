@@ -216,14 +216,22 @@ window.__pjourneyLoaded = true;
       `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('How it works', 'بيشتغل إزاي')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p></div>` +
       `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('Nursing points', 'نقاط للتمريض')}</small><p style="margin:0 0 4px;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[0], d.nurse[1]))}</p><p style="margin:0;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[2], d.nurse[3]))}</p></div>`;
   }
+  let deck = [], qt = 0;
   function quizHtml() {
-    const d = DRUGS[qi];
-    const q = `<div class="pjcurve"><small>${T('Case', 'سؤال')} ${qasked + 1} · ${T('Score', 'النتيجة')} ${qscore}/${qasked}</small><b style="display:block;margin:6px 0;font-size:15px">${T('What does ' + d.n[0] + ' act on?', 'الدوا ' + d.n[1] + ' بيشتغل على إيه؟')}</b>` +
-      qopts.map((i) => { const x = DRUGS[i], ok = i === qi, st = qans === null ? '' : ok ? 'border-color:#3fd67a;background:rgba(63,214,122,.15)' : qans === i ? 'border-color:#ff6b6b;background:rgba(255,107,107,.15)' : ''; return `<button class="btn" style="display:block;width:100%;margin:5px 0;text-align:start;${st}" data-act="pjans" data-i="${i}">${esc(T(x.tgt[0], x.tgt[1]))}</button>`; }).join('') + '</div>';
-    const fb = qans === null ? '' : `<div class="pjcurve" style="margin-top:8px"><b>${qans === qi ? T('Correct!', 'تمام!') : T('Not quite.', 'مش بالظبط.')}</b><p style="margin:4px 0 8px;font-size:13px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p><button class="btn primary" data-act="pjnext">${T('Next', 'التالي')}</button></div>`;
+    if (!deck.length) newDeck();
+    if (qasked >= deck.length) {
+      const pc = Math.round(qscore / deck.length * 100), msg = pc >= 80 ? T('Excellent!', 'ممتاز!') : pc >= 50 ? T('Good — review the ones you missed.', 'كويس — راجع اللي غلطت فيه.') : T('Go back to the Mechanism tab and try again.', 'ارجع لتبويب آلية العمل وجرّب تاني.');
+      return `<div class="pjcurve" style="text-align:center;padding:18px 12px"><small>${T('Finished', 'خلّصت الاختبار')}</small><div style="font-size:34px;font-weight:800;margin:6px 0">${qscore} / ${deck.length}</div><p style="margin:0 0 12px">${msg}</p><button class="btn primary" data-act="pjrestartq">${T('Try again', 'جرّب تاني')}</button></div>`;
+    }
+    const d = DRUGS[qi], byEff = qt === 1;
+    const qtxt = byEff ? T('Which drug is this? “' + d.eff[0] + '”', 'أنهي دوا ده؟ «' + d.eff[1] + '»') : T('What does ' + d.n[0] + ' act on?', 'الدوا ' + d.n[1] + ' بيشتغل على إيه؟');
+    const q = `<div class="pjcurve"><small><span>${T('Question', 'سؤال')} ${qasked + 1} / ${deck.length}</span><span>${T('Score', 'النتيجة')} ${qscore}</span></small><b style="display:block;margin:6px 0;font-size:15px">${esc(qtxt)}</b>` +
+      qopts.map((i) => { const x = DRUGS[i], ok = i === qi, st = qans === null ? '' : ok ? 'border-color:#3fd67a;background:rgba(63,214,122,.15)' : qans === i ? 'border-color:#ff6b6b;background:rgba(255,107,107,.15)' : ''; return `<button class="btn" style="display:block;width:100%;margin:5px 0;text-align:start;${st}" data-act="pjans" data-i="${i}">${esc(byEff ? dn(x) : T(x.tgt[0], x.tgt[1]))}</button>`; }).join('') + '</div>';
+    const fb = qans === null ? '' : `<div class="pjcurve" style="margin-top:8px"><b>${qans === qi ? T('Correct!', 'تمام!') : T('Not quite.', 'مش بالظبط.')}</b><p style="margin:4px 0 8px;font-size:13px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p><button class="btn primary" data-act="pjnext">${qasked + 1 >= deck.length ? T('See result', 'شوف النتيجة') : T('Next', 'التالي')}</button></div>`;
     return q + fb;
   }
-  function newQ() { qi = Math.floor(Math.random() * DRUGS.length); const o = [qi]; while (o.length < 4) { const r = Math.floor(Math.random() * DRUGS.length); if (!o.includes(r)) o.push(r); } qopts = o.sort(() => Math.random() - .5); qans = null; }
+  function newDeck() { deck = []; DRUGS.forEach((_, i) => { deck.push([i, 0], [i, 1]); }); deck.sort(() => Math.random() - .5); qscore = 0; qasked = 0; setQ(); }
+  function setQ() { if (qasked >= deck.length) return; qi = deck[qasked][0]; qt = deck[qasked][1]; const o = [qi]; while (o.length < 4) { const r = Math.floor(Math.random() * DRUGS.length); if (!o.includes(r)) o.push(r); } qopts = o.sort(() => Math.random() - .5); qans = null; }
 
   /* ───────── UI ───────── */
   let rk = 'oral', tab = 'journey';
@@ -255,7 +263,7 @@ window.__pjourneyLoaded = true;
     const tabs = document.querySelector('.pjroutes'); if (tabs) tabs.outerHTML = tabsHtml();
     if (tab === 'journey') { root.innerHTML = journeyHtml(); initGL(); }
     else if (tab === 'mech') { root.innerHTML = mechHtml(); drawMech($('pjmc'), mtok, DRUGS[drug]); }
-    else { if (!qopts.length) newQ(); root.innerHTML = quizHtml(); }
+    else { root.innerHTML = quizHtml(); }
   }
   function initGL() {
     const cv = $('pjcv'), msg = $('pjmsg'); if (!cv) return;
@@ -267,14 +275,15 @@ window.__pjourneyLoaded = true;
     if (meshes) return go(meshes);
     loadMeshes().then((M) => { meshes = M; go(M); }).catch(() => { if (msg.isConnected) msg.textContent = T('Could not load the models — they need an internet connection the first time.', 'مقدرناش نحمّل المجسمات — أول مرة بتحتاج إنترنت.'); });
   }
-  function open() { stop(); rk = 'oral'; tab = 'journey'; drug = 0; withDrug = true; qscore = 0; qasked = 0; qopts = []; A.modal(page); render(); }
+  function open() { stop(); rk = 'oral'; tab = 'journey'; drug = 0; withDrug = true; deck = []; A.modal(page); render(); }
   const SP = [1, 0.5, 2];
   A.acts.pjtab = (el) => { tab = el.dataset.t; render(); };
   A.acts.pjroute = (el) => { rk = el.dataset.r; if (!cur) { render(); return; } cur.setRoute(rk); const rr = document.querySelector('#pjroot .pjroutes'); if (rr) rr.outerHTML = routesHtml(); const ss = $('pjsteps'); if (ss) ss.innerHTML = stepsInner(); const ff = $('pjfoot'); if (ff) ff.innerHTML = footInner(); };
   A.acts.pjdrug = (el) => { drug = +el.dataset.i; withDrug = true; render(); };
   A.acts.pjwith = (el) => { withDrug = el.dataset.w === '1'; const root = $('pjroot'); if (root) { const t = mtok; root.innerHTML = mechHtml(); drawMech($('pjmc'), t, DRUGS[drug]); } };
-  A.acts.pjans = (el) => { if (qans !== null) return; qans = +el.dataset.i; qasked++; if (qans === qi) qscore++; const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
-  A.acts.pjnext = () => { newQ(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
+  A.acts.pjans = (el) => { if (qans !== null) return; qans = +el.dataset.i; if (qans === qi) qscore++; const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
+  A.acts.pjrestartq = () => { newDeck(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
+  A.acts.pjnext = () => { qasked++; setQ(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
   A.acts.pjgo = (el) => { if (cur) cur.p = ROUTES[rk].st[+el.dataset.i].a + 0.002; };
   A.acts.pjrestart = () => { if (cur) { cur.p = 0; cur.playing = true; const b = $('pjplay'); if (b) b.innerHTML = '⏸ ' + T('Pause', 'إيقاف'); } };
   A.acts.pjplay = () => { if (!cur) return; cur.playing = !cur.playing; const b = $('pjplay'); if (b) b.innerHTML = cur.playing ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل'); };
