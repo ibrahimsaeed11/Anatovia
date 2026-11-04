@@ -1,5 +1,5 @@
 /* pjourney.js — "Drug journey" (nursing pharmacology): follow an oral drug through the 3D body (ADME) with a plasma-concentration curve.
-   v1: oral route only. Uses the app's own organ / vessel meshes. DRAFT: the path is approximate and the texts are pending review by a pharmacist / nursing instructor.
+   v2: oral / IV / IM / sublingual routes + mechanism-of-action animations + mini quiz. Uses the app's own organ / vessel meshes. DRAFT: the path is approximate and the texts are pending review by a pharmacist / nursing instructor.
    Educational only — not for dose calculation. */
 'use strict';
 window.__pjourneyLoaded = true;
@@ -8,21 +8,60 @@ window.__pjourneyLoaded = true;
   const $ = (id) => document.getElementById(id);
   const waitFor = (fn, cb) => { const t0 = setInterval(() => { if (fn()) { clearInterval(t0); cb(); } }, 200); setTimeout(() => clearInterval(t0), 20000); };
   Object.assign(STR, {
-    pjourney: { en: 'Drug journey', ar: 'رحلة الدوا' },
-    pjourneySub: { en: 'Follow a drug through the body, step by step', ar: 'تابع الدوا في الجسم خطوة بخطوة' },
+    pjourney: { en: 'Drug journey & action', ar: 'رحلة الدوا وآلية عمله' },
+    pjourneySub: { en: 'Follow a drug through the body and see how it works', ar: 'تابع الدوا في الجسم وشوف بيشتغل إزاي' },
   });
-  const COL = { Z_or_oesophagus: [.9, .55, .5], Z_or_stomach: [.95, .6, .55], Z_or_duodenum: [.95, .72, .5], Z_or_jejunum: [.95, .72, .55], Z_or_liver: [.6, .28, .22], Z_or_gallbladder: [.5, .7, .3], Z_or_pancreas: [.9, .78, .45], Z_or_kidney_l: [.72, .3, .3], Z_or_kidney_r: [.72, .3, .3], Z_or_ureter_l: [.95, .85, .4], Z_or_ureter_r: [.95, .85, .4], Z_or_urinary_bladder: [.95, .85, .5], Z_or_right_atrium: [.85, .25, .3], Z_or_right_ventricle: [.8, .2, .28], Z_or_left_atrium: [.9, .3, .32], Z_or_left_ventricle: [.9, .25, .3], Z_ve_hepatic_portal_vein: [.4, .5, 1], Z_ve_hepatic_veins: [.35, .5, 1], Z_ve_superior_mesenteric_vein: [.4, .5, 1], Z_ve_inferior_vena_cava_abdominal_part: [.35, .5, 1], Z_ve_inferior_vena_cava_thoracic_part: [.35, .5, 1], Z_ve_thoracic_aorta: [1, .3, .3], Z_ve_abdominal_aorta: [1, .3, .3], Z_or_ascending_colon: [.8, .65, .55], Z_or_transverse_colon: [.8, .65, .55], Z_or_descending_colon: [.8, .65, .55], Z_or_sigmoid_colon: [.8, .65, .55] };
-  /* approximate path (body coords: y up, face +z) */
-  const WP = [['mouth', [0, 1.47, .165]], ['throat', [0, 1.415, .105]], ['eso', [.0045, 1.30, .09]], ['eso2', [.015, 1.19, .108]], ['stomach', [.0391, 1.1147, .133]], ['duod', [-.0161, 1.0448, .1285]], ['jej', [.0093, .9395, .1483]], ['smv', [-.029, 1.011, .1301]], ['portal', [-.0055, 1.1221, .1274]], ['liver', [-.035, 1.125, .118]], ['hv', [-.0093, 1.1863, .1225]], ['ivc', [-.0131, 1.21, .1142]], ['ra', [-.0152, 1.2396, .1262]], ['rv', [.0188, 1.2295, .1441]], ['la', [.0203, 1.2444, .109]], ['lv', [.0424, 1.2244, .1258]], ['aorta', [.0147, 1.20, .0736]], ['aorta2', [.0074, 1.0686, .109]], ['kidney', [.0596, 1.0623, .0804]], ['ureter', [.0333, .9459, .0912]], ['bladder', [.0004, .8135, .0981]]];
-  const ST = [
-    { k: 'swallow', to: 'stomach', off: -0.03, org: ['Z_or_oesophagus'], t: ['Swallowing', 'البلع'], d: ['The tablet travels from the mouth down the oesophagus to the stomach in seconds.', 'الحبة بتنزل من الفم للمريء وبتوصل المعدة في ثواني.'] },
-    { k: 'stomach', from: 'stomach', off0: -0.03, to: 'duod', org: ['Z_or_stomach'], t: ['Stomach', 'المعدة'], d: ['The tablet breaks up and dissolves in stomach acid. Food can delay how fast it moves on.', 'الحبة بتتفتت وتذوب في حمض المعدة. الأكل ممكن يبطّأ الوصول.'] },
-    { k: 'gut', from: 'duod', to: 'smv', org: ['Z_or_duodenum', 'Z_or_jejunum'], t: ['Small intestine: absorption', 'الأمعاء: الامتصاص'], d: ['Most of the drug is absorbed here, through the intestinal wall into the blood.', 'هنا أغلب الدوا بيتمتص من جدار الأمعاء الدقيقة للدم.'] },
-    { k: 'liver', from: 'smv', to: 'hv', org: ['Z_or_liver', 'Z_ve_hepatic_portal_vein'], t: ['Liver: first-pass', 'الكبد: أول مرور'], d: ['Blood from the gut reaches the liver through the portal vein, and the liver breaks down part of the drug before it reaches the rest of the body.', 'الدم بيروح من الأمعاء للكبد عن طريق الوريد البابي، والكبد بيكسّر جزء من الدوا قبل ما يوصل باقي الجسم.'] },
-    { k: 'circ', from: 'hv', to: 'aorta', org: ['Z_or_right_atrium', 'Z_or_right_ventricle', 'Z_or_left_atrium', 'Z_or_left_ventricle'], t: ['Circulation', 'الدورة الدموية'], d: ['The drug passes through the heart and is pumped through the arteries to the whole body.', 'الدوا بيعدّي القلب ويتضخ في الشرايين لكل الجسم.'] },
-    { k: 'target', from: 'aorta', to: 'kidney', off1: -0.01, org: ['Z_ve_thoracic_aorta', 'Z_ve_abdominal_aorta'], t: ['Distribution and effect', 'التوزيع والتأثير'], d: ['The drug reaches the target tissue, binds to its receptors and produces its effect.', 'الدوا بيوصل الأنسجة المستهدفة ويرتبط بالمستقبلات ويعمل مفعوله.'] },
-    { k: 'excr', from: 'kidney', off0: -0.01, to: null, org: ['Z_or_kidney_l', 'Z_or_ureter_l', 'Z_or_urinary_bladder'], t: ['Excretion', 'الإخراج'], d: ['The kidneys filter the drug out of the blood and it leaves in the urine.', 'الكلى بتصفّي الدوا من الدم وبيخرج مع البول.'] },
-  ];
+  const V = [.4, .5, 1], AR = [1, .3, .3], HC = [.85, .25, .3];
+  const COL = { Z_or_oesophagus: [.9, .55, .5], Z_or_stomach: [.95, .6, .55], Z_or_duodenum: [.95, .72, .5], Z_or_jejunum: [.95, .72, .55], Z_or_liver: [.6, .28, .22], Z_or_gallbladder: [.5, .7, .3], Z_or_pancreas: [.9, .78, .45], Z_or_kidney_l: [.72, .3, .3], Z_or_kidney_r: [.72, .3, .3], Z_or_ureter_l: [.95, .85, .4], Z_or_ureter_r: [.95, .85, .4], Z_or_urinary_bladder: [.95, .85, .5], Z_or_right_atrium: [.85, .25, .3], Z_or_right_ventricle: [.8, .2, .28], Z_or_left_atrium: [.9, .3, .32], Z_or_left_ventricle: [.9, .25, .3], Z_ve_hepatic_portal_vein: V, Z_ve_hepatic_veins: V, Z_ve_superior_mesenteric_vein: V, Z_ve_inferior_vena_cava_abdominal_part: V, Z_ve_inferior_vena_cava_thoracic_part: V, Z_ve_thoracic_aorta: AR, Z_ve_abdominal_aorta: AR, Z_or_ascending_colon: [.8, .65, .55], Z_or_transverse_colon: [.8, .65, .55], Z_or_descending_colon: [.8, .65, .55], Z_or_sigmoid_colon: [.8, .65, .55],
+    Z_ve_superior_vena_cava: V, Z_ve_left_brachiocephalic_vein: V, Z_ve_axillary_vein_l: V, Z_ve_brachial_veins_l: V, Z_ve_median_cubital_vein_l: V, Z_ve_cephalic_vein_l: V, Z_ve_basilic_vein_l: V, Z_ve_lingual_vein_l: V, Z_ve_internal_jugular_vein_l: V,
+    Z_ve_pulmonary_trunk: [.6, .4, .9], Z_ve_left_pulmonary_artery: [.6, .4, .9], Z_ve_superior_vein_of_left_lung: [.9, .4, .5], Z_ve_inferior_basal_vein_of_left_lung: [.9, .4, .5], Z_ve_anterior_vein_of_left_lung: [.9, .4, .5], Z_ve_superior_basal_vein_of_left_lung: [.9, .4, .5] };
+  const HEART = ['Z_or_right_atrium', 'Z_or_right_ventricle', 'Z_or_left_atrium', 'Z_or_left_ventricle'], LUNG = ['Z_ve_pulmonary_trunk', 'Z_ve_left_pulmonary_artery', 'Z_ve_superior_vein_of_left_lung', 'Z_ve_inferior_basal_vein_of_left_lung', 'Z_ve_anterior_vein_of_left_lung', 'Z_ve_superior_basal_vein_of_left_lung'];
+  const TAIL = [['ra', [-.0152, 1.2396, .1262]], ['rv', [.0188, 1.2295, .1441]], ['pt', [.027, 1.283, .141]], ['lpa', [.055, 1.259, .077]], ['lungv', [.08, 1.216, .079]], ['la', [.0203, 1.2444, .109]], ['lv', [.0424, 1.2244, .1258]], ['aorta', [.0147, 1.20, .0736]], ['aorta2', [.0074, 1.0686, .109]], ['kidney', [.0596, 1.0623, .0804]], ['ureter', [.0333, .9459, .0912]], ['bladder', [.0004, .8135, .0981]]];
+  const SVC = [['bcv', [.002, 1.333, .122]], ['svc', [-.016, 1.301, .116]]];
+  const TG_ST = { k: 'target', from: 'aorta', to: 'kidney', off1: -0.01, org: ['Z_ve_thoracic_aorta', 'Z_ve_abdominal_aorta'], t: ['Distribution and effect', 'التوزيع والتأثير'], d: ['The drug reaches the target tissue, binds to its receptors and produces its effect.', 'الدوا بيوصل الأنسجة المستهدفة ويرتبط بالمستقبلات ويعمل مفعوله.'] };
+  const EX_ST = { k: 'excr', from: 'kidney', off0: -0.01, to: null, org: ['Z_or_kidney_l', 'Z_or_ureter_l', 'Z_or_urinary_bladder'], t: ['Excretion', 'الإخراج'], d: ['The liver breaks down part of the drug, and the kidneys filter the rest out of the blood into the urine.', 'الكبد بيكسّر جزء من الدوا، والكلى بتصفّي الباقي من الدم وبيخرج مع البول.'] };
+  const CIRC = (from) => ({ k: 'circ', from, to: 'aorta', org: HEART.concat(LUNG), t: ['Heart and lungs', 'القلب والرئتين'], d: ['The drug passes through the right heart, the lungs, then the left heart, and is pumped through the arteries to the whole body.', 'الدوا بيعدّي القلب اليمين ثم الرئتين ثم القلب الشمال، وبعدين بيتضخ في الشرايين لكل الجسم.'] });
+  const ROUTES = {
+    oral: { n: ['Oral', 'بالفم'], ka: 1.0, firstPass: true, onset: ['Slow', 'بطيء'], info: (p) => (p < .35 ? ['Not in the blood yet', 'الدوا لسه ماوصلش الدم'] : p < .9 ? ['Rising to the peak', 'التركيز بيزيد ويوصل الذروة'] : ['Falling as it is excreted', 'بيقل مع الإخراج']),
+      wp: [['mouth', [0, 1.47, .165]], ['throat', [0, 1.415, .105]], ['eso', [.0045, 1.30, .09]], ['eso2', [.015, 1.19, .108]], ['stomach', [.0391, 1.1147, .133]], ['duod', [-.0161, 1.0448, .1285]], ['jej', [.0093, .9395, .1483]], ['smv', [-.029, 1.011, .1301]], ['portal', [-.0055, 1.1221, .1274]], ['liver', [-.035, 1.125, .118]], ['hv', [-.0093, 1.1863, .1225]], ['ivc', [-.0131, 1.21, .1142]]].concat(TAIL),
+      st: [
+        { k: 'swallow', to: 'stomach', off: -0.03, org: ['Z_or_oesophagus'], t: ['Swallowing', 'البلع'], d: ['The tablet travels from the mouth down the oesophagus to the stomach in seconds.', 'الحبة بتنزل من الفم للمريء وبتوصل المعدة في ثواني.'] },
+        { k: 'stomach', from: 'stomach', off0: -0.03, to: 'duod', org: ['Z_or_stomach'], t: ['Stomach', 'المعدة'], d: ['The tablet breaks up and dissolves in stomach acid. Food can delay how fast it moves on.', 'الحبة بتتفتت وتذوب في حمض المعدة. الأكل ممكن يبطّأ الوصول.'] },
+        { k: 'gut', from: 'duod', to: 'smv', org: ['Z_or_duodenum', 'Z_or_jejunum'], t: ['Small intestine: absorption', 'الأمعاء: الامتصاص'], d: ['Most of the drug is absorbed here, through the intestinal wall into the blood.', 'هنا أغلب الدوا بيتمتص من جدار الأمعاء الدقيقة للدم.'] },
+        { k: 'liver', from: 'smv', to: 'hv', org: ['Z_or_liver', 'Z_ve_hepatic_portal_vein'], t: ['Liver: first-pass', 'الكبد: أول مرور'], d: ['Blood from the gut reaches the liver through the portal vein, and the liver breaks down part of the drug before it reaches the rest of the body.', 'الدم بيروح من الأمعاء للكبد عن طريق الوريد البابي، والكبد بيكسّر جزء من الدوا قبل ما يوصل باقي الجسم.'] },
+        CIRC('hv'), TG_ST, EX_ST] },
+    iv: { n: ['IV', 'وريدي'], ka: 0, firstPass: false, onset: ['Immediate', 'فوري'], info: (p) => (p < .6 ? ['Highest level right from the start — no absorption step', 'أعلى تركيز من أول لحظة — مفيش مرحلة امتصاص'] : ['Falling as it is cleared', 'بيقل تدريجيًا مع التخلص منه']),
+      wp: [['inj', [.212, 1.021, .096]], ['brv', [.185, 1.139, .084]], ['axv', [.121, 1.3, .098]]].concat(SVC, TAIL),
+      st: [
+        { k: 'inj', to: 'axv', org: ['Z_ve_median_cubital_vein_l', 'Z_ve_cephalic_vein_l', 'Z_ve_basilic_vein_l', 'Z_ve_brachial_veins_l'], t: ['Injection into the vein', 'الحقن في الوريد'], d: ['The drug goes straight into the blood — 100% available, with no absorption step.', 'الدوا بيدخل الدم على طول — بيوصل بالكامل ومفيش مرحلة امتصاص.'] },
+        { k: 'back', from: 'axv', to: 'ra', org: ['Z_ve_axillary_vein_l', 'Z_ve_left_brachiocephalic_vein', 'Z_ve_superior_vena_cava'], t: ['Back to the heart', 'الرجوع للقلب'], d: ['Venous blood carries the drug up the arm to the superior vena cava and the right atrium.', 'الدم الوريدي بيشيل الدوا من الدراع لحد الوريد الأجوف العلوي والأذين اليمين.'] },
+        CIRC('ra'), TG_ST, EX_ST] },
+    im: { n: ['IM', 'عضلي'], ka: 1.3, firstPass: false, onset: ['Moderate', 'متوسط'], site: true, info: (p) => (p < .35 ? ['Slowly absorbed from the muscle', 'بيتمتص تدريجيًا من العضلة'] : p < .85 ? ['Rising to the peak', 'التركيز بيزيد ويوصل الذروة'] : ['Falling as it is cleared', 'بيقل تدريجيًا']),
+      wp: [['site', [.2, 1.29, .07]], ['m2', [.16, 1.30, .085]], ['axv', [.121, 1.3, .098]]].concat(SVC, TAIL),
+      st: [
+        { k: 'depot', to: 'm2', org: [], t: ['Injection into the muscle', 'الحقن في العضلة'], d: ['The drug is deposited in the muscle (for example the deltoid) as a small depot.', 'الدوا بيتحط في العضلة (زي الدالية في الكتف) وبيتخزن فيها مؤقتًا.'] },
+        { k: 'abs', from: 'm2', to: 'ra', org: ['Z_ve_axillary_vein_l', 'Z_ve_left_brachiocephalic_vein', 'Z_ve_superior_vena_cava'], t: ['Absorption and return', 'الامتصاص والرجوع للقلب'], d: ['Muscle has a rich blood supply, so the drug is absorbed gradually — faster than oral, slower than IV — and skips the liver.', 'العضلة فيها دم كتير فالدوا بيتمتص تدريجيًا — أسرع من الفم وأبطأ من الوريد — ومش بيعدّي على الكبد الأول.'] },
+        CIRC('ra'), TG_ST, EX_ST] },
+    sl: { n: ['Sublingual', 'تحت اللسان'], ka: 3, firstPass: false, onset: ['Fast', 'سريع'], site: true, info: (p) => (p < .3 ? ['Enters the blood quickly, skipping the liver', 'بيدخل الدم بسرعة من غير ما يمر على الكبد'] : p < .85 ? ['Rising to the peak', 'التركيز بيزيد ويوصل الذروة'] : ['Falling as it is cleared', 'بيقل تدريجيًا']),
+      wp: [['tongue', [0, 1.465, .15]], ['lingv', [.024, 1.472, .127]], ['ijv', [.03, 1.439, .1]]].concat(SVC, TAIL),
+      st: [
+        { k: 'sl', to: 'ijv', org: ['Z_ve_lingual_vein_l'], t: ['Under the tongue', 'تحت اللسان'], d: ['The thin membrane under the tongue lets the drug pass straight into the veins — no swallowing needed.', 'الغشاء الرقيق تحت اللسان بيسمح للدوا يعدّي على الأوردة مباشرة — من غير بلع.'] },
+        { k: 'veins', from: 'ijv', to: 'ra', org: ['Z_ve_internal_jugular_vein_l', 'Z_ve_left_brachiocephalic_vein', 'Z_ve_superior_vena_cava'], t: ['Veins of the neck', 'أوردة الرقبة'], d: ['The blood goes to the heart without passing through the liver, so there is no first-pass loss.', 'الدم بيروح للقلب من غير ما يعدّي على الكبد، فمفيش فقد من أول مرور.'] },
+        CIRC('ra'), TG_ST, EX_ST] },
+  };
+  const RK = ['oral', 'iv', 'im', 'sl'];
+  function buildRoute(r) {
+    if (r.pts) return r;
+    const pts = [], idxAt = {}, WP = r.wp;
+    for (let i = 0; i < WP.length - 1; i++) { const p0 = WP[Math.max(0, i - 1)][1], p1 = WP[i][1], p2 = WP[i + 1][1], p3 = WP[Math.min(WP.length - 1, i + 2)][1]; idxAt[WP[i][0]] = pts.length; for (let s = 0; s < 24; s++) pts.push(cr(p0, p1, p2, p3, s / 24)); }
+    idxAt[WP[WP.length - 1][0]] = pts.length; pts.push(WP[WP.length - 1][1]);
+    const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]));
+    r.pts = pts; r.cum = cum; r.TOT = cum[cum.length - 1]; r.frac = (n) => cum[idxAt[n]] / r.TOT;
+    r.st.forEach((s, i) => { s.a = i === 0 ? 0 : r.frac(s.from) + (s.off0 || 0); s.b = (s.to ? r.frac(s.to) : 1) + (s.off || s.off1 || 0); });
+    return r;
+  }
+  const posAt = (r, f) => { const d = Math.max(0, Math.min(1, f)) * r.TOT, cum = r.cum, pts = r.pts; let i = 1; while (i < cum.length - 1 && cum[i] < d) i++; const t = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1); return [0, 1, 2].map((k) => pts[i - 1][k] + (pts[i][k] - pts[i - 1][k]) * t); };
+  const DUR = 24; // seconds per full loop
   const css = document.createElement('style');
   css.textContent = '.pjstage{position:relative;height:min(54vh,430px);border-radius:18px;overflow:hidden;background:radial-gradient(circle at 50% 40%,var(--surface2),var(--bg2));border:1px solid var(--line);touch-action:none}.pjstage canvas{width:100%;height:100%;display:block}' +
     '.pjmsg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;color:var(--muted);font-size:14px;pointer-events:none}.pjtag{position:absolute;inset-inline:10px;top:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 12px;box-shadow:0 6px 18px rgba(0,0,0,.3);pointer-events:none}' +
@@ -43,18 +82,9 @@ window.__pjourneyLoaded = true;
   function tubeData(pts, r, seg) { const P = [], N = [], I = []; for (let i = 0; i < pts.length; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)], z = norm([b[0] - a[0], b[1] - a[1], b[2] - a[2]]), t = Math.abs(z[1]) < .9 ? [0, 1, 0] : [1, 0, 0], x = norm(cross(t, z)), y = cross(z, x); for (let k = 0; k <= seg; k++) { const th = k / seg * 2 * Math.PI, c = Math.cos(th), s = Math.sin(th); P.push(pts[i][0] + r * (c * x[0] + s * y[0]), pts[i][1] + r * (c * x[1] + s * y[1]), pts[i][2] + r * (c * x[2] + s * y[2])); N.push(c * x[0] + s * y[0], c * x[1] + s * y[1], c * x[2] + s * y[2]); } } for (let i = 0; i < pts.length - 1; i++) for (let k = 0; k < seg; k++) { const a = i * (seg + 1) + k, b = a + seg + 1; I.push(a, b, a + 1, b, b + 1, a + 1); } return { P: new Float32Array(P), N: new Float32Array(N), I: new Uint16Array(I) }; }
   const cr = (p0, p1, p2, p3, t) => [0, 1, 2].map((k) => .5 * ((2 * p1[k]) + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t * t + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t * t * t));
 
-  /* path */
-  const pts = [], idxAt = {};
-  for (let i = 0; i < WP.length - 1; i++) { const p0 = WP[Math.max(0, i - 1)][1], p1 = WP[i][1], p2 = WP[i + 1][1], p3 = WP[Math.min(WP.length - 1, i + 2)][1]; idxAt[WP[i][0]] = pts.length; for (let s = 0; s < 24; s++) pts.push(cr(p0, p1, p2, p3, s / 24)); }
-  idxAt[WP[WP.length - 1][0]] = pts.length; pts.push(WP[WP.length - 1][1]);
-  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]));
-  const TOT = cum[cum.length - 1], frac = (n) => cum[idxAt[n]] / TOT;
-  const posAt = (f) => { const d = Math.max(0, Math.min(1, f)) * TOT; let i = 1; while (i < cum.length - 1 && cum[i] < d) i++; const t = (d - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1); return [0, 1, 2].map((k) => pts[i - 1][k] + (pts[i][k] - pts[i - 1][k]) * t); };
-  ST.forEach((s, i) => { s.a = (s.from ? frac(s.from) : 0) + (s.off0 || 0); s.b = (s.to ? frac(s.to) : 1) + (s.off || s.off1 || 0); if (i === 0) s.a = 0; });
-  const DUR = 24; // seconds per full loop
 
-  let cur = null;
-  function stop() { if (cur) { cur.dead = true; try { const x = cur.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* ignore */ } cur = null; } }
+  let cur = null, mtok = 0;
+  function stop() { mtok++; if (cur) { cur.dead = true; try { const x = cur.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* ignore */ } cur = null; } }
   async function loadMeshes() {
     const C = window.CATALOG || [], packs = {}, M = {};
     for (const id of Object.keys(COL)) { const c = C.find((x) => x.id === id); if (!c) continue; if (!packs[c.pk]) packs[c.pk] = await Packs.load(c.pk); const d = Packs.part(packs[c.pk], c.o), n = d.pos.length / 3, P = new Float32Array(n * 3), N = new Float32Array(n * 3);
@@ -64,7 +94,7 @@ window.__pjourneyLoaded = true;
     return M;
   }
 
-  function start(cv, M) {
+  function start(cv, M, routeKey) {
     const gl = cv.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: false }) || cv.getContext('experimental-webgl');
     if (!gl) throw new Error('no webgl');
     const pr = gl.createProgram(); gl.attachShader(pr, sh(gl, gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl, gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); gl.useProgram(pr);
@@ -73,11 +103,13 @@ window.__pjourneyLoaded = true;
     const buf = (t, d) => { const b = gl.createBuffer(); gl.bindBuffer(t, b); gl.bufferData(t, d, gl.STATIC_DRAW); return b; };
     const mk = (d) => ({ bp: buf(gl.ARRAY_BUFFER, d.P), bn: buf(gl.ARRAY_BUFFER, d.N), bi: buf(gl.ELEMENT_ARRAY_BUFFER, d.I), n: d.I.length });
     const G = {}; Object.keys(M).forEach((k) => { G[k] = mk(M[k]); });
-    const tube = mk(tubeData(pts, .0022, 8)), dot = mk(sphData(.0055, 12)), halo = mk(sphData(.011, 12));
+    const tubes = {}; RK.forEach((k) => { tubes[k] = mk(tubeData(buildRoute(ROUTES[k]).pts, .0022, 8)); });
+    const dot = mk(sphData(.0055, 12)), halo = mk(sphData(.011, 12)), site = mk(sphData(.02, 14));
     const draw = (m, col, a, em, off) => { gl.uniform3fv(U.uC, col); gl.uniform1f(U.uA, a); gl.uniform3fv(U.uE, em || [0, 0, 0]); gl.uniform3fv(U.uT, off || [0, 0, 0]);
       gl.bindBuffer(gl.ARRAY_BUFFER, m.bp); gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, m.bn); gl.enableVertexAttribArray(aN); gl.vertexAttribPointer(aN, 3, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.bi); gl.drawElements(gl.TRIANGLES, m.n, gl.UNSIGNED_SHORT, 0); };
-    const st = { gl, dead: false, p: 0, playing: true, speed: 1, yaw: 0, last: 0, si: 0, onStage: null };
+    const st = { gl, dead: false, p: 0, playing: true, speed: 1, yaw: 0, last: 0, si: -1, rk: routeKey, onStage: null };
+    st.setRoute = (k) => { st.rk = k; st.p = 0; st.si = -1; };
     const TC = [0, 1.13, 0.1];
     function frame(now) {
       if (st.dead || !cv.isConnected || cv.offsetParent === null) { stop(); return; }
@@ -88,15 +120,17 @@ window.__pjourneyLoaded = true;
       gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true);
       const R = 1.15, eye = [TC[0] + R * Math.sin(st.yaw), 1.13, TC[2] + R * Math.cos(st.yaw)];
       gl.uniformMatrix4fv(U.uVP, false, mul(persp(.62, w / h, .05, 5), look(eye, TC, [0, 1, 0]))); gl.uniform3fv(U.uEye, eye); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-      let si = ST.findIndex((s) => st.p >= s.a && st.p < s.b); if (si < 0) si = ST.length - 1;
-      if (si !== st.si || !st.shown) { st.si = si; st.shown = true; if (st.onStage) st.onStage(si); }
-      const s = ST[si];
-      draw(tube, [1, .85, .3], 1, [.25, .18, 0]);
+      const r = ROUTES[st.rk];
+      let si = r.st.findIndex((s) => st.p >= s.a && st.p < s.b); if (si < 0) si = r.st.length - 1;
+      if (si !== st.si) { st.si = si; if (st.onStage) st.onStage(si); }
+      const s = r.st[si];
+      draw(tubes[st.rk], [1, .85, .3], 1, [.25, .18, 0]);
       gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
-      for (const id in G) { const act = s.org.includes(id); draw(G[id], COL[id], act ? .72 : .26, act ? [.2, .14, .05] : null); }
+      for (const id in G) { const act = s.org.includes(id); draw(G[id], COL[id], act ? .78 : .22, act ? [.2, .14, .05] : null); }
       gl.disable(gl.DEPTH_TEST);
-      const lv = frac('liver');
-      for (let k = 0; k < 9; k++) { const pp = st.p - k * .012; if (pp < 0) continue; if (k % 4 === 3 && pp > lv) continue; const pos = posAt(pp); if (k === 0) { draw(halo, [1, .82, .25], .35, [.4, .28, 0], pos); draw(dot, [1, .9, .5], 1, [.6, .5, .1], pos); } else draw(dot, [1, .82, .25], Math.max(.25, .95 - k * .09), [.5, .36, 0], pos); }
+      if (r.site) draw(site, [1, .82, .25], si === 0 ? .4 + .15 * Math.sin(now / 250) : .15, [.4, .28, 0], r.pts[0]);
+      const lv = r.firstPass ? r.frac('liver') : 2;
+      for (let k = 0; k < 9; k++) { const pp = st.p - k * .012; if (pp < 0) continue; if (k % 4 === 3 && pp > lv) continue; const pos = posAt(r, pp); if (k === 0) { draw(halo, [1, .82, .25], .35, [.4, .28, 0], pos); draw(dot, [1, .9, .5], 1, [.6, .5, .1], pos); } else draw(dot, [1, .82, .25], Math.max(.25, .95 - k * .09), [.5, .36, 0], pos); }
       if (st.onTick) st.onTick(st.p);
       requestAnimationFrame(frame);
     }
@@ -107,48 +141,141 @@ window.__pjourneyLoaded = true;
     return st;
   }
 
-  /* concentration curve (one-compartment, first-order absorption) */
-  const KA = 1.6, KE = 0.28, TM = Math.log(KA / KE) / (KA - KE), CF = (t) => (Math.exp(-KE * t) - Math.exp(-KA * t)) / (KA - KE) * KA, FM = CF(TM);
-  function curve(cc, p) {
+  /* concentration curve (one-compartment; ka = absorption rate, 0 = IV bolus) */
+  const KE = 0.28;
+  const cf = (ka, t) => (ka ? (Math.exp(-KE * t) - Math.exp(-ka * t)) / (ka - KE) * ka : Math.exp(-KE * t));
+  function curve(cc, p, ka) {
+    const tm = ka ? Math.log(ka / KE) / (ka - KE) : 0, FM = cf(ka, tm), f = (t) => cf(ka, t);
     const c = cc.getContext('2d'), d = Math.min(window.devicePixelRatio || 1, 2), W = Math.max(2, Math.round(cc.clientWidth * d)), H = Math.max(2, Math.round(92 * d)); if (cc.width !== W || cc.height !== H) { cc.width = W; cc.height = H; }
     c.clearRect(0, 0, W, H); const css = getComputedStyle(document.documentElement), acc = css.getPropertyValue('--accent').trim() || '#E3B95B', mut = css.getPropertyValue('--muted').trim() || '#999', line = css.getPropertyValue('--line').trim() || '#444';
-    const X = (t) => 20 * d / 2 + t / 14 * (W - 30 * d / 2 * 1.2), Y = (v) => H - 16 * d / 2 - (v / FM) * (H - 34 * d / 2), tt = Math.min(14, p * 14);
-    c.strokeStyle = line; c.lineWidth = d; c.beginPath(); c.moveTo(X(0), H - 16 * d / 2); c.lineTo(W - 6, H - 16 * d / 2); c.moveTo(X(0), 6); c.lineTo(X(0), H - 16 * d / 2); c.stroke();
-    c.fillStyle = mut; c.font = (10 * d) + 'px Cairo,sans-serif'; c.textAlign = 'end'; c.fillText(T('Time', 'الوقت'), W - 6, H - 2);
-    c.strokeStyle = acc; c.lineWidth = 2 * d; c.beginPath(); for (let t = 0; t <= 14; t += .1) { const x = X(t), y = Y(CF(t)); t ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
-    c.fillStyle = acc; c.globalAlpha = .18; c.beginPath(); c.moveTo(X(0), H - 16 * d / 2); for (let t = 0; t <= tt; t += .1) c.lineTo(X(t), Y(CF(t))); c.lineTo(X(tt), H - 16 * d / 2); c.fill(); c.globalAlpha = 1;
-    c.beginPath(); c.arc(X(tt), Y(CF(tt)), 4.5 * d, 0, 7); c.fill();
+    const x0 = 10 * d, y0 = H - 10 * d, X = (t) => x0 + t / 14 * (W - x0 - 8 * d), Y = (v) => y0 - (v / FM) * (y0 - 10 * d), tt = Math.min(14, p * 14);
+    c.strokeStyle = line; c.lineWidth = d; c.beginPath(); c.moveTo(x0, y0); c.lineTo(W - 6, y0); c.moveTo(x0, 6); c.lineTo(x0, y0); c.stroke();
+    c.fillStyle = mut; c.font = (10 * d) + 'px Cairo,sans-serif'; c.textAlign = 'end'; c.fillText(T('Time →', 'الوقت ←'), W - 6, H - 1);
+    c.strokeStyle = acc; c.lineWidth = 2 * d; c.beginPath(); for (let t = 0; t <= 14; t += .1) { const x = X(t), y = Y(f(t)); t ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
+    c.fillStyle = acc; c.globalAlpha = .18; c.beginPath(); c.moveTo(X(0), y0); for (let t = 0; t <= tt; t += .1) c.lineTo(X(t), Y(f(t))); c.lineTo(X(tt), y0); c.fill(); c.globalAlpha = 1;
+    c.beginPath(); c.arc(X(tt), Y(f(tt)), 4.5 * d, 0, 7); c.fill();
   }
 
+  /* ───────── mechanism of action (DRAFT texts — pending review) ───────── */
+  const DRUGS = [
+    { k: 'asp', n: ['Aspirin', 'أسبرين'], cls: ['NSAID / antiplatelet', 'مضاد التهاب / مضاد تجلّط'], kind: 'block', tgt: ['COX enzyme', 'إنزيم COX'], nat: ['Arachidonic acid', 'حمض الأراكيدونيك'], eff: ['Fewer prostaglandins: less pain, fever and clotting', 'بروستاجلاندين أقل: ألم وحرارة وتجلّط أقل'],
+      mech: ['Aspirin permanently blocks the COX enzyme, so the body makes fewer prostaglandins and thromboxane.', 'الأسبرين بيعطّل إنزيم COX بشكل دائم، فالجسم بيعمل بروستاجلاندين وثرومبوكسان أقل.'],
+      nurse: ['Can irritate the stomach and raise bleeding risk — usually given with or after food.', 'ممكن يهيّج المعدة ويزوّد خطر النزيف — غالبًا بيتاخد مع الأكل أو بعده.', 'Avoid in children with viral illness (Reye syndrome).', 'بلاش للأطفال المصابين بعدوى فيروسية (متلازمة راي).'] },
+    { k: 'ome', n: ['Omeprazole', 'أوميبرازول'], cls: ['Proton pump inhibitor', 'مثبّط مضخة البروتون'], kind: 'block', tgt: ['H⁺/K⁺ pump (parietal cell)', 'مضخة H⁺/K⁺ في خلية المعدة'], nat: ['H⁺ ions', 'أيونات H⁺'], eff: ['Less stomach acid', 'حمض معدة أقل'],
+      mech: ['It blocks the proton pump that pushes acid into the stomach, so much less acid is made.', 'بيقفل مضخة البروتون اللي بتطلّع الحمض في المعدة، فالحمض بيقل جدًا.'],
+      nurse: ['Best taken before a meal.', 'الأفضل ياخده قبل الأكل.', 'Delayed-release capsules should not be crushed or chewed.', 'الكبسولات بطيئة التحرر متتفتحش ولا تتمضغ.'] },
+    { k: 'sal', n: ['Salbutamol', 'سالبيوتامول'], cls: ['β2 agonist (bronchodilator)', 'منشّط β2 (موسّع شعب)'], kind: 'agonist', tgt: ['β2 receptor (airway muscle)', 'مستقبل β2 في عضلة الشعب'], nat: ['', ''], eff: ['Airway muscle relaxes: easier breathing', 'عضلة الشعب بترتخي: تنفّس أسهل'],
+      mech: ['It binds to β2 receptors and activates them, so the muscle around the airways relaxes.', 'بيرتبط بمستقبلات β2 وينشّطها، فالعضلة اللي حوالين الشعب بترتخي.'],
+      nurse: ['May cause tremor and a fast heartbeat.', 'ممكن يسبب رعشة وسرعة في النبض.', 'Check the patient’s inhaler technique.', 'اتأكد من طريقة استخدام المريض للبخاخ.'] },
+    { k: 'pro', n: ['Propranolol', 'بروبرانولول'], cls: ['β-blocker', 'حاصر بيتا'], kind: 'block', tgt: ['β receptors (heart)', 'مستقبلات β في القلب'], nat: ['Adrenaline', 'الأدرينالين'], eff: ['Slower heart rate, lower blood pressure', 'نبض أبطأ وضغط أقل'],
+      mech: ['It occupies β receptors so adrenaline cannot activate them, and the heart beats slower and weaker.', 'بيحتل مستقبلات β فالأدرينالين مش بيقدر ينشّطها، والقلب بيدق أبطأ وأضعف.'],
+      nurse: ['Check pulse and blood pressure before giving it.', 'قيس النبض والضغط قبل ما تدّيه.', 'Use caution in asthma; do not stop suddenly.', 'حذر مع الربو، ومتوقفوش فجأة.'] },
+    { k: 'fur', n: ['Furosemide', 'فيوروسيميد'], cls: ['Loop diuretic', 'مدرّ عروة'], kind: 'block', tgt: ['Na⁺/K⁺/2Cl⁻ transporter (kidney)', 'ناقل Na⁺/K⁺/2Cl⁻ في الكلية'], nat: ['Na⁺ / Cl⁻', 'صوديوم / كلوريد'], eff: ['More salt and water lost in the urine', 'ملح وماء أكتر بيخرجوا مع البول'],
+      mech: ['It blocks the transporter in the loop of Henle, so salt and water stay in the tubule and leave as urine.', 'بيقفل الناقل في عروة هنلي، فالملح والماء بيفضلوا في الأنبوبة وبيخرجوا مع البول.'],
+      nurse: ['Monitor fluid balance, weight, blood pressure and potassium.', 'تابع السوائل والوزن والضغط والبوتاسيوم.', 'Expect increased urination.', 'متوقّع زيادة التبول.'] },
+    { k: 'ins', n: ['Insulin', 'الإنسولين'], cls: ['Hormone (antidiabetic)', 'هرمون (للسكر)'], kind: 'agonist', tgt: ['Insulin receptor', 'مستقبل الإنسولين'], nat: ['', ''], eff: ['Glucose enters the cells: blood sugar falls', 'الجلوكوز بيدخل الخلايا: السكر في الدم بيقل'],
+      mech: ['It binds the insulin receptor, which opens the way for glucose to enter muscle and fat cells.', 'بيرتبط بمستقبل الإنسولين، فبيفتح الطريق للجلوكوز يدخل خلايا العضلات والدهون.'],
+      nurse: ['Risk of low blood sugar — watch for sweating, shaking, confusion.', 'خطر هبوط السكر — خلّي بالك من العرق والرعشة والتشوّش.', 'Link the dose with meals and monitor blood glucose.', 'اربط الجرعة بالأكل وتابع سكر الدم.'] },
+  ];
+  let drug = 0, withDrug = true, mmode = 'learn', qi = 0, qscore = 0, qasked = 0, qans = null, qopts = [];
+  function drawMech(cvs, token, dr) {
+    const c = cvs.getContext('2d');
+    const tick = (now) => {
+      if (token !== mtok || !cvs.isConnected) return;
+      const dd = Math.min(window.devicePixelRatio || 1, 2), W = Math.max(2, Math.round(cvs.clientWidth * dd)), H = Math.max(2, Math.round(cvs.clientHeight * dd)); if (cvs.width !== W || cvs.height !== H) { cvs.width = W; cvs.height = H; }
+      const css = getComputedStyle(document.documentElement), acc = css.getPropertyValue('--accent').trim() || '#E3B95B', txt = css.getPropertyValue('--text').trim() || '#fff', mut = css.getPropertyValue('--muted').trim() || '#999', sf = css.getPropertyValue('--surface2').trim() || '#223';
+      const s = W / 360, t = now / 1000, cx = 180, my = 100, on = dr.kind === 'agonist' ? withDrug : !withDrug;
+      c.setTransform(s, 0, 0, s, 0, 0); c.clearRect(0, 0, 360, H / s); c.textAlign = 'center'; c.font = '11px Cairo,sans-serif';
+      c.fillStyle = mut; c.fillText(T('Outside the cell / blood', 'برّه الخلية / الدم'), 62, 14); c.fillText(T('Inside the cell', 'جوّه الخلية'), 52, my + 30);
+      // membrane with pocket
+      c.fillStyle = sf; c.fillRect(0, my - 8, cx - 30, 16); c.fillRect(cx + 30, my - 8, 360 - cx - 30, 16);
+      c.beginPath(); c.moveTo(cx - 30, my - 8); c.lineTo(cx - 30, my + 8); c.lineTo(cx + 30, my + 8); c.lineTo(cx + 30, my - 8); c.lineTo(cx + 16, my - 8); c.lineTo(cx + 12, my + 0); c.lineTo(cx - 12, my + 0); c.lineTo(cx - 16, my - 8); c.closePath(); c.fill();
+      c.fillStyle = txt; c.font = '10px Cairo,sans-serif'; c.fillText(T(dr.tgt[0], dr.tgt[1]), cx, my + 24);
+      // effect box
+      const ey = 172; c.fillStyle = on ? acc : sf; c.globalAlpha = on ? .92 : .6; c.beginPath(); c.roundRect ? c.roundRect(20, ey, 320, 36, 10) : c.rect(20, ey, 320, 36); c.fill(); c.globalAlpha = 1;
+      c.fillStyle = on ? (css.getPropertyValue('--accent-ink').trim() || '#000') : mut; c.font = '700 11.5px Cairo,sans-serif'; c.fillText(on ? T(dr.eff[0], dr.eff[1]) : T('No effect', 'مفيش تأثير'), 180, ey + 22);
+      // particles
+      const ligand = (u, k, gold, passes) => { const x0 = 40 + ((k * 97) % 280), x = x0 + (cx - x0) * Math.min(1, u / .6), y = 24 + (my - 14 - 24) * Math.min(1, u / .6); let px = x, py = y;
+        if (u > .6) { const v = (u - .6) / .4; if (passes) { px = cx; py = my - 14 + (ey - 6 - (my - 14)) * v; } else { const b = Math.sin(v * Math.PI); px = x + (k % 2 ? 1 : -1) * 26 * v; py = y - 22 * b; } }
+        c.fillStyle = gold ? acc : txt; c.globalAlpha = gold ? 1 : .85; c.beginPath(); c.arc(px, py, gold ? 6 : 5, 0, 7); c.fill(); c.globalAlpha = 1; };
+      if (dr.kind === 'agonist') { if (withDrug) for (let k = 0; k < 3; k++) ligand((t * .3 + k / 3) % 1, k, true, true); }
+      else { for (let k = 0; k < 3; k++) ligand((t * .3 + k / 3) % 1, k, false, !withDrug); if (withDrug) { c.fillStyle = acc; c.globalAlpha = .9 + .1 * Math.sin(t * 4); c.beginPath(); c.arc(cx, my - 6, 8, 0, 7); c.fill(); c.globalAlpha = 1; } }
+      c.fillStyle = mut; c.font = '10px Cairo,sans-serif';
+      const lg = dr.kind === 'agonist' ? (withDrug ? T(dr.n[0], dr.n[1]) : '') : T(dr.nat[0], dr.nat[1]); if (lg) c.fillText(lg, 300, 40);
+      c.fillStyle = acc; c.font = '700 10px Cairo,sans-serif'; if (withDrug) c.fillText('● ' + T(dr.n[0], dr.n[1]), 300, 56);
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+  const dn = (d) => T(d.n[0], d.n[1]);
+  function mechHtml() {
+    const d = DRUGS[drug], chips = `<div class="pjroutes" style="flex-wrap:wrap">${DRUGS.map((x, i) => `<span style="flex:1 1 30%;cursor:pointer" class="${i === drug ? 'on' : ''}" data-act="pjdrug" data-i="${i}">${esc(dn(x))}</span>`).join('')}</div>`;
+    return chips + `<div class="pjcurve" style="margin-top:6px"><b style="font-size:15px">${esc(dn(d))}</b> <small style="display:inline">· ${esc(T(d.cls[0], d.cls[1]))}</small>` +
+      `<div class="pjroutes" style="margin:8px 0 4px"><span class="${withDrug ? '' : 'on'}" data-act="pjwith" data-w="0" style="cursor:pointer">${T('Without the drug', 'من غير الدوا')}</span><span class="${withDrug ? 'on' : ''}" data-act="pjwith" data-w="1" style="cursor:pointer">${T('With the drug', 'مع الدوا')}</span></div>` +
+      `<canvas id="pjmc" style="width:100%;height:215px;display:block"></canvas></div>` +
+      `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('How it works', 'بيشتغل إزاي')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p></div>` +
+      `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('Nursing points', 'نقاط للتمريض')}</small><p style="margin:0 0 4px;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[0], d.nurse[1]))}</p><p style="margin:0;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[2], d.nurse[3]))}</p></div>`;
+  }
+  function quizHtml() {
+    const d = DRUGS[qi];
+    const q = `<div class="pjcurve"><small>${T('Case', 'سؤال')} ${qasked + 1} · ${T('Score', 'النتيجة')} ${qscore}/${qasked}</small><b style="display:block;margin:6px 0;font-size:15px">${T('What does ' + d.n[0] + ' act on?', 'الدوا ' + d.n[1] + ' بيشتغل على إيه؟')}</b>` +
+      qopts.map((i) => { const x = DRUGS[i], ok = i === qi, st = qans === null ? '' : ok ? 'border-color:#3fd67a;background:rgba(63,214,122,.15)' : qans === i ? 'border-color:#ff6b6b;background:rgba(255,107,107,.15)' : ''; return `<button class="btn" style="display:block;width:100%;margin:5px 0;text-align:start;${st}" data-act="pjans" data-i="${i}">${esc(T(x.tgt[0], x.tgt[1]))}</button>`; }).join('') + '</div>';
+    const fb = qans === null ? '' : `<div class="pjcurve" style="margin-top:8px"><b>${qans === qi ? T('Correct!', 'تمام!') : T('Not quite.', 'مش بالظبط.')}</b><p style="margin:4px 0 8px;font-size:13px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p><button class="btn primary" data-act="pjnext">${T('Next', 'التالي')}</button></div>`;
+    return q + fb;
+  }
+  function newQ() { qi = Math.floor(Math.random() * DRUGS.length); const o = [qi]; while (o.length < 4) { const r = Math.floor(Math.random() * DRUGS.length); if (!o.includes(r)) o.push(r); } qopts = o.sort(() => Math.random() - .5); qans = null; }
+
+  /* ───────── UI ───────── */
+  let rk = 'oral', tab = 'journey';
   const nm = (s) => T(s.t[0], s.t[1]);
-  function page() {
-    return `<h2>💊 ${T('Drug journey', 'رحلة الدوا في الجسم')}</h2><p class="lead">${T('Follow the drug from the moment you swallow it until it leaves the body. Drag the body to rotate it.', 'تابع الدوا من أول ما تبلعه لحد ما يخرج. اسحب الجسم عشان تلفّه.')}</p>` +
-      `<div class="pjroutes"><span class="on">${T('Oral', 'بالفم')}</span><span>${T('IV', 'وريدي')}<small>${T('soon', 'قريبًا')}</small></span><span>${T('IM', 'عضلي')}<small>${T('soon', 'قريبًا')}</small></span><span>${T('Sublingual', 'تحت اللسان')}<small>${T('soon', 'قريبًا')}</small></span></div>` +
+  function tabsHtml() { return `<div class="pjroutes">${[['journey', 'رحلة الدوا', 'Journey'], ['mech', 'آلية العمل', 'Mechanism'], ['quiz', 'اختبار', 'Quiz']].map((x) => `<span class="${tab === x[0] ? 'on' : ''}" data-act="pjtab" data-t="${x[0]}" style="cursor:pointer">${T(x[2], x[1])}</span>`).join('')}</div>`; }
+  function routesHtml() { return `<div class="pjroutes">${RK.map((k) => `<span class="${rk === k ? 'on' : ''}" data-act="pjroute" data-r="${k}" style="cursor:pointer">${T(ROUTES[k].n[0], ROUTES[k].n[1])}</span>`).join('')}</div>`; }
+  function stepsInner() { return ROUTES[rk].st.map((s, i) => `<button data-act="pjgo" data-i="${i}" aria-label="${esc(nm(s))}"><i></i></button>`).join(''); }
+  function footInner() { const r = ROUTES[rk]; return `<span>${T('Onset: ', 'بداية المفعول: ')}${T(r.onset[0], r.onset[1])}</span><span>${T('First-pass in the liver: ', 'أول مرور بالكبد: ')}${r.firstPass ? T('yes', 'أيوه') : T('no', 'لأ')}</span>`; }
+  function journeyHtml() {
+    const r = ROUTES[rk];
+    return routesHtml() +
       `<div class="pjstage" id="pjstage"><canvas id="pjcv"></canvas><div class="pjmsg" id="pjmsg">${T('Loading the body…', 'جارِ تحميل الجسم…')}</div><div class="pjtag" id="pjtag" style="display:none"><small id="pjn"></small><b id="pjt"></b><p id="pjd"></p></div></div>` +
-      `<div class="pjsteps" id="pjsteps">${ST.map((s, i) => `<button data-act="pjgo" data-i="${i}" aria-label="${esc(nm(s))}"><i></i></button>`).join('')}</div>` +
-      `<div class="pjcurve"><small><span>${T('Drug level in the blood', 'تركيز الدوا في الدم')}</span><span id="pjci"></span></small><canvas id="pjcc"></canvas></div>` +
-      `<div class="pjctl"><button class="btn" data-act="pjrestart">⏮ ${T('Restart', 'من الأول')}</button><button class="btn primary" data-act="pjplay" id="pjplay">⏸ ${T('Pause', 'إيقاف')}</button><button class="btn" data-act="pjspeed" id="pjspeed">${T('Speed', 'سرعة')} ×1</button></div>` +
+      `<div class="pjsteps" id="pjsteps">${stepsInner()}</div>` +
+      `<div class="pjcurve"><small><span>${T('Drug level in the blood', 'تركيز الدوا في الدم')}</span><span id="pjci"></span></small><canvas id="pjcc"></canvas><small id="pjfoot">${footInner()}</small></div>` +
+      `<div class="pjctl"><button class="btn" data-act="pjrestart">⏮ ${T('Restart', 'من الأول')}</button><button class="btn primary" data-act="pjplay" id="pjplay">⏸ ${T('Pause', 'إيقاف')}</button><button class="btn" data-act="pjspeed" id="pjspeed">${T('Speed', 'سرعة')} ×1</button></div>`;
+  }
+  function page() {
+    return `<h2>💊 ${T('Drug journey & action', 'رحلة الدوا وآلية عمله')}</h2>${tabsHtml()}<div id="pjroot"></div>` +
       `<p class="tiny" style="text-align:center;margin-top:8px">${T('For learning only — not for calculating patient doses. Draft content, pending review by a pharmacist or nursing instructor.', 'للتعلّم فقط — مش لحساب الجرعات للمرضى. المحتوى مبدئي ولسه بيتراجع من صيدلي أو مدرّس تمريض.')}</p>`;
   }
   function paintStage(i) {
-    const s = ST[i], n = $('pjn'), tt = $('pjt'), dd = $('pjd'); if (!n) return;
-    n.textContent = T('Stop ', 'المحطة ') + (i + 1) + ' / ' + ST.length; tt.textContent = nm(s); dd.textContent = T(s.d[0], s.d[1]);
+    const s = ROUTES[rk].st[i], n = $('pjn'), tt = $('pjt'), dd = $('pjd'); if (!n) return;
+    n.textContent = T('Stop ', 'المحطة ') + (i + 1) + ' / ' + ROUTES[rk].st.length; tt.textContent = nm(s); dd.textContent = T(s.d[0], s.d[1]);
     document.querySelectorAll('#pjsteps button').forEach((b, k) => { b.classList.toggle('on', k <= i); b.classList.toggle('cur', k === i); });
   }
-  function open() {
-    stop(); A.modal(page);
-    const cv = $('pjcv'), msg = $('pjmsg');
-    loadMeshes().then((M) => {
-      if (!cv.isConnected) return;
-      try {
-        cur = start(cv, M); msg.remove(); $('pjtag').style.display = '';
-        cur.onStage = paintStage;
-        cur.onTick = (p) => { const cc = $('pjcc'); if (cc) curve(cc, p); const ci = $('pjci'); if (ci) ci.textContent = p < .35 ? T('Not in the blood yet', 'الدوا لسه ماوصلش الدم') : p < .9 ? T('Rising to the peak', 'التركيز بيزيد ويوصل الذروة') : T('Falling as it is excreted', 'بيقل مع الإخراج'); };
-      } catch (e) { msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); }
-    }).catch(() => { if (msg.isConnected) msg.textContent = T('Could not load the models — they need an internet connection the first time.', 'مقدرناش نحمّل المجسمات — أول مرة بتحتاج إنترنت.'); });
+  let meshes = null;
+  function render() {
+    const root = $('pjroot'); if (!root) return; stop();
+    const tabs = document.querySelector('.pjroutes'); if (tabs) tabs.outerHTML = tabsHtml();
+    if (tab === 'journey') { root.innerHTML = journeyHtml(); initGL(); }
+    else if (tab === 'mech') { root.innerHTML = mechHtml(); drawMech($('pjmc'), mtok, DRUGS[drug]); }
+    else { if (!qopts.length) newQ(); root.innerHTML = quizHtml(); }
   }
+  function initGL() {
+    const cv = $('pjcv'), msg = $('pjmsg'); if (!cv) return;
+    const go = (M) => { if (!cv.isConnected) return; try {
+      cur = start(cv, M, rk); msg.remove(); $('pjtag').style.display = '';
+      cur.onStage = paintStage;
+      cur.onTick = (p) => { const cc = $('pjcc'); if (cc) curve(cc, p, ROUTES[rk].ka); const ci = $('pjci'); if (ci) { const x = ROUTES[rk].info(p); ci.textContent = T(x[0], x[1]); } };
+    } catch (e) { msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); } };
+    if (meshes) return go(meshes);
+    loadMeshes().then((M) => { meshes = M; go(M); }).catch(() => { if (msg.isConnected) msg.textContent = T('Could not load the models — they need an internet connection the first time.', 'مقدرناش نحمّل المجسمات — أول مرة بتحتاج إنترنت.'); });
+  }
+  function open() { stop(); rk = 'oral'; tab = 'journey'; drug = 0; withDrug = true; qscore = 0; qasked = 0; qopts = []; A.modal(page); render(); }
   const SP = [1, 0.5, 2];
-  A.acts.pjgo = (el) => { if (cur) cur.p = ST[+el.dataset.i].a + 0.002; };
+  A.acts.pjtab = (el) => { tab = el.dataset.t; render(); };
+  A.acts.pjroute = (el) => { rk = el.dataset.r; if (!cur) { render(); return; } cur.setRoute(rk); const rr = document.querySelector('#pjroot .pjroutes'); if (rr) rr.outerHTML = routesHtml(); const ss = $('pjsteps'); if (ss) ss.innerHTML = stepsInner(); const ff = $('pjfoot'); if (ff) ff.innerHTML = footInner(); };
+  A.acts.pjdrug = (el) => { drug = +el.dataset.i; withDrug = true; render(); };
+  A.acts.pjwith = (el) => { withDrug = el.dataset.w === '1'; const root = $('pjroot'); if (root) { const t = mtok; root.innerHTML = mechHtml(); drawMech($('pjmc'), t, DRUGS[drug]); } };
+  A.acts.pjans = (el) => { if (qans !== null) return; qans = +el.dataset.i; qasked++; if (qans === qi) qscore++; const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
+  A.acts.pjnext = () => { newQ(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
+  A.acts.pjgo = (el) => { if (cur) cur.p = ROUTES[rk].st[+el.dataset.i].a + 0.002; };
   A.acts.pjrestart = () => { if (cur) { cur.p = 0; cur.playing = true; const b = $('pjplay'); if (b) b.innerHTML = '⏸ ' + T('Pause', 'إيقاف'); } };
   A.acts.pjplay = () => { if (!cur) return; cur.playing = !cur.playing; const b = $('pjplay'); if (b) b.innerHTML = cur.playing ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل'); };
   A.acts.pjspeed = () => { if (!cur) return; const i = (SP.indexOf(cur.speed) + 1) % SP.length; cur.speed = SP[i]; const b = $('pjspeed'); if (b) b.textContent = T('Speed', 'سرعة') + ' ×' + SP[i]; };
