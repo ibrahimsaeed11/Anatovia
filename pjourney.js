@@ -68,7 +68,7 @@ window.__pjourneyLoaded = true;
     '.pjtag small{color:var(--accent);font-weight:800;font-size:11px}.pjtag b{display:block;font-size:15px}.pjtag p{margin:3px 0 0;font-size:12.5px;line-height:1.55;color:var(--muted)}.pjsteps{display:flex;gap:4px;margin:8px 0}.pjsteps button{flex:1;height:22px;border:0;padding:0;background:none;cursor:pointer}.pjsteps button i{display:block;height:5px;margin-top:8px;border-radius:4px;background:var(--surface2)}.pjsteps button.on i{background:var(--accent)}.pjsteps button.cur i{height:7px;margin-top:7px}' +
     '.pjroutes{display:flex;gap:6px;margin:6px 0}.pjroutes span{flex:1;text-align:center;padding:7px 2px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:12.5px;font-weight:700;color:var(--muted)}.pjroutes span.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.pjroutes small{display:block;font-size:9.5px;font-weight:600;opacity:.8}' +
     '.pjcurve{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:6px 8px 4px}.pjcurve small{color:var(--muted);font-size:11px;display:flex;justify-content:space-between}.pjcurve canvas{width:100%;height:92px;display:block}.pjctl{display:flex;gap:6px;margin:8px 0 2px}.pjctl .btn{flex:1}';
-  css.textContent += '.pjscroll{display:flex;gap:6px;overflow-x:auto;margin:6px 0;padding-bottom:4px;scrollbar-width:thin}.pjscroll span{flex:none;padding:7px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap}.pjscroll span.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.pjsearch{flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}';
+  css.textContent += '.pjctl .btn{white-space:nowrap;padding-inline:6px}.pjleg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:8px 2px 0}.pjleg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:5px}.pjcap{margin-top:6px;padding:9px 12px;border-radius:12px;background:var(--surface2);font-size:13.5px;line-height:1.6;min-height:48px}.pjcap small{color:var(--accent);font-weight:800;display:block;font-size:11px}.pjscroll{display:flex;gap:6px;overflow-x:auto;margin:6px 0;padding-bottom:4px;scrollbar-width:thin}.pjscroll span{flex:none;padding:7px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap}.pjscroll span.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.pjsearch{flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}';
   document.head.appendChild(css);
 
   const VS = 'attribute vec3 aP;attribute vec3 aN;uniform mat4 uVP;uniform vec3 uT;varying vec3 vN;varying vec3 vW;void main(){vec3 p=aP+uT;vN=aN;vW=p;gl_Position=uVP*vec4(p,1.0);}';
@@ -189,32 +189,55 @@ window.__pjourneyLoaded = true;
     D('abx', 'flu', ['Fluconazole', 'فلوكونازول'], ['Antifungal', 'مضاد فطريات'], 'block', ['Fungal CYP51 enzyme', 'إنزيم CYP51 في الفطر'], ['Ergosterol making', 'تصنيع الإرجوستيرول'], ['The fungal membrane is damaged: fungus stops growing', 'غشاء الفطر بيتضرر: الفطر بيوقف نمو'], ['It blocks a fungal enzyme needed to make ergosterol, so the fungal cell membrane fails.', 'بيقفل إنزيم في الفطر لازم لصنع الإرجوستيرول، فغشاء الخلية الفطرية بيفشل.'], [['It interacts with many drugs (such as warfarin) — check the list.', 'بيتداخل مع أدوية كتير (زي الوارفارين) — راجع القايمة.'], ['Liver tests may be checked with long courses.', 'ممكن تتطلب تحاليل كبد مع الكورسات الطويلة.']]),
   ];
   let drug = 0, withDrug = true, mmode = 'learn', qi = 0, qscore = 0, qasked = 0, qans = null, qopts = [];
+  let mSpeed = 1, mPlay = true, mT = 0;
+  const MPERIOD = 9; // seconds per demonstration loop
   function drawMech(cvs, token, dr) {
-    const c = cvs.getContext('2d');
+    const c = cvs.getContext('2d'), GOLD = '#E3B95B', MSG = '#9fd8ff'; let last = 0, lastCap = '';
+    const glow = (x, y, r, col, a) => { const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, col + Math.round(a * 255).toString(16).padStart(2, '0')); g.addColorStop(1, col + '00'); c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); };
+    const pill = (x, y, t, col) => { c.font = '700 10.5px Cairo,sans-serif'; const w = c.measureText(t).width + 16; c.fillStyle = 'rgba(0,11,51,.85)'; c.beginPath(); if (c.roundRect) c.roundRect(x - w / 2, y - 9, w, 18, 9); else c.rect(x - w / 2, y - 9, w, 18); c.fill(); c.strokeStyle = col; c.lineWidth = 1; c.stroke(); c.fillStyle = col; c.textAlign = 'center'; c.fillText(t, x, y + 4); };
+    const orb = (x, y, r, col, lab) => { glow(x, y, r * 3, col, .45); const g = c.createRadialGradient(x - r * .3, y - r * .3, r * .1, x, y, r); g.addColorStop(0, '#fff'); g.addColorStop(.35, col); g.addColorStop(1, col + 'aa'); c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); if (lab) pill(x, y - r - 13, lab, col); };
+    const hexa = (x, y, r, col, lab) => { glow(x, y, r * 3, col, .5); c.save(); c.translate(x, y); c.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + Math.PI / 6; c.lineTo(r * Math.cos(a), r * Math.sin(a)); } c.closePath(); const g = c.createLinearGradient(-r, -r, r, r); g.addColorStop(0, '#fff3c4'); g.addColorStop(.5, col); g.addColorStop(1, '#b8892b'); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1.2; c.stroke(); c.restore(); if (lab) pill(x, y - r - 13, lab, col); };
     const tick = (now) => {
       if (token !== mtok || !cvs.isConnected) return;
-      const dd = Math.min(window.devicePixelRatio || 1, 2), W = Math.max(2, Math.round(cvs.clientWidth * dd)), H = Math.max(2, Math.round(cvs.clientHeight * dd)); if (cvs.width !== W || cvs.height !== H) { cvs.width = W; cvs.height = H; }
-      const css = getComputedStyle(document.documentElement), acc = css.getPropertyValue('--accent').trim() || '#E3B95B', txt = css.getPropertyValue('--text').trim() || '#fff', mut = css.getPropertyValue('--muted').trim() || '#999', sf = css.getPropertyValue('--surface2').trim() || '#223';
-      const s = W / 360, t = now / 1000, cx = 180, my = 100, on = withDrug;
-      const fit = (txt, max, fs, wt) => { let f = fs; c.font = wt + ' ' + f + 'px Cairo,sans-serif'; while (c.measureText(txt).width > max && f > 7) { f -= 0.5; c.font = wt + ' ' + f + 'px Cairo,sans-serif'; } return txt; };
-      c.setTransform(s, 0, 0, s, 0, 0); c.clearRect(0, 0, 360, H / s); c.textAlign = 'center'; c.font = '11px Cairo,sans-serif';
-      c.fillStyle = mut; c.fillText(T('Outside the cell / blood', 'برّه الخلية / الدم'), 62, 14); c.fillText(T('Inside the cell', 'جوّه الخلية'), 52, my + 30);
-      // membrane with pocket
-      c.fillStyle = sf; c.fillRect(0, my - 8, cx - 30, 16); c.fillRect(cx + 30, my - 8, 360 - cx - 30, 16);
-      c.beginPath(); c.moveTo(cx - 30, my - 8); c.lineTo(cx - 30, my + 8); c.lineTo(cx + 30, my + 8); c.lineTo(cx + 30, my - 8); c.lineTo(cx + 16, my - 8); c.lineTo(cx + 12, my + 0); c.lineTo(cx - 12, my + 0); c.lineTo(cx - 16, my - 8); c.closePath(); c.fill();
-      c.fillStyle = txt; c.fillText(fit(T(dr.tgt[0], dr.tgt[1]), 300, 10, '400'), cx, my + 24);
-      // effect box
-      const ey = 172; c.fillStyle = on ? acc : sf; c.globalAlpha = on ? .92 : .6; c.beginPath(); c.roundRect ? c.roundRect(20, ey, 320, 36, 10) : c.rect(20, ey, 320, 36); c.fill(); c.globalAlpha = 1;
-      c.fillStyle = on ? (css.getPropertyValue('--accent-ink').trim() || '#000') : mut; c.fillText(fit(on ? T(dr.eff[0], dr.eff[1]) : T('Normal — no drug', 'الوضع الطبيعي — من غير الدوا'), 300, 11.5, '700'), 180, ey + 22);
-      // particles
-      const ligand = (u, k, gold, passes) => { const x0 = 40 + ((k * 97) % 280), x = x0 + (cx - x0) * Math.min(1, u / .6), y = 24 + (my - 14 - 24) * Math.min(1, u / .6); let px = x, py = y;
-        if (u > .6) { const v = (u - .6) / .4; if (passes) { px = cx; py = my - 14 + (ey - 6 - (my - 14)) * v; } else { const b = Math.sin(v * Math.PI); px = x + (k % 2 ? 1 : -1) * 26 * v; py = y - 22 * b; } }
-        c.fillStyle = gold ? acc : txt; c.globalAlpha = gold ? 1 : .85; c.beginPath(); c.arc(px, py, gold ? 6 : 5, 0, 7); c.fill(); c.globalAlpha = 1; };
-      if (dr.kind === 'agonist') { if (withDrug) for (let k = 0; k < 3; k++) ligand((t * .3 + k / 3) % 1, k, true, true); }
-      else { for (let k = 0; k < 3; k++) ligand((t * .3 + k / 3) % 1, k, false, !withDrug); if (withDrug) { c.fillStyle = acc; c.globalAlpha = .9 + .1 * Math.sin(t * 4); c.beginPath(); c.arc(cx, my - 6, 8, 0, 7); c.fill(); c.globalAlpha = 1; } }
-      c.fillStyle = mut; c.font = '10px Cairo,sans-serif';
-      const lg = dr.kind === 'agonist' ? (withDrug ? T(dr.n[0], dr.n[1]) : '') : T(dr.nat[0], dr.nat[1]); if (lg) c.fillText(lg, 300, 40);
-      c.fillStyle = acc; c.font = '700 10px Cairo,sans-serif'; if (withDrug) c.fillText('● ' + T(dr.n[0], dr.n[1]), 300, 56);
+      const dt = last ? Math.min(0.1, (now - last) / 1000) : 0; last = now; if (mPlay) mT += dt * mSpeed;
+      const hh = Math.round(cvs.clientWidth * 330 / 360); if (hh && cvs.style.height !== hh + 'px') cvs.style.height = hh + 'px';
+      const u = (mT / MPERIOD) % 1, dd = Math.min(window.devicePixelRatio || 1, 2), W = Math.max(2, Math.round(cvs.clientWidth * dd)), H = Math.max(2, Math.round(hh * dd));
+      if (cvs.width !== W || cvs.height !== H) { cvs.width = W; cvs.height = H; }
+      const s = W / 360; c.setTransform(s, 0, 0, s, 0, 0); c.textAlign = 'center';
+      const cx = 180, my = 150, recY = my - 24, ex = 95, topY = 40, pocket = [cx, recY - 3], ey = 270, agon = dr.kind === 'agonist', nat = T(dr.nat[0], dr.nat[1]), dn_ = T(dr.n[0], dr.n[1]);
+      const fit = (t, m, f, w) => { let z = f; c.font = w + ' ' + z + 'px Cairo,sans-serif'; while (c.measureText(t).width > m && z > 7) { z -= .5; c.font = w + ' ' + z + 'px Cairo,sans-serif'; } return t; };
+      let g = c.createLinearGradient(0, 0, 0, my); g.addColorStop(0, '#0c1a55'); g.addColorStop(1, '#16276d'); c.fillStyle = g; c.fillRect(0, 0, 360, my);
+      for (let i = 0; i < 26; i++) { c.fillStyle = 'rgba(159,216,255,.07)'; c.beginPath(); c.arc((i * 53) % 360, (i * 37) % (my - 20) + 6, 2 + (i % 3), 0, 7); c.fill(); }
+      g = c.createLinearGradient(0, my, 0, 330); g.addColorStop(0, '#2a1f5e'); g.addColorStop(1, '#120c33'); c.fillStyle = g; c.fillRect(0, my, 360, 330 - my);
+      glow(70, 262, 50, '#7a5cff', .18); glow(300, 290, 60, '#ff7ab0', .1);
+      for (let x = 0; x <= 360; x += 11) { const y = my + Math.sin(x / 38) * 3; if (Math.abs(x - cx) < 34) continue; c.strokeStyle = 'rgba(227,185,91,.35)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(x, y - 6); c.lineTo(x, y - 1); c.moveTo(x, y + 6); c.lineTo(x, y + 1); c.stroke(); c.fillStyle = '#e9c776'; c.beginPath(); c.arc(x, y - 9, 4.2, 0, 7); c.fill(); c.beginPath(); c.arc(x, y + 9, 4.2, 0, 7); c.fill(); }
+      c.save(); c.translate(cx, my); g = c.createLinearGradient(-30, -40, 30, 20); g.addColorStop(0, '#58e0c4'); g.addColorStop(1, '#1f8f86'); c.fillStyle = g; c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 1.5;
+      c.beginPath(); c.moveTo(-30, -26); c.quadraticCurveTo(-30, -8, -20, -4); c.lineTo(-18, 16); c.lineTo(18, 16); c.lineTo(20, -4); c.quadraticCurveTo(30, -8, 30, -26); c.lineTo(15, -26); c.quadraticCurveTo(12, -10, 0, -10); c.quadraticCurveTo(-12, -10, -15, -26); c.closePath(); c.fill(); c.stroke();
+      c.fillStyle = 'rgba(0,11,51,.45)'; c.beginPath(); c.moveTo(-15, -26); c.quadraticCurveTo(-12, -10, 0, -10); c.quadraticCurveTo(12, -10, 15, -26); c.closePath(); c.fill(); c.restore();
+      c.fillStyle = '#bff5e9'; c.fillText(fit(T(dr.tgt[0], dr.tgt[1]), 200, 11, '700'), cx, my + 36); c.fillStyle = 'rgba(191,245,233,.6)'; c.font = '9.5px Cairo,sans-serif'; c.fillText(T('Target', 'الهدف'), cx, my + 48);
+      c.fillStyle = 'rgba(174,184,217,.9)'; c.font = '10.5px Cairo,sans-serif'; c.fillText(T('Outside the cell — blood', 'برّه الخلية — الدم'), 296, 16); c.fillText(T('Inside the cell', 'جوّه الخلية'), 312, my + 52);
+      let ok = null, sig = 0, effOn = false, cap = ['', ''];
+      const mv = (k) => [ex + (pocket[0] - ex) * k, topY + (pocket[1] - topY) * k], st = T('Step ', 'الخطوة ');
+      if (!agon && !withDrug) {
+        if (u < .45) { const p = mv(u / .45); orb(p[0], p[1], 8, MSG, nat); cap = [st + 1, T(nat + ' is heading to the target.', nat + ' (الكورة الزرقا) رايح للهدف.')]; }
+        else if (u < .7) { orb(pocket[0], pocket[1], 8, MSG); ok = true; cap = [st + 2, T(nat + ' fits in ✓ and the signal is sent.', nat + ' دخل في الهدف ✓ والإشارة اتبعتت.')]; }
+        else { orb(pocket[0], pocket[1], 8, MSG); ok = true; sig = (u - .7) / .3; effOn = true; cap = [st + 3, T('The signal reaches the cell — this is the normal state without the drug.', 'الإشارة وصلت للخلية — دي الحالة الطبيعية من غير دوا.')]; }
+      } else if (!agon && withDrug) {
+        hexa(pocket[0], pocket[1], 9, GOLD, dn_);
+        if (u < .4) { const p = mv(u / .4); orb(p[0], p[1] - 18, 8, MSG, nat); cap = [st + 1, T(dn_ + ' (the gold shape) sits in the target from the start. ' + nat + ' is heading to it.', dn_ + ' (الشكل الدهبي) قاعد في الهدف من الأول. ' + nat + ' رايح له.')]; }
+        else if (u < .7) { const k = (u - .4) / .3, p = mv(1); orb(p[0] - 60 * k, p[1] - 26 - 26 * k, 8, MSG, nat); ok = false; cap = [st + 2, T('The target is occupied ✗ — ' + nat + ' cannot get in and bounces back.', 'الهدف مشغول ✗ — ' + nat + ' مقدرش يدخل ورجع.')]; }
+        else { const k = (u - .7) / .3, p = mv(1); orb(p[0] - 60 - 30 * k, p[1] - 52 - 30 * k, 8, MSG); ok = false; effOn = true; cap = [st + 3, T('No signal gets through, so: ' + dr.eff[0] + '.', 'مفيش إشارة وصلت، فـ: ' + dr.eff[1] + '.')]; }
+      } else if (agon && withDrug) {
+        if (u < .45) { const p = mv(u / .45); hexa(p[0], p[1], 9, GOLD, dn_); cap = [st + 1, T(dn_ + ' (the gold shape) is heading to the receptor.', dn_ + ' (الشكل الدهبي) رايح للمستقبل.')]; }
+        else if (u < .7) { hexa(pocket[0], pocket[1], 9, GOLD, dn_); ok = true; cap = [st + 2, T(dn_ + ' fits in and activates the receptor ✓', dn_ + ' دخل في المستقبل ونشّطه ✓')]; }
+        else { hexa(pocket[0], pocket[1], 9, GOLD); ok = true; sig = (u - .7) / .3; effOn = true; cap = [st + 3, T('The signal arrives: ' + dr.eff[0] + '.', 'الإشارة وصلت: ' + dr.eff[1] + '.')]; }
+      } else { cap = ['', T('Nothing activates the receptor — the normal resting state.', 'مفيش حاجة بتنشّط المستقبل — الوضع الطبيعي.')]; }
+      if (ok !== null) { const r = 26 + ((u * 80) % 1) * 10; c.strokeStyle = ok ? 'rgba(63,214,122,.6)' : 'rgba(255,107,107,.6)'; c.lineWidth = 2; c.beginPath(); c.arc(pocket[0], pocket[1], r, 0, 7); c.stroke(); c.font = '900 24px Cairo,sans-serif'; c.fillStyle = ok ? '#3fd67a' : '#ff6b6b'; c.fillText(ok ? '✓' : '✗', cx + 50, recY - 8); }
+      if (sig > 0) { const pts = [[cx, my + 55], [cx - 18, my + 80], [cx + 14, my + 100], [cx, ey - 6]]; c.strokeStyle = 'rgba(227,185,91,.4)'; c.lineWidth = 2; c.setLineDash([4, 5]); c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.stroke(); c.setLineDash([]);
+        for (let k = 0; k < 3; k++) { const t = Math.min(1, Math.max(0, sig * 1.5 - k * .15)), i = Math.min(2, Math.floor(t * 3)), f = t * 3 - i, a = pts[i], b = pts[Math.min(3, i + 1)]; glow(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, 10, GOLD, .9); } }
+      const norm = !agon && !withDrug; c.fillStyle = effOn ? (norm ? '#2b3a7a' : GOLD) : 'rgba(21,35,90,.7)'; c.beginPath(); if (c.roundRect) c.roundRect(24, ey, 312, 42, 12); else c.rect(24, ey, 312, 42); c.fill(); c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 1; c.stroke();
+      c.fillStyle = effOn ? (norm ? '#F8F4EA' : '#000B33') : '#8f9cc9'; c.fillText(fit(effOn ? (norm ? T('Signal arrives — normal state', 'الإشارة وصلت — الوضع الطبيعي') : T(dr.eff[0], dr.eff[1])) : T('The result will appear here', 'النتيجة هتظهر هنا'), 290, 12.5, '700'), 180, ey + 26);
+      const key = cap.join('|'); if (key !== lastCap) { lastCap = key; const a1 = $('pjmst'), a2 = $('pjmtx'); if (a1) a1.textContent = cap[0]; if (a2) a2.textContent = cap[1]; }
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
@@ -232,12 +255,16 @@ window.__pjourneyLoaded = true;
       `<div class="pjscroll" id="pjdrugs">${drugRowHtml()}</div>` +
       `<div class="pjcurve" style="margin-top:2px"><b style="font-size:15px">${esc(dn(d))}</b> <small style="display:inline">· ${esc(T(d.cls[0], d.cls[1]))}</small>` +
       `<div class="pjroutes" style="margin:8px 0 4px"><span class="${withDrug ? '' : 'on'}" data-act="pjwith" data-w="0" style="cursor:pointer">${T('Without the drug', 'من غير الدوا')}</span><span class="${withDrug ? 'on' : ''}" data-act="pjwith" data-w="1" style="cursor:pointer">${T('With the drug', 'مع الدوا')}</span></div>` +
-      `<canvas id="pjmc" style="width:100%;height:215px;display:block"></canvas></div>` +
+      `<canvas id="pjmc" style="width:100%;max-width:520px;display:block;margin:0 auto;border-radius:12px"></canvas>` +
+      `<div class="pjleg">${d.kind === 'agonist' ? '' : `<span><i style="background:#9fd8ff"></i>${esc(T(d.nat[0], d.nat[1]))} (${T('natural', 'الطبيعي في الجسم')})</span>`}<span><i style="background:#E3B95B;border-radius:3px"></i>${esc(dn(d))} (${T('the drug', 'الدوا')})</span></div>` +
+      `<div class="pjcap"><small id="pjmst"></small><span id="pjmtx"></span></div>` +
+      `<div class="pjctl"><button class="btn" data-act="pjmslow" id="pjmslow">🐢 ${T('Slower', 'أبطأ')}</button><button class="btn primary" data-act="pjmplay" id="pjmplay">${mPlay ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل')}</button><button class="btn" data-act="pjmrestart">↻ ${T('Restart', 'من الأول')}</button></div></div>` +
       `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('How it works', 'بيشتغل إزاي')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p></div>` +
       `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('Nursing points', 'نقاط للتمريض')}</small><p style="margin:0 0 4px;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[0], d.nurse[1]))}</p><p style="margin:0;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[2], d.nurse[3]))}</p></div>`;
   }
+  let resetM = true;
   function mechMount() {
-    const root = $('pjroot'); if (!root) return; const t = ++mtok; root.innerHTML = mechHtml(); drawMech($('pjmc'), t, DRUGS[drug]);
+    const root = $('pjroot'); if (!root) return; const t = ++mtok; if (resetM) mT = 0; resetM = true; root.innerHTML = mechHtml(); drawMech($('pjmc'), t, DRUGS[drug]);
     const inp = $('pjq'); if (inp) inp.addEventListener('input', () => { qsearch = inp.value; const r = $('pjdrugs'); if (r) r.innerHTML = drugRowHtml(); const cr = $('pjcats'); if (cr) cr.outerHTML = chipRow('pjcats', 'pjcat', qsearch.trim() ? '' : cat); });
     const on = document.querySelector('#pjdrugs .on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
@@ -310,7 +337,7 @@ window.__pjourneyLoaded = true;
     if (meshes) return go(meshes);
     loadMeshes().then((M) => { meshes = M; go(M); }).catch(() => { if (msg.isConnected) msg.textContent = T('Could not load the models — they need an internet connection the first time.', 'مقدرناش نحمّل المجسمات — أول مرة بتحتاج إنترنت.'); });
   }
-  function open() { stop(); rk = 'oral'; tab = 'journey'; drug = 0; cat = 'cv'; qsearch = ''; qcat = 'all'; withDrug = true; deck = []; A.modal(page); render(); }
+  function open() { stop(); rk = 'oral'; tab = 'journey'; drug = 0; cat = 'cv'; qsearch = ''; qcat = 'all'; withDrug = true; mSpeed = 1; mPlay = true; mT = 0; deck = []; A.modal(page); render(); }
   const SP = [1, 0.5, 2];
   A.acts.pjtab = (el) => { tab = el.dataset.t; render(); };
   A.acts.pjroute = (el) => { rk = el.dataset.r; if (!cur) { render(); return; } cur.setRoute(rk); const rr = document.querySelector('#pjroot .pjroutes'); if (rr) rr.outerHTML = routesHtml(); const ss = $('pjsteps'); if (ss) ss.innerHTML = stepsInner(); const ff = $('pjfoot'); if (ff) ff.innerHTML = footInner(); };
@@ -319,6 +346,9 @@ window.__pjourneyLoaded = true;
   A.acts.pjrand = () => { const l = drugList(), p = (l.length > 1 ? l : DRUGS.map((d, i) => [d, i])).filter((x) => x[1] !== drug); drug = p[Math.floor(Math.random() * p.length)][1]; withDrug = true; mechMount(); };
   A.acts.pjqcat = (el) => { qcat = el.dataset.c; deck = []; const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
   A.acts.pjwith = (el) => { withDrug = el.dataset.w === '1'; mechMount(); };
+  A.acts.pjmslow = () => { mSpeed = mSpeed === 1 ? 0.5 : 1; const b = $('pjmslow'); if (b) b.textContent = '🐢 ' + (mSpeed === 1 ? T('Slower', 'أبطأ') : T('Normal speed', 'سرعة عادية')); };
+  A.acts.pjmplay = () => { mPlay = !mPlay; const b = $('pjmplay'); if (b) b.textContent = mPlay ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل'); };
+  A.acts.pjmrestart = () => { mT = 0; mPlay = true; const b = $('pjmplay'); if (b) b.textContent = '⏸ ' + T('Pause', 'إيقاف'); };
   A.acts.pjans = (el) => { if (qans !== null) return; qans = +el.dataset.i; if (qans === qi) qscore++; const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
   A.acts.pjrestartq = () => { newDeck(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
   A.acts.pjnext = () => { qasked++; setQ(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
