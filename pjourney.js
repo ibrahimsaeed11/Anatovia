@@ -188,6 +188,49 @@ window.__pjourneyLoaded = true;
     D('abx', 'azi', ['Azithromycin', 'أزيثرومايسين'], ['Macrolide', 'ماكروليد'], 'block', ['Bacterial ribosome (50S)', 'ريبوسوم البكتيريا (50S)'], ['Bacterial protein making', 'تصنيع بروتين البكتيريا'], ['Bacteria cannot make proteins: growth stops', 'البكتيريا مش بتقدر تصنّع بروتين: النمو بيقف'], ['It binds the bacterial ribosome and stops it from making proteins.', 'بيرتبط بريبوسوم البكتيريا ويمنعه من تصنيع البروتين.'], [['Can cause stomach upset and may affect heart rhythm.', 'ممكن يسبب اضطراب معدة، وممكن يأثر على نظم القلب.'], ['Check allergy history and drug interactions.', 'راجع تاريخ الحساسية والتداخلات الدوائية.']]),
     D('abx', 'flu', ['Fluconazole', 'فلوكونازول'], ['Antifungal', 'مضاد فطريات'], 'block', ['Fungal CYP51 enzyme', 'إنزيم CYP51 في الفطر'], ['Ergosterol making', 'تصنيع الإرجوستيرول'], ['The fungal membrane is damaged: fungus stops growing', 'غشاء الفطر بيتضرر: الفطر بيوقف نمو'], ['It blocks a fungal enzyme needed to make ergosterol, so the fungal cell membrane fails.', 'بيقفل إنزيم في الفطر لازم لصنع الإرجوستيرول، فغشاء الخلية الفطرية بيفشل.'], [['It interacts with many drugs (such as warfarin) — check the list.', 'بيتداخل مع أدوية كتير (زي الوارفارين) — راجع القايمة.'], ['Liver tests may be checked with long courses.', 'ممكن تتطلب تحاليل كبد مع الكورسات الطويلة.']]),
   ];
+  /* known interactions between the drugs above (DRAFT — pending pharmacist review; not a complete list). sev: 3 = major, 2 = moderate, 1 = note */
+  const IX = [
+    ['war', 'asp', 3, ['Both reduce clotting in different ways, so bleeding risk rises sharply.', 'الاتنين بيقللوا التجلّط بطرق مختلفة، فخطر النزيف بيزيد جدًا.'], ['Avoid unless a doctor decides it; watch for bleeding and bruising.', 'يتجنّب إلا لو الدكتور قرّر كده؛ راقب أي نزيف أو كدمات.']],
+    ['war', 'ibu', 3, ['An NSAID adds to the bleeding risk and can cause stomach bleeding.', 'مضاد الالتهاب بيزوّد خطر النزيف وممكن يسبب نزيف في المعدة.'], ['Avoid the combination when possible; ask the doctor or pharmacist for an alternative.', 'يتجنّب لو ممكن؛ اسأل الدكتور أو الصيدلي عن بديل.']],
+    ['war', 'flu', 3, ['Fluconazole slows the breakdown of warfarin in the liver, so its level and effect rise.', 'الفلوكونازول بيبطّئ تكسير الوارفارين في الكبد، فمستواه وتأثيره بيزيدوا.'], ['The warfarin dose often needs lowering; check INR closely.', 'جرعة الوارفارين غالبًا بتتخفض؛ تابع INR بدقة.']],
+    ['war', 'cip', 2, ['Ciprofloxacin can raise the INR and the bleeding risk.', 'السيبروفلوكساسين ممكن يرفع INR وخطر النزيف.'], ['Check INR more often during the course.', 'تابع INR أكتر في فترة الكورس.']],
+    ['war', 'azi', 2, ['Azithromycin may raise the INR in some patients.', 'الأزيثرومايسين ممكن يرفع INR عند بعض المرضى.'], ['Monitor INR and watch for bleeding.', 'تابع INR وراقب أي نزيف.']],
+    ['war', 'par', 2, ['Regular high-dose paracetamol can raise the INR.', 'الباراسيتامول بجرعات عالية ومنتظمة ممكن يرفع INR.'], ['Occasional use is usually fine; report regular use.', 'الاستخدام العرضي غالبًا مفيهوش مشكلة؛ بلّغ لو بيستخدمه بانتظام.']],
+    ['asp', 'ibu', 2, ['Ibuprofen can block aspirin’s antiplatelet effect, and both irritate the stomach.', 'الإيبوبروفين ممكن يمنع تأثير الأسبرين على الصفائح، والاتنين بيهيّجوا المعدة.'], ['If aspirin is taken for the heart, ask about timing or an alternative.', 'لو الأسبرين للقلب، اسأل عن التوقيت أو بديل.']],
+    ['ena', 'ibu', 2, ['NSAIDs weaken the blood-pressure effect of ACE inhibitors and raise the risk of kidney injury.', 'مضادات الالتهاب بتضعّف تأثير ACE على الضغط وبتزوّد خطر إصابة الكلى.'], ['Monitor blood pressure and kidney function.', 'تابع الضغط ووظائف الكلى.']],
+    ['ena', 'fur', 2, ['Together they can drop blood pressure sharply, especially after the first dose, and strain the kidneys.', 'مع بعض ممكن الضغط ينزل جامد، خصوصًا بعد أول جرعة، وبيضغطوا على الكلى.'], ['Monitor blood pressure, kidney function and potassium.', 'تابع الضغط ووظائف الكلى والبوتاسيوم.']],
+    ['ibu', 'fur', 2, ['NSAIDs reduce the effect of furosemide and raise the risk of kidney injury.', 'مضادات الالتهاب بتقلل تأثير الفيوروسيميد وبتزوّد خطر إصابة الكلى.'], ['Watch urine output, weight and kidney function.', 'راقب كمية البول والوزن ووظائف الكلى.']],
+    ['pro', 'sal', 3, ['The β-blocker blocks the same receptors salbutamol needs, so the bronchodilator may not work — and a non-selective β-blocker can trigger bronchospasm.', 'حاصر بيتا بيقفل نفس المستقبلات اللي السالبيوتامول محتاجها، فموسّع الشعب ممكن ميشتغلش — وحاصر بيتا غير الانتقائي ممكن يسبب تشنج شعبي.'], ['Avoid in asthma; report wheezing or breathlessness.', 'يتجنّب مع الربو؛ بلّغ عن أي صفير أو ضيق نفس.']],
+    ['pro', 'ins', 2, ['Propranolol can hide the warning signs of low blood sugar (fast heartbeat, tremor).', 'البروبرانولول ممكن يخبّي علامات هبوط السكر (سرعة النبض والرعشة).'], ['Teach the patient other signs (sweating, hunger) and check glucose often.', 'عرّف المريض علامات تانية (العرق والجوع) وتابع السكر كتير.']],
+    ['pro', 'aml', 2, ['Both lower blood pressure, so the effect adds up.', 'الاتنين بيخفّضوا الضغط، فالتأثير بيتجمع.'], ['Check blood pressure and pulse; watch for dizziness.', 'قيس الضغط والنبض؛ راقب الدوخة.']],
+    ['ins', 'glb', 2, ['Both lower blood sugar, so the risk of hypoglycemia increases.', 'الاتنين بيخفّضوا السكر، فخطر الهبوط بيزيد.'], ['Monitor glucose; teach the signs of hypoglycemia.', 'تابع السكر؛ عرّف المريض علامات الهبوط.']],
+    ['flu', 'glb', 2, ['Fluconazole raises glibenclamide levels, which can cause low blood sugar.', 'الفلوكونازول بيزوّد مستوى الجليبنكلاميد، وده ممكن يسبب هبوط في السكر.'], ['Monitor glucose closely.', 'تابع السكر بدقة.']],
+    ['cip', 'glb', 2, ['Ciprofloxacin can cause both low and high blood sugar, especially with sulfonylureas.', 'السيبروفلوكساسين ممكن يسبب هبوط أو ارتفاع في السكر، خصوصًا مع السلفونيل يوريا.'], ['Monitor glucose during the course.', 'تابع السكر في فترة الكورس.']],
+    ['flu', 'ato', 2, ['Fluconazole can raise statin levels and the risk of muscle damage.', 'الفلوكونازول ممكن يزوّد مستوى الستاتين وخطر ضرر العضلات.'], ['Report muscle pain or weakness.', 'بلّغ عن أي ألم أو ضعف في العضلات.']],
+    ['azi', 'ond', 3, ['Both can prolong the QT interval, which raises the risk of a dangerous heart rhythm.', 'الاتنين ممكن يطوّلوا فترة QT، وده بيزوّد خطر اضطراب خطير في نظم القلب.'], ['Check the ECG and electrolytes in at-risk patients.', 'اعمل رسم قلب وتحليل أملاح للمرضى المعرّضين للخطر.']],
+    ['cip', 'ond', 2, ['Both can prolong the QT interval.', 'الاتنين ممكن يطوّلوا فترة QT.'], ['Use caution in heart disease or low potassium.', 'حذر مع مرضى القلب أو نقص البوتاسيوم.']],
+    ['flu', 'ond', 2, ['Both can prolong the QT interval.', 'الاتنين ممكن يطوّلوا فترة QT.'], ['Use caution in heart disease or low potassium.', 'حذر مع مرضى القلب أو نقص البوتاسيوم.']],
+    ['sal', 'fur', 2, ['Both can lower potassium, which can affect the heart rhythm.', 'الاتنين ممكن يقللوا البوتاسيوم، وده ممكن يأثر على نظم القلب.'], ['Monitor potassium.', 'تابع البوتاسيوم.']],
+    ['sal', 'ipr', 1, ['They are often used together: they relax the airways through two different receptors.', 'بيتستخدموا مع بعض كتير: بيرخّوا الشعب من خلال مستقبلين مختلفين.'], ['A useful combination — follow the prescribed order and doses.', 'تركيبة مفيدة — اتبع الترتيب والجرعات المكتوبة.']],
+    ['mor', 'lop', 2, ['Both slow the gut, so constipation or even obstruction can follow.', 'الاتنين بيبطّئوا حركة الأمعاء، فممكن إمساك شديد أو انسداد.'], ['Watch bowel function.', 'راقب حركة الأمعاء.']],
+  ];
+  const ixOf = (a, b) => { const ka = DRUGS[a].k, kb = DRUGS[b].k; return IX.find((x) => (x[0] === ka && x[1] === kb) || (x[0] === kb && x[1] === ka)); };
+  let ixA = 0, ixB = 1;
+  const SEV = { 3: ['Major', 'خطير', '#ff6b6b'], 2: ['Moderate', 'متوسط', '#ffb84d'], 1: ['Note', 'ملحوظة', '#3fd67a'] };
+  function ixHtml() {
+    const sel = (id, v) => `<select id="${id}" class="pjsearch" style="width:100%">${DRUGS.map((d, i) => `<option value="${i}" ${i === v ? 'selected' : ''}>${esc(dn(d))}</option>`).join('')}</select>`;
+    return `<p class="lead" style="margin:6px 0">${T('Pick two drugs to see whether they interact.', 'اختار دوايين وشوف هل بيتداخلوا مع بعض.')}</p><div style="display:flex;gap:8px;align-items:center">${sel('pjixa', ixA)}<b>+</b>${sel('pjixb', ixB)}</div><div id="pjixr">${ixResult()}</div>` +
+      `<div class="pjcurve" style="margin-top:10px"><small style="display:block;margin-bottom:4px">${T('All recorded pairs', 'كل التداخلات المسجّلة')} (${IX.length})</small><div class="pjscroll" style="flex-wrap:wrap;overflow:visible">${IX.map((x) => { const a = DRUGS.findIndex((d) => d.k === x[0]), b = DRUGS.findIndex((d) => d.k === x[1]); return `<span data-act="pjixpair" data-a="${a}" data-b="${b}" style="border-color:${SEV[x[2]][2]}">${esc(dn(DRUGS[a]) + ' + ' + dn(DRUGS[b]))}</span>`; }).join('')}</div></div>`;
+  }
+  function ixResult() {
+    if (ixA === ixB) return `<div class="pjcurve" style="margin-top:8px">${T('Pick two different drugs.', 'اختار دوايين مختلفين.')}</div>`;
+    const x = ixOf(ixA, ixB), t = `${esc(dn(DRUGS[ixA]))} + ${esc(dn(DRUGS[ixB]))}`;
+    if (!x) return `<div class="pjcurve" style="margin-top:8px"><b>${t}</b><p style="margin:6px 0 0;font-size:13.5px;line-height:1.7">${T('No important interaction is recorded for this pair in this list. The list is limited and does not cover every interaction — always check a drug reference.', 'مفيش تداخل مهم مسجّل للزوج ده في القايمة دي. القايمة محدودة ومش بتغطي كل التداخلات — راجع مرجع الأدوية دايمًا.')}</p></div>`;
+    const sv = SEV[x[2]];
+    return `<div class="pjcurve" style="margin-top:8px;border-color:${sv[2]}"><b>${t}</b> <span style="display:inline-block;margin-inline-start:6px;padding:2px 10px;border-radius:999px;background:${sv[2]};color:#000B33;font-size:11.5px;font-weight:800">${T(sv[0], sv[1])}</span>` +
+      `<small style="display:block;margin:8px 0 2px">${T('Why', 'ليه بيحصل')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(x[3][0], x[3][1]))}</p><small style="display:block;margin:8px 0 2px">${T('What to do', 'تعمل إيه')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(x[4][0], x[4][1]))}</p></div>`;
+  }
+  function ixMount() { const root = $('pjroot'); if (!root) return; root.innerHTML = ixHtml(); const up = () => { ixA = +$('pjixa').value; ixB = +$('pjixb').value; $('pjixr').innerHTML = ixResult(); }; $('pjixa').addEventListener('change', up); $('pjixb').addEventListener('change', up); }
   let drug = 0, withDrug = true, mmode = 'learn', qi = 0, qscore = 0, qasked = 0, qans = null, qopts = [];
   let mSpeed = 1, mPlay = true, mT = 0;
   const MPERIOD = 9; // seconds per demonstration loop
@@ -260,7 +303,7 @@ window.__pjourneyLoaded = true;
       `<div class="pjcap"><small id="pjmst"></small><span id="pjmtx"></span></div>` +
       `<div class="pjctl"><button class="btn" data-act="pjmslow" id="pjmslow">🐢 ${T('Slower', 'أبطأ')}</button><button class="btn primary" data-act="pjmplay" id="pjmplay">${mPlay ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل')}</button><button class="btn" data-act="pjmrestart">↻ ${T('Restart', 'من الأول')}</button></div></div>` +
       `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('How it works', 'بيشتغل إزاي')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p></div>` +
-      `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('Nursing points', 'نقاط للتمريض')}</small><p style="margin:0 0 4px;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[0], d.nurse[1]))}</p><p style="margin:0;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[2], d.nurse[3]))}</p></div>`;
+      `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${A.facCode && A.facCode() === 'nurs' ? T('Nursing points', 'نقاط للتمريض') : T('Key points', 'نقاط مهمة')}</small><p style="margin:0 0 4px;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[0], d.nurse[1]))}</p><p style="margin:0;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[2], d.nurse[3]))}</p></div>`;
   }
   let resetM = true;
   function mechMount() {
@@ -298,7 +341,7 @@ window.__pjourneyLoaded = true;
   /* ───────── UI ───────── */
   let rk = 'oral', tab = 'journey';
   const nm = (s) => T(s.t[0], s.t[1]);
-  function tabsHtml() { return `<div class="pjroutes">${[['journey', 'رحلة الدوا', 'Journey'], ['mech', 'آلية العمل', 'Mechanism'], ['quiz', 'اختبار', 'Quiz']].map((x) => `<span class="${tab === x[0] ? 'on' : ''}" data-act="pjtab" data-t="${x[0]}" style="cursor:pointer">${T(x[2], x[1])}</span>`).join('')}</div>`; }
+  function tabsHtml() { return `<div class="pjroutes">${[['journey', 'رحلة الدوا', 'Journey'], ['mech', 'آلية العمل', 'Mechanism'], ['ix', 'تداخلات', 'Interactions'], ['quiz', 'اختبار', 'Quiz']].map((x) => `<span class="${tab === x[0] ? 'on' : ''}" data-act="pjtab" data-t="${x[0]}" style="cursor:pointer">${T(x[2], x[1])}</span>`).join('')}</div>`; }
   function routesHtml() { return `<div class="pjroutes">${RK.map((k) => `<span class="${rk === k ? 'on' : ''}" data-act="pjroute" data-r="${k}" style="cursor:pointer">${T(ROUTES[k].n[0], ROUTES[k].n[1])}</span>`).join('')}</div>`; }
   function stepsInner() { return ROUTES[rk].st.map((s, i) => `<button data-act="pjgo" data-i="${i}" aria-label="${esc(nm(s))}"><i></i></button>`).join(''); }
   function footInner() { const r = ROUTES[rk]; return `<span>${T('Onset: ', 'بداية المفعول: ')}${T(r.onset[0], r.onset[1])}</span><span>${T('First-pass in the liver: ', 'أول مرور بالكبد: ')}${r.firstPass ? T('yes', 'أيوه') : T('no', 'لأ')}</span>`; }
@@ -312,7 +355,7 @@ window.__pjourneyLoaded = true;
   }
   function page() {
     return `<h2>💊 ${T('Drug journey & action', 'رحلة الدوا وآلية عمله')}</h2>${tabsHtml()}<div id="pjroot"></div>` +
-      `<p class="tiny" style="text-align:center;margin-top:8px">${T('For learning only — not for calculating patient doses. Draft content, pending review by a pharmacist or nursing instructor.', 'للتعلّم فقط — مش لحساب الجرعات للمرضى. المحتوى مبدئي ولسه بيتراجع من صيدلي أو مدرّس تمريض.')}</p>`;
+      `<p class="tiny" style="text-align:center;margin-top:8px">${T('For learning only — not for calculating patient doses. Draft content, pending review by a pharmacist or an instructor.', 'للتعلّم فقط — مش لحساب الجرعات للمرضى. المحتوى مبدئي ولسه بيتراجع من صيدلي أو دكتور متخصص.')}</p>`;
   }
   function paintStage(i) {
     const s = ROUTES[rk].st[i], n = $('pjn'), tt = $('pjt'), dd = $('pjd'); if (!n) return;
@@ -325,6 +368,7 @@ window.__pjourneyLoaded = true;
     const tabs = document.querySelector('.pjroutes'); if (tabs) tabs.outerHTML = tabsHtml();
     if (tab === 'journey') { root.innerHTML = journeyHtml(); initGL(); }
     else if (tab === 'mech') { mechMount(); }
+    else if (tab === 'ix') { ixMount(); }
     else { root.innerHTML = quizHtml(); }
   }
   function initGL() {
@@ -352,6 +396,7 @@ window.__pjourneyLoaded = true;
   A.acts.pjans = (el) => { if (qans !== null) return; qans = +el.dataset.i; if (qans === qi) qscore++; const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
   A.acts.pjrestartq = () => { newDeck(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
   A.acts.pjnext = () => { qasked++; setQ(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
+  A.acts.pjixpair = (el) => { ixA = +el.dataset.a; ixB = +el.dataset.b; ixMount(); };
   A.acts.pjgo = (el) => { if (cur) cur.p = ROUTES[rk].st[+el.dataset.i].a + 0.002; };
   A.acts.pjrestart = () => { if (cur) { cur.p = 0; cur.playing = true; const b = $('pjplay'); if (b) b.innerHTML = '⏸ ' + T('Pause', 'إيقاف'); } };
   A.acts.pjplay = () => { if (!cur) return; cur.playing = !cur.playing; const b = $('pjplay'); if (b) b.innerHTML = cur.playing ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل'); };
