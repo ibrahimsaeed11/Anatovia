@@ -68,7 +68,7 @@ window.__pjourneyLoaded = true;
     '.pjtag small{color:var(--accent);font-weight:800;font-size:11px}.pjtag b{display:block;font-size:15px}.pjtag p{margin:3px 0 0;font-size:12.5px;line-height:1.55;color:var(--muted)}.pjsteps{display:flex;gap:4px;margin:8px 0}.pjsteps button{flex:1;height:22px;border:0;padding:0;background:none;cursor:pointer}.pjsteps button i{display:block;height:5px;margin-top:8px;border-radius:4px;background:var(--surface2)}.pjsteps button.on i{background:var(--accent)}.pjsteps button.cur i{height:7px;margin-top:7px}' +
     '.pjroutes{display:flex;gap:6px;margin:6px 0}.pjroutes span{flex:1;text-align:center;padding:7px 2px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:12.5px;font-weight:700;color:var(--muted)}.pjroutes span.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.pjroutes small{display:block;font-size:9.5px;font-weight:600;opacity:.8}' +
     '.pjcurve{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:6px 8px 4px}.pjcurve small{color:var(--muted);font-size:11px;display:flex;justify-content:space-between}.pjcurve canvas{width:100%;height:92px;display:block}.pjctl{display:flex;gap:6px;margin:8px 0 2px}.pjctl .btn{flex:1}';
-  css.textContent += '.pjctl .btn{white-space:nowrap;padding-inline:6px}.pjleg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:8px 2px 0}.pjleg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:5px}.pjcap{margin-top:6px;padding:9px 12px;border-radius:12px;background:var(--surface2);font-size:13.5px;line-height:1.6;min-height:48px}.pjcap small{color:var(--accent);font-weight:800;display:block;font-size:11px}.pjscroll{display:flex;gap:6px;overflow-x:auto;margin:6px 0;padding-bottom:4px;scrollbar-width:thin}.pjscroll span{flex:none;padding:7px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap}.pjscroll span.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.pjsearch{flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}';
+  css.textContent += '.pjg{margin-top:6px;padding:7px 10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:12px}.pjg .b{height:9px;border-radius:6px;background:var(--surface2);margin-top:4px;overflow:hidden}.pjg .b i{display:block;height:100%;transition:width .4s}.pjctl .btn{white-space:nowrap;padding-inline:6px}.pjleg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin:8px 2px 0}.pjleg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:5px}.pjcap{margin-top:6px;padding:9px 12px;border-radius:12px;background:var(--surface2);font-size:13.5px;line-height:1.6;min-height:48px}.pjcap small{color:var(--accent);font-weight:800;display:block;font-size:11px}.pjscroll{display:flex;gap:6px;overflow-x:auto;margin:6px 0;padding-bottom:4px;scrollbar-width:thin}.pjscroll span{flex:none;padding:7px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;white-space:nowrap}.pjscroll span.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}.pjsearch{flex:1;min-width:0;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:13.5px}';
   document.head.appendChild(css);
 
   const VS = 'attribute vec3 aP;attribute vec3 aN;uniform mat4 uVP;uniform vec3 uT;varying vec3 vN;varying vec3 vW;void main(){vec3 p=aP+uT;vN=aN;vW=p;gl_Position=uVP*vec4(p,1.0);}';
@@ -85,7 +85,7 @@ window.__pjourneyLoaded = true;
 
 
   let cur = null, mtok = 0;
-  function stop() { mtok++; if (cur) { cur.dead = true; try { const x = cur.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* ignore */ } cur = null; } }
+  function stop() { mtok++; if (typeof killScn === 'function') killScn(); if (cur) { cur.dead = true; try { const x = cur.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* ignore */ } cur = null; } }
   async function loadMeshes() {
     const C = window.CATALOG || [], packs = {}, M = {};
     for (const id of Object.keys(COL)) { const c = C.find((x) => x.id === id); if (!c) continue; if (!packs[c.pk]) packs[c.pk] = await Packs.load(c.pk); const d = Packs.part(packs[c.pk], c.o), n = d.pos.length / 3, P = new Float32Array(n * 3), N = new Float32Array(n * 3);
@@ -215,23 +215,208 @@ window.__pjourneyLoaded = true;
     ['mor', 'lop', 2, ['Both slow the gut, so constipation or even obstruction can follow.', 'الاتنين بيبطّئوا حركة الأمعاء، فممكن إمساك شديد أو انسداد.'], ['Watch bowel function.', 'راقب حركة الأمعاء.']],
   ];
   const ixOf = (a, b) => { const ka = DRUGS[a].k, kb = DRUGS[b].k; return IX.find((x) => (x[0] === ka && x[1] === kb) || (x[0] === kb && x[1] === ka)); };
-  let ixA = 0, ixB = 1;
+  /* ───────── 3D "where it acts" scenes (mechanism tab + interactions tab). DRAFT — pending review ───────── */
+  const AR_ = ['Z_ve_thoracic_aorta', 'Z_ve_abdominal_aorta'], KID = ['Z_or_kidney_l', 'Z_or_kidney_r'];
+  const ORG = { heart: { ids: HEART, tc: [.02, 1.24, .125], d: .3 }, kidney: { ids: KID, tc: [0, 1.053, .085], d: .42 }, liver: { ids: ['Z_or_liver'], tc: [-.011, 1.13, .12], d: .5 }, stomach: { ids: ['Z_or_stomach'], tc: [.039, 1.115, .133], d: .36 }, bron: { ids: null, tc: [.009, 1.24, .1], d: .52 }, panc: { ids: ['Z_or_pancreas'], tc: [.013, 1.066, .119], d: .32 }, gut: { ids: ['Z_or_jejunum', 'Z_or_duodenum', 'Z_or_transverse_colon'], tc: [.0, 1.0, .135], d: .55 }, aorta: { ids: AR_, tc: [.01, 1.14, .09], d: .62 } };
+  const bronchiIds = () => (window.CATALOG || []).filter((x) => /bronch/.test(x.id)).map((x) => x.id);
+  const orgIds = (k) => (k === 'bron' ? bronchiIds() : ORG[k].ids);
+  const CTXIDS = ['Z_or_liver', 'Z_or_stomach', 'Z_or_kidney_l', 'Z_or_kidney_r'].concat(HEART, AR_);
+  const NATC = [.62, .85, 1], GOLDC = [.89, .73, .36], PURC = [.78, .6, 1], GRNC = [.25, .95, .55];
+  const css3 = (c) => 'rgb(' + c.map((v) => Math.round(v * 255)).join(',') + ')';
+  /* mechanism → organ. o = organ, nat = natural messenger, agon = the drug activates, pr = product particles [colour, count without, count with, name], g = gauge */
+  const W = {
+    pro: { o: 'heart', nat: ['Adrenaline', 'الأدرينالين'], g: ['Heart rate', 'معدل نبض القلب', .8, .45, ['Faster', 'أسرع'], ['Slower', 'أبطأ']] },
+    fur: { o: 'kidney', pr: [[1, .9, .4], 6, 22, ['Salt and water', 'ملح وماء']], g: ['Urine output', 'كمية البول', .35, .9, ['Normal', 'عادية'], ['More', 'أكتر']] },
+    ena: { o: 'aorta', pr: [[1, .5, .3], 22, 6, ['Angiotensin II', 'أنجيوتنسين II']], g: ['Blood pressure', 'ضغط الدم', .8, .45, ['Higher', 'أعلى'], ['Lower', 'أقل']] },
+    aml: { o: 'aorta', nat: ['Calcium', 'كالسيوم'], g: ['Blood pressure', 'ضغط الدم', .8, .45, ['Higher', 'أعلى'], ['Lower', 'أقل']] },
+    ato: { o: 'liver', pr: [[1, .62, .27], 26, 6, ['Cholesterol', 'كوليسترول']], g: ['Blood cholesterol', 'كوليسترول الدم', .85, .4, ['High', 'عالي'], ['Lower', 'أقل']] },
+    war: { o: 'liver', pr: [[.62, .85, 1], 24, 6, ['Clotting factors', 'عوامل التجلّط']], g: ['Clotting ability', 'قدرة التجلّط', .85, .35, ['Normal', 'طبيعية'], ['Slower', 'أبطأ']] },
+    sal: { o: 'bron', agon: true, g: ['Airway width', 'اتساع الشعب', .3, .9, ['Narrow', 'ضيقة'], ['Wide', 'واسعة']] },
+    ipr: { o: 'bron', nat: ['Acetylcholine', 'أستيل كولين'], g: ['Airway width', 'اتساع الشعب', .3, .9, ['Narrow', 'ضيقة'], ['Wide', 'واسعة']] },
+    mon: { o: 'bron', nat: ['Leukotrienes', 'لوكوترينات'], g: ['Airway inflammation', 'التهاب الشعب', .85, .35, ['High', 'عالي'], ['Lower', 'أقل']] },
+    ome: { o: 'stomach', pr: [[.84, 1, .42], 30, 5, ['Stomach acid', 'حمض المعدة']], g: ['Stomach acid', 'كمية الحمض', .9, .15, ['High', 'كتير'], ['Low', 'قليلة']] },
+    fam: { o: 'stomach', nat: ['Histamine', 'هيستامين'], pr: [[.84, 1, .42], 30, 8, ['Stomach acid', 'حمض المعدة']], g: ['Stomach acid', 'كمية الحمض', .9, .25, ['High', 'كتير'], ['Low', 'قليلة']] },
+    ond: { o: 'stomach', nat: ['Serotonin', 'سيروتونين'], g: ['Nausea signal', 'إشارة الغثيان', .8, .3, ['Strong', 'قوية'], ['Weak', 'ضعيفة']] },
+    lop: { o: 'gut', agon: true, pr: [[.7, .9, .5], 22, 6, ['Gut movement', 'حركة الأمعاء']], g: ['Gut movement', 'حركة الأمعاء', .85, .25, ['Fast', 'سريعة'], ['Slower', 'أبطأ']] },
+    glb: { o: 'panc', nat: ['K⁺', 'بوتاسيوم'], pr: [[.7, .8, 1], 5, 20, ['Insulin', 'إنسولين']], g: ['Insulin release', 'إفراز الإنسولين', .3, .85, ['Low', 'قليل'], ['More', 'أكتر']] },
+    sit: { o: 'panc', pr: [[.7, .8, 1], 5, 14, ['Insulin', 'إنسولين']], g: ['Insulin after meals', 'الإنسولين بعد الأكل', .3, .8, ['Low', 'قليل'], ['More', 'أكتر']] },
+  };
+  const dnm = (k) => { const d = DRUGS.find((x) => x.k === k); return T(d.n[0], d.n[1]); };
+  function mechScene(d, wd) {
+    const w = W[d.k], sets = [], lg = [];
+    if (wd) { sets.push({ shape: 'hex', col: GOLDC, n: 10, mo: 'sit' }); lg.push([GOLDC, dn(d) + ' (' + T('the drug', 'الدوا') + ')']); }
+    if (w.agon) { if (wd) sets.push({ shape: 'orb', col: GOLDC, n: 4, mo: 'approach' }); }
+    else if (w.nat) { sets.push({ shape: 'orb', col: NATC, n: 5, mo: wd ? 'blocked' : 'approach' }); lg.push([NATC, T(w.nat[0], w.nat[1])]); }
+    if (w.pr) { sets.push({ shape: 'orb', col: w.pr[0], n: wd ? w.pr[2] : w.pr[1], mo: 'flow' }); lg.push([w.pr[0], T(w.pr[3][0], w.pr[3][1])]); }
+    const g = w.g, cap = wd ? [T('Where it works', 'فين بيشتغل'), T(d.mech[0], d.mech[1])] : [T('Without the drug', 'من غير الدوا'), T('The normal situation in this organ.', 'الوضع الطبيعي في العضو ده.')];
+    return { kind: 'organ', o: w.o, sets, open: wd, lg, gauge: { l: T(g[0], g[1]), v: wd ? g[3] : g[2], t: T((wd ? g[5] : g[4])[0], (wd ? g[5] : g[4])[1]), bad: false, good: wd }, cap };
+  }
+  /* interactions → 3D scene. kind: liver (inhibits the breakdown of A), bron, clot, organ. a = the drug that is affected, b = the interacting drug */
+  const IXS = {
+    'war|asp': { k: 'clot', a: 'war', b: 'asp', c: [7, 3, 0, 2, 3, 10], g: ['Clotting ability', 'قدرة التجلّط', .55, .1, ['Moderate', 'متوسطة'], ['Very weak', 'ضعيفة جدًا']] },
+    'war|ibu': { k: 'clot', a: 'war', b: 'ibu', c: [7, 3, 0, 3, 3, 8], g: ['Clotting ability', 'قدرة التجلّط', .55, .15, ['Moderate', 'متوسطة'], ['Very weak', 'ضعيفة جدًا']] },
+    'war|flu': { k: 'liver', a: 'war', b: 'flu', g: ['Warfarin level in the blood', 'مستوى الوارفارين في الدم', .4, .92, ['Normal', 'طبيعي'], ['High', 'عالي']] },
+    'war|cip': { k: 'clot', a: 'war', b: 'cip', c: [7, 3, 0, 6, 1, 4], g: ['Clotting ability', 'قدرة التجلّط', .55, .3, ['Moderate', 'متوسطة'], ['Weaker', 'أضعف']] },
+    'war|azi': { k: 'clot', a: 'war', b: 'azi', c: [7, 3, 0, 6, 1, 4], g: ['Clotting ability', 'قدرة التجلّط', .55, .3, ['Moderate', 'متوسطة'], ['Weaker', 'أضعف']] },
+    'war|par': { k: 'clot', a: 'war', b: 'par', c: [7, 3, 0, 6, 2, 3], g: ['Clotting ability', 'قدرة التجلّط', .55, .35, ['Moderate', 'متوسطة'], ['Weaker', 'أضعف']] },
+    'asp|ibu': { k: 'organ', o: 'stomach', a: 'asp', b: 'ibu', g: ['Stomach irritation', 'تهيّج المعدة', .4, .85, ['Moderate', 'متوسط'], ['High', 'عالي']] },
+    'ena|ibu': { k: 'organ', o: 'kidney', a: 'ena', b: 'ibu', g: ['Risk of kidney injury', 'خطر إصابة الكلى', .15, .65, ['Low', 'قليل'], ['Higher', 'أعلى']] },
+    'ena|fur': { k: 'organ', o: 'aorta', a: 'ena', b: 'fur', g: ['Blood pressure', 'ضغط الدم', .6, .2, ['Controlled', 'تحت السيطرة'], ['Too low', 'واطي جدًا']] },
+    'ibu|fur': { k: 'organ', o: 'kidney', a: 'fur', b: 'ibu', g: ['Diuretic effect', 'تأثير المدر', .85, .4, ['Strong', 'قوي'], ['Weaker', 'أضعف']] },
+    'pro|sal': { k: 'bron', a: 'sal', b: 'pro', g: ['Airway width', 'اتساع الشعب', .9, .18, ['Wide', 'واسعة'], ['Narrow', 'مضيّقة']] },
+    'pro|ins': { k: 'organ', o: 'heart', a: 'ins', b: 'pro', g: ['Warning signs of low sugar', 'علامات هبوط السكر', .85, .2, ['Clear (fast pulse, tremor)', 'واضحة (نبض سريع ورعشة)'], ['Hidden', 'مخبّية']] },
+    'pro|aml': { k: 'organ', o: 'aorta', a: 'aml', b: 'pro', g: ['Blood pressure', 'ضغط الدم', .6, .25, ['Controlled', 'تحت السيطرة'], ['Very low', 'واطي جدًا']] },
+    'ins|glb': { k: 'organ', o: 'panc', a: 'glb', b: 'ins', g: ['Blood sugar', 'سكر الدم', .6, .2, ['Controlled', 'تحت السيطرة'], ['Risk of too low', 'خطر ينزل جامد']] },
+    'flu|glb': { k: 'liver', a: 'glb', b: 'flu', g: ['Glibenclamide level', 'مستوى الجليبنكلاميد', .4, .9, ['Normal', 'طبيعي'], ['High', 'عالي']] },
+    'cip|glb': { k: 'organ', o: 'panc', a: 'glb', b: 'cip', g: ['Blood sugar stability', 'ثبات السكر', .8, .3, ['Stable', 'ثابت'], ['Unstable', 'متقلّب']] },
+    'flu|ato': { k: 'liver', a: 'ato', b: 'flu', g: ['Statin level', 'مستوى الستاتين', .4, .9, ['Normal', 'طبيعي'], ['High', 'عالي']] },
+    'azi|ond': { k: 'organ', o: 'heart', a: 'ond', b: 'azi', g: ['Risk of a dangerous rhythm', 'خطر اضطراب نظم القلب', .1, .75, ['Low', 'قليل'], ['High', 'عالي']] },
+    'cip|ond': { k: 'organ', o: 'heart', a: 'ond', b: 'cip', g: ['Risk of a dangerous rhythm', 'خطر اضطراب نظم القلب', .1, .5, ['Low', 'قليل'], ['Higher', 'أعلى']] },
+    'flu|ond': { k: 'organ', o: 'heart', a: 'ond', b: 'flu', g: ['Risk of a dangerous rhythm', 'خطر اضطراب نظم القلب', .1, .5, ['Low', 'قليل'], ['Higher', 'أعلى']] },
+    'sal|fur': { k: 'organ', o: 'heart', a: 'sal', b: 'fur', g: ['Potassium level', 'مستوى البوتاسيوم', .8, .4, ['Normal', 'طبيعي'], ['Low', 'قليل']] },
+    'sal|ipr': { k: 'bron', a: 'sal', b: 'ipr', good: true, g: ['Airway width', 'اتساع الشعب', .55, .95, ['Wide', 'واسعة'], ['Wider', 'أوسع']] },
+    'mor|lop': { k: 'organ', o: 'gut', a: 'mor', b: 'lop', g: ['Gut movement', 'حركة الأمعاء', .7, .1, ['Normal', 'عادية'], ['Almost stopped', 'شبه واقفة']] },
+  };
+  const ixKey = (x) => x[0] + '|' + x[1];
+  function ixScene(x, wb) {
+    const p = IXS[ixKey(x)], g = p.g, sev = x[2], A = dnm(p.a), B = dnm(p.b), lg = [], sets = [];
+    const gauge = { l: T(g[0], g[1]), v: wb ? g[3] : g[2], t: T((wb ? g[5] : g[4])[0], (wb ? g[5] : g[4])[1]), good: !!p.good || !wb, bad: wb && !p.good };
+    const cap = wb ? [T('With ' + B, 'مع ' + B), T(x[3][0], x[3][1])] : [T(A + ' alone', A + ' لوحده'), T('The normal effect of ' + A + '.', 'التأثير الطبيعي لـ' + A + '.')];
+    if (p.k === 'liver') { lg.push([NATC, A], [GOLDC, B]); return { kind: 'liver', wb, lg, gauge, cap }; }
+    if (p.k === 'clot') { lg.push([[1, .89, .6], T('Platelets', 'صفائح')], [NATC, T('Clotting factors', 'عوامل تجلّط')], [[1, .25, .25], T('Bleeding', 'نزيف')]); return { kind: 'clot', wb, c: p.c, lg, gauge, cap }; }
+    if (p.k === 'bron') {
+      sets.push({ shape: 'orb', col: GRNC, n: 8, mo: wb && p.b === 'pro' ? 'blocked' : 'approach' }); lg.push([GRNC, A]);
+      if (wb) { sets.push({ shape: 'hex', col: PURC, n: 14, mo: 'sit' }); lg.push([PURC, B]); }
+      return { kind: 'organ', o: 'bron', sets, open: p.b === 'pro' ? !wb : true, lg, gauge, cap };
+    }
+    sets.push({ shape: 'hex', col: GOLDC, n: 8, mo: 'sit' }); lg.push([GOLDC, A]);
+    if (wb) { sets.push({ shape: 'hex', col: PURC, n: 8, mo: 'sit' }); lg.push([PURC, B]); }
+    return { kind: 'organ', o: p.o, sets, open: true, lg, gauge, cap };
+  }
+  let xmeshes = null;
+  async function needMeshes() {
+    if (!meshes) meshes = await loadMeshes();
+    if (!xmeshes) {
+      const C = window.CATALOG || [], packs = {}, M = {};
+      for (const id of ['Z_or_pancreas'].concat(bronchiIds())) { const c = C.find((x) => x.id === id); if (!c) continue; if (!packs[c.pk]) packs[c.pk] = await Packs.load(c.pk); const d = Packs.part(packs[c.pk], c.o), n = d.pos.length / 3, P = new Float32Array(n * 3), N = new Float32Array(n * 3); for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { P[i * 3 + k] = d.lo[k] + d.pos[i * 3 + k] / 65535 * d.span[k]; N[i * 3 + k] = d.nor[i * 3 + k] / 127; } M[id] = { P, N, I: d.idx }; }
+      xmeshes = M;
+    }
+    return Object.assign({}, meshes, xmeshes);
+  }
+  let scn = null;
+  function killScn() { if (scn) { scn.dead = true; try { const x = scn.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* ignore */ } scn = null; } }
+  function hexData(r) { const P = [], N = [], I = []; for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; P.push(r * Math.cos(a), r * Math.sin(a), 0); N.push(0, 0, 1); } P.push(0, 0, r * .6, 0, 0, -r * .6); N.push(0, 0, 1, 0, 0, -1); for (let i = 0; i < 6; i++) I.push(i, (i + 1) % 6, 6, (i + 1) % 6, i, 7); return { P: new Float32Array(P), N: new Float32Array(N), I: new Uint16Array(I) }; }
+  const rnd = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  function startScene(cv, M, sc0) {
+    const gl = cv.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: false }) || cv.getContext('experimental-webgl');
+    if (!gl) throw new Error('no webgl');
+    const pr = gl.createProgram(); gl.attachShader(pr, sh(gl, gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl, gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); gl.useProgram(pr);
+    const U = {}; ['uVP', 'uT', 'uC', 'uA', 'uE', 'uEye'].forEach((n) => { U[n] = gl.getUniformLocation(pr, n); });
+    const aP = gl.getAttribLocation(pr, 'aP'), aN = gl.getAttribLocation(pr, 'aN');
+    const buf = (t, d) => { const b = gl.createBuffer(); gl.bindBuffer(t, b); gl.bufferData(t, d, gl.STATIC_DRAW); return b; };
+    const mk = (d) => ({ bp: buf(gl.ARRAY_BUFFER, d.P), bn: buf(gl.ARRAY_BUFFER, d.N), bi: buf(gl.ELEMENT_ARRAY_BUFFER, d.I), n: d.I.length });
+    const G = {}; const geo = (id) => (G[id] || (M[id] ? (G[id] = mk(M[id])) : null));
+    const dot = mk(sphData(.004, 10)), big = mk(sphData(.006, 10)), hexg = mk(hexData(.008));
+    const draw = (m, col, a, em, off) => { if (!m) return; gl.uniform3fv(U.uC, col); gl.uniform1f(U.uA, a); gl.uniform3fv(U.uE, em || [0, 0, 0]); gl.uniform3fv(U.uT, off || [0, 0, 0]);
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.bp); gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, m.bn); gl.enableVertexAttribArray(aN); gl.vertexAttribPointer(aN, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.bi); gl.drawElements(gl.TRIANGLES, m.n, gl.UNSIGNED_SHORT, 0); };
+    const st = { gl, dead: false, sc: sc0, yaw: 0 };
+    const samp = (ids, n, seed) => { const o = []; ids = ids.filter((i) => M[i]); for (let i = 0; i < n; i++) { const id = ids[(i * 7 + seed) % ids.length], P = M[id].P, v = Math.floor(rnd(i + seed * 13) * P.length / 3); o.push([P[v * 3], P[v * 3 + 1], P[v * 3 + 2]]); } return o; };
+    const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+    function frame(now) {
+      if (st.dead || !cv.isConnected || cv.offsetParent === null) { if (scn === st) killScn(); return; }
+      const t = now / 1000, sc = st.sc, d = Math.min(window.devicePixelRatio || 1, 2), w = Math.max(2, Math.round(cv.clientWidth * d)), h = Math.max(2, Math.round(cv.clientHeight * d));
+      if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+      gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true);
+      let tc, D, yaw = st.yaw;
+      if (sc.kind === 'liver') { tc = [-.01, 1.14, .12]; D = .5; yaw += .25; } else if (sc.kind === 'clot') { tc = [.2, 1.02, .095]; D = .22; yaw += .1; } else { const O = ORG[sc.o]; tc = O.tc; D = O.d; }
+      D *= 1.0;
+      const eye = [tc[0] + D * Math.sin(yaw), tc[1] + .02, tc[2] + D * Math.cos(yaw)];
+      gl.uniformMatrix4fv(U.uVP, false, mul(persp(.62, w / h, .02, 5), look(eye, tc, [0, 1, 0]))); gl.uniform3fv(U.uEye, eye); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
+      const u = (t / 6) % 1;
+      if (sc.kind === 'organ') {
+        const ids = orgIds(sc.o), isB = sc.o === 'bron';
+        CTXIDS.forEach((id) => { if (!ids.includes(id)) draw(geo(id), COL[id] || [.7, .7, .7], .12); });
+        ids.forEach((id) => draw(geo(id), isB ? (sc.open ? [.35, .85, .6] : [.95, .45, .3]) : (COL[id] || [.85, .45, .4]), isB ? .9 : .5, isB ? (sc.open ? [0, .12, .06] : [.15, .03, 0]) : [.12, .05, .03]));
+        gl.disable(gl.DEPTH_TEST);
+        if (!sc.pts) sc.pts = sc.sets.map((s, i) => samp(ids, s.n, i * 5 + 1));
+        sc.sets.forEach((s, si) => sc.pts[si].forEach((p, i) => {
+          const out = norm([p[0] - tc[0], p[1] - tc[1], p[2] - tc[2]]), k = (t * .25 + i / s.n) % 1, geom = s.shape === 'hex' ? hexg : (s.mo === 'flow' ? dot : big), em = [s.col[0] * .35, s.col[1] * .35, s.col[2] * .35];
+          let pos = p, a = 1;
+          if (s.mo === 'approach') { const st0 = [p[0] + out[0] * .08, p[1] + out[1] * .08, p[2] + out[2] * .08]; pos = lerp(st0, p, Math.min(1, k * 1.5)); }
+          else if (s.mo === 'blocked') { const st0 = [p[0] + out[0] * .08, p[1] + out[1] * .08, p[2] + out[2] * .08], q = k < .5 ? k / .5 * .8 : (1 - (k - .5) / .5) * .8; pos = lerp(st0, p, q); }
+          else if (s.mo === 'flow') { pos = [p[0] + out[0] * .06 * k, p[1] + out[1] * .06 * k, p[2] + out[2] * .06 * k]; a = 1 - k * .8; }
+          else if (s.shape === 'hex') a = .85 + .15 * Math.sin(t * 3 + i);
+          draw(geom, s.col, a, em, pos);
+        }));
+      } else if (sc.kind === 'liver') {
+        const wb = sc.wb;
+        ['Z_or_liver', 'Z_or_stomach', 'Z_or_duodenum', 'Z_or_gallbladder'].forEach((id) => draw(geo(id), id === 'Z_or_liver' ? [.75, .3, .25] : [.9, .65, .5], id === 'Z_or_liver' ? .4 : .18, id === 'Z_or_liver' ? [.1, .04, .03] : null));
+        ['Z_ve_hepatic_portal_vein', 'Z_ve_superior_mesenteric_vein'].forEach((id) => draw(geo(id), [.4, .5, 1], .8));
+        ['Z_ve_hepatic_veins', 'Z_ve_inferior_vena_cava_abdominal_part', 'Z_ve_inferior_vena_cava_thoracic_part'].forEach((id) => draw(geo(id), wb ? [1, .35, .35] : [.4, .5, 1], .85, wb ? [.3, 0, 0] : null));
+        gl.disable(gl.DEPTH_TEST);
+        const path = [[-.029, 1.011, .1301], [-.0055, 1.1221, .1274], [-.035, 1.125, .118], [-.0093, 1.1863, .1225], [-.0131, 1.23, .1142]], at = (f) => { const q = f * 4, i = Math.min(3, Math.floor(q)); return lerp(path[i], path[i + 1], q - i); };
+        for (let i = 0; i < 26; i++) { const f = (t * .13 + i / 26) % 1; if (!wb && f > .55 && f < .8 && rnd(i) < .8) continue; const p = at(f).map((v, j) => v + (rnd(i * 3 + j) - .5) * .008); draw(dot, [.62, .85, 1], 1, [.2, .35, .5], p); }
+        if (wb) { for (let i = 0; i < 14; i++) { const p = at(.8 + i / 14 * .2).map((v, j) => v + (rnd(i * 7 + j) - .5) * .01); draw(dot, [.62, .85, 1], 1, [.2, .35, .5], p); }
+          for (let i = 0; i < 5; i++) draw(hexg, GOLDC, .85 + .15 * Math.sin(t * 3 + i), [.5, .4, .1], [-.035 + (rnd(i) - .5) * .05, 1.125 + (rnd(i + 9) - .5) * .04, .14 + (rnd(i + 4) - .5) * .02]); }
+      } else if (sc.kind === 'clot') {
+        ['Z_ve_median_cubital_vein_l', 'Z_ve_cephalic_vein_l', 'Z_ve_basilic_vein_l', 'Z_ve_brachial_veins_l', 'Z_ve_axillary_vein_l'].forEach((id) => draw(geo(id), [.4, .5, 1], .35, [0, 0, .08]));
+        gl.disable(gl.DEPTH_TEST); const cut = [.212, 1.021, .096], c = sc.c, plat = sc.wb ? c[3] : c[0], fac = sc.wb ? c[4] : c[1], leak = sc.wb ? c[5] : c[2];
+        draw(big, [1, .35, .35], .9, [.4, 0, 0], cut);
+        for (let i = 0; i < plat; i++) draw(dot, [1, .89, .6], 1, [.4, .3, 0], [cut[0] + (rnd(i) - .5) * .02, cut[1] + (rnd(i + 5) - .5) * .02, cut[2] + (rnd(i + 9) - .5) * .02]);
+        for (let i = 0; i < fac; i++) draw(dot, [.62, .85, 1], 1, [.2, .35, .5], [cut[0] + (rnd(i + 20) - .5) * .024, cut[1] + (rnd(i + 25) - .5) * .024, cut[2] + (rnd(i + 29) - .5) * .02]);
+        for (let i = 0; i < leak; i++) { const f = (i / Math.max(1, leak) + t * .3) % 1; draw(dot, [1, .25, .25], 1, [.4, 0, 0], [cut[0] + .01 + f * .06, cut[1] + (rnd(i) - .5) * .015 - f * .03, cut[2] + .02 + f * .02]); }
+      }
+      requestAnimationFrame(frame);
+    }
+    let dx = null; cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); dx = e.clientX; });
+    cv.addEventListener('pointermove', (e) => { if (dx === null) return; st.yaw = Math.max(-1.2, Math.min(1.2, st.yaw + (e.clientX - dx) * 0.008)); dx = e.clientX; });
+    const up = () => { dx = null; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    requestAnimationFrame(frame);
+    return st;
+  }
+  const gaugeHtml = (g) => `<div class="pjg"><span>${esc(g.l)} — <b>${esc(g.t)}</b></span><div class="b"><i style="width:${Math.round(g.v * 100)}%;background:${g.bad ? '#ff6b6b' : '#3fd67a'}"></i></div></div>`;
+  const legHtml = (lg) => `<div class="pjleg">${lg.map((x) => `<span><i style="background:${css3(x[0])}"></i>${esc(x[1])}</span>`).join('')}</div>`;
+  const capHtml = (c) => `<div class="pjcap"><small>${esc(c[0])}</small><span>${esc(c[1])}</span></div>`;
+  function paintScene(sc, ids) { const gg = $(ids[0]), lg = $(ids[1]), cc = $(ids[2]); if (gg) gg.innerHTML = gaugeHtml(sc.gauge); if (lg) lg.innerHTML = legHtml(sc.lg); if (cc) cc.innerHTML = capHtml(sc.cap); }
+  function mountScene(canvasId, sc, ids) {
+    const cv = $(canvasId), msg = $('pjsmsg'); if (!cv) return; paintScene(sc, ids);
+    needMeshes().then((M) => { if (!cv.isConnected) return; killScn(); try { scn = startScene(cv, M, sc); if (msg) msg.remove(); } catch (e) { if (msg) msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); } })
+      .catch(() => { if (msg && msg.isConnected) msg.textContent = T('Could not load the models — they need an internet connection the first time.', 'مقدرناش نحمّل المجسمات — أول مرة بتحتاج إنترنت.'); });
+  }
+  const stageHtml = (id) => `<div class="pjstage" style="height:min(42vh,330px)"><canvas id="${id}" style="position:absolute;inset:0;width:100%;height:100%"></canvas><div class="pjmsg" id="pjsmsg">${T('Loading the body…', 'جارِ تحميل الجسم…')}</div></div>`;
   const SEV = { 3: ['Major', 'خطير', '#ff6b6b'], 2: ['Moderate', 'متوسط', '#ffb84d'], 1: ['Note', 'ملحوظة', '#3fd67a'] };
+  let ixDrug = 'war', ixSel = 0, ixWB = true;
+  const ixDrugs = () => { const o = []; IX.forEach((x) => { [x[0], x[1]].forEach((k) => { if (!o.includes(k)) o.push(k); }); }); return o.sort((p, q) => DRUGS.findIndex((d) => d.k === p) - DRUGS.findIndex((d) => d.k === q)); };
+  const ixOfDrug = (k) => IX.map((x, i) => [x, i]).filter(([x]) => x[0] === k || x[1] === k).sort((p, q) => q[0][2] - p[0][2]);
+  const ixListHtml = () => { const l = ixOfDrug(ixDrug); return l.map(([x, i]) => { const other = x[0] === ixDrug ? x[1] : x[0], sv = SEV[x[2]]; return `<span class="${i === ixSel ? 'on' : ''}" data-act="pjixsel" data-i="${i}" style="border-color:${sv[2]}">${esc(dnm(other))} · ${T(sv[0], sv[1])}</span>`; }).join(''); };
+  const ixChips = () => ixDrugs().map((k) => `<span class="${k === ixDrug ? 'on' : ''}" data-act="pjixdrug" data-k="${k}">${esc(dnm(k))} <small>${ixOfDrug(k).length}</small></span>`).join('');
+  function ixInfoHtml() {
+    const x = IX[ixSel], p = IXS[ixKey(x)], sv = SEV[x[2]], A = dnm(p.a), B = dnm(p.b);
+    return `<div class="pjcurve" style="margin-top:8px;border-color:${sv[2]}"><b>${esc(dnm(x[0]) + ' + ' + dnm(x[1]))}</b> <span style="display:inline-block;margin-inline-start:6px;padding:2px 10px;border-radius:999px;background:${sv[2]};color:#000B33;font-size:11.5px;font-weight:800">${T(sv[0], sv[1])}</span>` +
+      `<div class="pjroutes" style="margin:8px 0 4px"><span class="${ixWB ? '' : 'on'}" data-act="pjixwb" data-w="0" style="cursor:pointer">${esc(T(A + ' alone', A + ' لوحده'))}</span><span class="${ixWB ? 'on' : ''}" data-act="pjixwb" data-w="1" style="cursor:pointer">${esc(T('With ' + B, 'مع ' + B))}</span></div>` +
+      stageHtml('pjsc') + `<div id="pjsg"></div><div id="pjsl"></div><div id="pjscap"></div>` +
+      `<small style="display:block;margin:8px 0 2px;color:var(--muted)">${T('What to do', 'تعمل إيه')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(x[4][0], x[4][1]))}</p></div>`;
+  }
   function ixHtml() {
-    const sel = (id, v) => `<select id="${id}" class="pjsearch" style="width:100%">${DRUGS.map((d, i) => `<option value="${i}" ${i === v ? 'selected' : ''}>${esc(dn(d))}</option>`).join('')}</select>`;
-    return `<p class="lead" style="margin:6px 0">${T('Pick two drugs to see whether they interact.', 'اختار دوايين وشوف هل بيتداخلوا مع بعض.')}</p><div style="display:flex;gap:8px;align-items:center">${sel('pjixa', ixA)}<b>+</b>${sel('pjixb', ixB)}</div><div id="pjixr">${ixResult()}</div>` +
-      `<div class="pjcurve" style="margin-top:10px"><small style="display:block;margin-bottom:4px">${T('All recorded pairs', 'كل التداخلات المسجّلة')} (${IX.length})</small><div class="pjscroll" style="flex-wrap:wrap;overflow:visible">${IX.map((x) => { const a = DRUGS.findIndex((d) => d.k === x[0]), b = DRUGS.findIndex((d) => d.k === x[1]); return `<span data-act="pjixpair" data-a="${a}" data-b="${b}" style="border-color:${SEV[x[2]][2]}">${esc(dn(DRUGS[a]) + ' + ' + dn(DRUGS[b]))}</span>`; }).join('')}</div></div>`;
+    return `<p class="lead" style="margin:6px 0">${T('Pick a drug to see everything it interacts with.', 'اختار دوا وشوف كل اللي بيتداخل معاه.')}</p><div class="pjscroll" id="pjixd">${ixChips()}</div><div class="pjscroll" id="pjixl">${ixListHtml()}</div><div id="pjixi">${ixInfoHtml()}</div>`;
   }
-  function ixResult() {
-    if (ixA === ixB) return `<div class="pjcurve" style="margin-top:8px">${T('Pick two different drugs.', 'اختار دوايين مختلفين.')}</div>`;
-    const x = ixOf(ixA, ixB), t = `${esc(dn(DRUGS[ixA]))} + ${esc(dn(DRUGS[ixB]))}`;
-    if (!x) return `<div class="pjcurve" style="margin-top:8px"><b>${t}</b><p style="margin:6px 0 0;font-size:13.5px;line-height:1.7">${T('No important interaction is recorded for this pair in this list. The list is limited and does not cover every interaction — always check a drug reference.', 'مفيش تداخل مهم مسجّل للزوج ده في القايمة دي. القايمة محدودة ومش بتغطي كل التداخلات — راجع مرجع الأدوية دايمًا.')}</p></div>`;
-    const sv = SEV[x[2]];
-    return `<div class="pjcurve" style="margin-top:8px;border-color:${sv[2]}"><b>${t}</b> <span style="display:inline-block;margin-inline-start:6px;padding:2px 10px;border-radius:999px;background:${sv[2]};color:#000B33;font-size:11.5px;font-weight:800">${T(sv[0], sv[1])}</span>` +
-      `<small style="display:block;margin:8px 0 2px">${T('Why', 'ليه بيحصل')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(x[3][0], x[3][1]))}</p><small style="display:block;margin:8px 0 2px">${T('What to do', 'تعمل إيه')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(x[4][0], x[4][1]))}</p></div>`;
+  const ixPaint = () => { const x = IX[ixSel]; if (scn) { scn.sc = ixScene(x, ixWB); } paintScene(ixScene(x, ixWB), ['pjsg', 'pjsl', 'pjscap']); };
+  function ixMount() {
+    const root = $('pjroot'); if (!root) return; killScn(); root.innerHTML = ixHtml();
+    mountScene('pjsc', ixScene(IX[ixSel], ixWB), ['pjsg', 'pjsl', 'pjscap']);
   }
-  function ixMount() { const root = $('pjroot'); if (!root) return; root.innerHTML = ixHtml(); const up = () => { ixA = +$('pjixa').value; ixB = +$('pjixb').value; $('pjixr').innerHTML = ixResult(); }; $('pjixa').addEventListener('change', up); $('pjixb').addEventListener('change', up); }
-  let drug = 0, withDrug = true, mmode = 'learn', qi = 0, qscore = 0, qasked = 0, qans = null, qopts = [];
+  function ixRefresh(full) { // change selection without recreating the 3D canvas
+    const d = $('pjixd'), l = $('pjixl'); if (d) d.innerHTML = ixChips(); if (l) l.innerHTML = ixListHtml();
+    const x = IX[ixSel], sv = SEV[x[2]], p = IXS[ixKey(x)], A = dnm(p.a), B = dnm(p.b), inf = $('pjixi'); if (!inf || !$('pjsc')) { ixMount(); return; }
+    const cv = $('pjsc'); const host = cv.parentElement.parentElement; // card
+    const head = host.firstElementChild, tg = host.querySelector('.pjroutes'), todo = host.querySelector('p');
+    host.style.borderColor = sv[2]; head.innerHTML = esc(dnm(x[0]) + ' + ' + dnm(x[1])); const bdg = host.querySelector('span'); if (bdg) { bdg.style.background = sv[2]; bdg.textContent = T(sv[0], sv[1]); }
+    if (tg) tg.innerHTML = `<span class="${ixWB ? '' : 'on'}" data-act="pjixwb" data-w="0" style="cursor:pointer">${esc(T(A + ' alone', A + ' لوحده'))}</span><span class="${ixWB ? 'on' : ''}" data-act="pjixwb" data-w="1" style="cursor:pointer">${esc(T('With ' + B, 'مع ' + B))}</span>`;
+    if (todo) todo.textContent = T(x[4][0], x[4][1]); ixPaint();
+  }
+  let mview = 'where', drug = 0, withDrug = true, mmode = 'learn', qi = 0, qscore = 0, qasked = 0, qans = null, qopts = [];
   let mSpeed = 1, mPlay = true, mT = 0;
   const MPERIOD = 9; // seconds per demonstration loop
   function drawMech(cvs, token, dr) {
@@ -297,17 +482,19 @@ window.__pjourneyLoaded = true;
       `<div style="display:flex;gap:6px;align-items:center"><input id="pjq" class="pjsearch" type="search" placeholder="${T('Search a drug…', 'ابحث باسم الدوا…')}" value="${esc(qsearch)}"><button class="btn" data-act="pjrand" aria-label="${T('Random', 'عشوائي')}">🎲</button></div>` +
       `<div class="pjscroll" id="pjdrugs">${drugRowHtml()}</div>` +
       `<div class="pjcurve" style="margin-top:2px"><b style="font-size:15px">${esc(dn(d))}</b> <small style="display:inline">· ${esc(T(d.cls[0], d.cls[1]))}</small>` +
-      `<div class="pjroutes" style="margin:8px 0 4px"><span class="${withDrug ? '' : 'on'}" data-act="pjwith" data-w="0" style="cursor:pointer">${T('Without the drug', 'من غير الدوا')}</span><span class="${withDrug ? 'on' : ''}" data-act="pjwith" data-w="1" style="cursor:pointer">${T('With the drug', 'مع الدوا')}</span></div>` +
-      `<canvas id="pjmc" style="width:100%;max-width:520px;display:block;margin:0 auto;border-radius:12px"></canvas>` +
+      `<div class="pjroutes" style="margin:8px 0 4px"><span class="${mview === 'where' ? 'on' : ''}" data-act="pjmview" data-v="where" style="cursor:pointer">${T('Where it acts', 'فين بيشتغل')}</span><span class="${mview === 'how' ? 'on' : ''}" data-act="pjmview" data-v="how" style="cursor:pointer">${T('How it works', 'إزاي بيشتغل')}</span></div>` +
+      `<div class="pjroutes" style="margin:4px 0"><span class="${withDrug ? '' : 'on'}" data-act="pjwith" data-w="0" style="cursor:pointer">${T('Without the drug', 'من غير الدوا')}</span><span class="${withDrug ? 'on' : ''}" data-act="pjwith" data-w="1" style="cursor:pointer">${T('With the drug', 'مع الدوا')}</span></div>` +
+      (mview === 'where' ? (W[d.k] ? stageHtml('pjsc') + `<div id="pjsg"></div><div id="pjsl"></div><div id="pjscap"></div></div>` : `<p style="margin:10px 4px;font-size:13.5px;line-height:1.7;color:var(--muted)">${T('This drug has no single organ — it works throughout the body or on a microbe. See “How it works”.', 'الدوا ده مالوش عضو واحد — بيشتغل في كل الجسم أو على ميكروب. شوف «إزاي بيشتغل».')}</p></div>`) : `<canvas id="pjmc" style="width:100%;max-width:520px;display:block;margin:0 auto;border-radius:12px"></canvas>` +
       `<div class="pjleg">${d.kind === 'agonist' ? '' : `<span><i style="background:#9fd8ff"></i>${esc(T(d.nat[0], d.nat[1]))} (${T('natural', 'الطبيعي في الجسم')})</span>`}<span><i style="background:#E3B95B;border-radius:3px"></i>${esc(dn(d))} (${T('the drug', 'الدوا')})</span></div>` +
       `<div class="pjcap"><small id="pjmst"></small><span id="pjmtx"></span></div>` +
-      `<div class="pjctl"><button class="btn" data-act="pjmslow" id="pjmslow">🐢 ${T('Slower', 'أبطأ')}</button><button class="btn primary" data-act="pjmplay" id="pjmplay">${mPlay ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل')}</button><button class="btn" data-act="pjmrestart">↻ ${T('Restart', 'من الأول')}</button></div></div>` +
-      `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('How it works', 'بيشتغل إزاي')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p></div>` +
+      `<div class="pjctl"><button class="btn" data-act="pjmslow" id="pjmslow">🐢 ${T('Slower', 'أبطأ')}</button><button class="btn primary" data-act="pjmplay" id="pjmplay">${mPlay ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل')}</button><button class="btn" data-act="pjmrestart">↻ ${T('Restart', 'من الأول')}</button></div></div>`) +
+      `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${T('Explanation', 'الشرح')}</small><p style="margin:0;font-size:13.5px;line-height:1.7">${esc(T(d.mech[0], d.mech[1]))}</p></div>` +
       `<div class="pjcurve" style="margin-top:8px"><small style="display:block;margin-bottom:3px">${A.facCode && A.facCode() === 'nurs' ? T('Nursing points', 'نقاط للتمريض') : T('Key points', 'نقاط مهمة')}</small><p style="margin:0 0 4px;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[0], d.nurse[1]))}</p><p style="margin:0;font-size:13px;line-height:1.7">• ${esc(T(d.nurse[2], d.nurse[3]))}</p></div>`;
   }
   let resetM = true;
   function mechMount() {
-    const root = $('pjroot'); if (!root) return; const t = ++mtok; if (resetM) mT = 0; resetM = true; root.innerHTML = mechHtml(); drawMech($('pjmc'), t, DRUGS[drug]);
+    const root = $('pjroot'); if (!root) return; killScn(); const t = ++mtok; if (resetM) mT = 0; resetM = true; const d = DRUGS[drug]; if (mview === 'where' && !W[d.k]) { /* keeps the "no single organ" note */ }
+    root.innerHTML = mechHtml(); if (mview === 'how') drawMech($('pjmc'), t, d); else if (W[d.k]) mountScene('pjsc', mechScene(d, withDrug), ['pjsg', 'pjsl', 'pjscap']);
     const inp = $('pjq'); if (inp) inp.addEventListener('input', () => { qsearch = inp.value; const r = $('pjdrugs'); if (r) r.innerHTML = drugRowHtml(); const cr = $('pjcats'); if (cr) cr.outerHTML = chipRow('pjcats', 'pjcat', qsearch.trim() ? '' : cat); });
     const on = document.querySelector('#pjdrugs .on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
@@ -381,22 +568,25 @@ window.__pjourneyLoaded = true;
     if (meshes) return go(meshes);
     loadMeshes().then((M) => { meshes = M; go(M); }).catch(() => { if (msg.isConnected) msg.textContent = T('Could not load the models — they need an internet connection the first time.', 'مقدرناش نحمّل المجسمات — أول مرة بتحتاج إنترنت.'); });
   }
-  function open() { stop(); rk = 'oral'; tab = 'journey'; drug = 0; cat = 'cv'; qsearch = ''; qcat = 'all'; withDrug = true; mSpeed = 1; mPlay = true; mT = 0; deck = []; A.modal(page); render(); }
+  function open() { stop(); rk = 'oral'; tab = 'journey'; drug = 0; cat = 'cv'; qsearch = ''; qcat = 'all'; mview = 'where'; ixDrug = 'war'; ixSel = ixOfDrug('war')[0][1]; ixWB = true; withDrug = true; mSpeed = 1; mPlay = true; mT = 0; deck = []; A.modal(page); render(); }
   const SP = [1, 0.5, 2];
   A.acts.pjtab = (el) => { tab = el.dataset.t; render(); };
   A.acts.pjroute = (el) => { rk = el.dataset.r; if (!cur) { render(); return; } cur.setRoute(rk); const rr = document.querySelector('#pjroot .pjroutes'); if (rr) rr.outerHTML = routesHtml(); const ss = $('pjsteps'); if (ss) ss.innerHTML = stepsInner(); const ff = $('pjfoot'); if (ff) ff.innerHTML = footInner(); };
-  A.acts.pjdrug = (el) => { drug = +el.dataset.i; withDrug = true; mechMount(); };
-  A.acts.pjcat = (el) => { cat = el.dataset.c; qsearch = ''; const l = drugList(); if (l.length && !l.some((x) => x[1] === drug)) drug = l[0][1]; withDrug = true; mechMount(); };
-  A.acts.pjrand = () => { const l = drugList(), p = (l.length > 1 ? l : DRUGS.map((d, i) => [d, i])).filter((x) => x[1] !== drug); drug = p[Math.floor(Math.random() * p.length)][1]; withDrug = true; mechMount(); };
+  A.acts.pjdrug = (el) => { drug = +el.dataset.i; withDrug = true; mview = W[DRUGS[drug].k] ? 'where' : 'how'; mechMount(); };
+  A.acts.pjmview = (el) => { mview = el.dataset.v; mechMount(); };
+  A.acts.pjcat = (el) => { cat = el.dataset.c; qsearch = ''; const l = drugList(); if (l.length && !l.some((x) => x[1] === drug)) drug = l[0][1]; withDrug = true; mview = W[DRUGS[drug].k] ? 'where' : 'how'; mechMount(); };
+  A.acts.pjrand = () => { const l = drugList(), p = (l.length > 1 ? l : DRUGS.map((d, i) => [d, i])).filter((x) => x[1] !== drug); drug = p[Math.floor(Math.random() * p.length)][1]; withDrug = true; mview = W[DRUGS[drug].k] ? 'where' : 'how'; mechMount(); };
   A.acts.pjqcat = (el) => { qcat = el.dataset.c; deck = []; const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
-  A.acts.pjwith = (el) => { withDrug = el.dataset.w === '1'; mechMount(); };
+  A.acts.pjwith = (el) => { withDrug = el.dataset.w === '1'; if (mview === 'where' && scn && W[DRUGS[drug].k]) { scn.sc = mechScene(DRUGS[drug], withDrug); paintScene(scn.sc, ['pjsg', 'pjsl', 'pjscap']); const rr = document.querySelectorAll('#pjroot .pjroutes'); const last = rr[rr.length - 1]; if (last) last.innerHTML = `<span class="${withDrug ? '' : 'on'}" data-act="pjwith" data-w="0" style="cursor:pointer">${T('Without the drug', 'من غير الدوا')}</span><span class="${withDrug ? 'on' : ''}" data-act="pjwith" data-w="1" style="cursor:pointer">${T('With the drug', 'مع الدوا')}</span>`; } else mechMount(); };
   A.acts.pjmslow = () => { mSpeed = mSpeed === 1 ? 0.5 : 1; const b = $('pjmslow'); if (b) b.textContent = '🐢 ' + (mSpeed === 1 ? T('Slower', 'أبطأ') : T('Normal speed', 'سرعة عادية')); };
   A.acts.pjmplay = () => { mPlay = !mPlay; const b = $('pjmplay'); if (b) b.textContent = mPlay ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل'); };
   A.acts.pjmrestart = () => { mT = 0; mPlay = true; const b = $('pjmplay'); if (b) b.textContent = '⏸ ' + T('Pause', 'إيقاف'); };
   A.acts.pjans = (el) => { if (qans !== null) return; qans = +el.dataset.i; if (qans === qi) qscore++; const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
   A.acts.pjrestartq = () => { newDeck(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
   A.acts.pjnext = () => { qasked++; setQ(); const root = $('pjroot'); if (root) root.innerHTML = quizHtml(); };
-  A.acts.pjixpair = (el) => { ixA = +el.dataset.a; ixB = +el.dataset.b; ixMount(); };
+  A.acts.pjixdrug = (el) => { ixDrug = el.dataset.k; ixSel = ixOfDrug(ixDrug)[0][1]; ixWB = true; ixRefresh(); };
+  A.acts.pjixsel = (el) => { ixSel = +el.dataset.i; ixWB = true; ixRefresh(); };
+  A.acts.pjixwb = (el) => { ixWB = el.dataset.w === '1'; ixRefresh(); };
   A.acts.pjgo = (el) => { if (cur) cur.p = ROUTES[rk].st[+el.dataset.i].a + 0.002; };
   A.acts.pjrestart = () => { if (cur) { cur.p = 0; cur.playing = true; const b = $('pjplay'); if (b) b.innerHTML = '⏸ ' + T('Pause', 'إيقاف'); } };
   A.acts.pjplay = () => { if (!cur) return; cur.playing = !cur.playing; const b = $('pjplay'); if (b) b.innerHTML = cur.playing ? '⏸ ' + T('Pause', 'إيقاف') : '▶ ' + T('Play', 'شغّل'); };
