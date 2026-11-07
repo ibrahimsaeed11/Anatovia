@@ -88,19 +88,29 @@ if (!window.__motionLoaded) (() => {
     hip_flex: { j: 'hip', ax: 'x', s: -1, a: [0, 90] }, hip_ext: { j: 'hip', ax: 'x', s: -1, a: [0, -20] },
     hip_abd: { j: 'hip', ax: 'z', a: [0, 40] }, hip_add: { j: 'hip', ax: 'z', a: [35, 0] },
     knee_flex: { j: 'knee', ax: 'x', s: 1, a: [0, 120] }, knee_ext: { j: 'knee', ax: 'x', s: 1, a: [100, 0] },
+    shoulder_er: { j: 'shoulder', ax: 'limb', s: -1, a: [0, 40] }, shoulder_ir: { j: 'shoulder', ax: 'limb', s: -1, a: [0, -40] },
+    hip_er: { j: 'hip', ax: 'limb', s: -1, a: [0, 30] },
+    forearm_pro: { j: 'forearm', ax: 'fore', s: 1, a: [0, 80] }, forearm_sup: { j: 'forearm', ax: 'fore', s: 1, a: [80, 0] },
+    wrist_flex: { j: 'wrist', ax: 'x', s: -1, a: [0, 60] }, wrist_ext: { j: 'wrist', ax: 'x', s: -1, a: [0, -50] },
+    ankle_df: { j: 'ankle', ax: 'x', s: -1, a: [0, 20] }, ankle_pf: { j: 'ankle', ax: 'x', s: -1, a: [0, -40] },
+    foot_inv: { j: 'subtalar', ax: 'z', s: 1, a: [0, 20] }, foot_ev: { j: 'subtalar', ax: 'z', s: 1, a: [0, -15] },
   };
   const JOINT = {
-    shoulder: { prox: /scapula/i, mv: (q) => q.reg === 'upper' && !/scapula|clavicle/i.test(q.en), dist: 1.5 },
+    shoulder: { lng: /humerus/i, prox: /scapula/i, mv: (q) => q.reg === 'upper' && !/scapula|clavicle/i.test(q.en), dist: 1.5 },
     elbow: { prox: /humerus/i, mv: (q) => q.reg === 'upper' && !/scapula|clavicle|humerus/i.test(q.en), dist: 1.1 },
-    hip: { prox: /hip bone/i, mv: (q) => q.reg === 'lower', dist: 2.3 },
+    hip: { lng: /femur/i, prox: /hip bone/i, mv: (q) => q.reg === 'lower', dist: 2.3 },
     knee: { prox: /femur/i, mv: (q) => q.reg === 'lower' && !/femur/i.test(q.en), dist: 1.8 },
+    forearm: { prox: /ulna/i, mv: (q) => /radius|carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate|metacarpal|phalan/i.test(q.en), dist: 1.4 },
+    wrist: { prox: /radius|ulna/i, mv: (q) => /carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate|metacarpal|phalan/i.test(q.en), dist: .7 },
+    ankle: { prox: /tibia|fibula/i, mv: (q) => /talus|calcaneus|navicular|cuboid|cuneiform|metatars|phalan/i.test(q.en), dist: 1.2 },
+    subtalar: { prox: /talus/i, mv: (q) => /calcaneus|navicular|cuboid|cuneiform|metatars|phalan/i.test(q.en), dist: 1.0 },
   };
   const REACH = 0.55;   // only the part of the muscle beyond this fraction (towards the insertion) follows the moving bone; the belly stays anchored to the body
   let movRaf = 0;
   function stopMove() { if (movRaf) cancelAnimationFrame(movRaf); movRaf = 0; X().R.items.forEach((it) => { it.anim = null; }); S.mov = null; const b = $('movbar'); if (b) b.remove(); A.redraw(); }
   function applyMove(k) {
     const M = S.mov; if (!M) return; const a = M.a0 + (M.a1 - M.a0) * k;
-    const phi = (M.cfg.ax === 'x' ? M.cfg.s : M.side < 0 ? -1 : 1) * a * Math.PI / 180, m = rotM(M.ax, phi);
+    const phi = (M.cfg.ax === 'x' ? M.cfg.s : (M.cfg.s || 1) * (M.side < 0 ? -1 : 1)) * a * Math.PI / 180, m = rotM(M.ax, phi);
     M.bones.forEach((i) => { const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
     M.muscles.forEach((r) => {
       const it = X().itemOf[r.q.i]; if (!it) return; const d = vsub(r.ins, r.org);
@@ -126,7 +136,10 @@ if (!window.__motionLoaded) (() => {
     const pv = prox.flatMap(bverts); let best = null;   // joint centre = midpoint of the closest pair of surface points between the proximal bone and the moving bones
     moving.filter((q) => !/patella/i.test(q.en)).forEach((q) => { const V = bverts(q); let m = 9, pa = null, pb = null; V.forEach((a) => { for (const b of pv) { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } } }); if (pa && (!best || m < best.m)) best = { m, p: vmul(vadd(pa, pb), 0.5) }; });
     if (!best) { A.toast(T('Could not find the joint', 'ملقيتش المفصل'), 3200); return; }
-    const piv = best.p, dm = (p) => Math.min(...moving.map((b) => mind(bverts(b), p)));
+    let piv = best.p, axv = null;
+    if (cfg.ax === 'fore') { const rv = moving.filter((q) => /radius/i.test(q.en)).flatMap(bverts), uv = prox.flatMap(bverts); if (rv.length && uv.length) { const top = rv.reduce((m, v) => (v[1] > m[1] ? v : m)), bot = uv.reduce((m, v) => (v[1] < m[1] ? v : m)); piv = top; axv = vnorm(vsub(bot, top)); } }
+    if (cfg.ax === 'limb' && J.lng) { const lv = moving.filter((q) => J.lng.test(q.en)).flatMap(bverts).sort((a, b) => a[1] - b[1]).slice(0, 40); if (lv.length) { const c = [0, 1, 2].map((k) => lv.reduce((m, v) => m + v[k], 0) / lv.length); axv = vnorm(vsub(c, piv)); } }
+    const dm = (p) => Math.min(...moving.map((b) => mind(bverts(b), p)));
     const mus = groupItems(e).map((q) => {
       const E = endsOf(q); if (!E) return null; let { org, ins } = E;
       if (dm(org) < dm(ins)) { const t = org; org = ins; ins = t; }   // the insertion is the end that lies on the moving bones
@@ -134,13 +147,13 @@ if (!window.__motionLoaded) (() => {
     }).filter(Boolean);
     if (!mus.length) { A.toast(T('Cannot animate this muscle', 'مش قادر أحرّك العضلة دي'), 3000); return; }
     S.focus = new Set([...mus.map((r) => r.q.i), ...prox.map((q) => q.i), ...moving.map((q) => q.i)]); S.att = true; lastSig = '';
-    S.mov = { id: mvId, cfg, ax: cfg.ax === 'x' ? [1, 0, 0] : [0, 0, 1], piv, side, a0: cfg.a[0], a1: cfg.a[1], bones: moving.map((q) => q.i), muscles: mus, th: 0, t0: performance.now(),
+    S.mov = { id: mvId, cfg, ax: axv || (cfg.ax === 'x' ? [1, 0, 0] : cfg.ax === 'y' ? [0, 1, 0] : [0, 0, 1]), piv, side, a0: cfg.a[0], a1: cfg.a[1], bones: moving.map((q) => q.i), muscles: mus, th: 0, t0: performance.now(),
       play: true, agonist: ((mvo && mvo.m) || []).some((n) => (e.grp || '').toLowerCase().includes(n)) };
-    A.apply(); if (A.renderChips) A.renderChips();
-    const post = e.c[2] < 0.0; X().cam.flyTo(piv, J.dist, post ? Math.PI + (side < 0 ? 0.4 : -0.4) : (side < 0 ? -0.4 : 0.4), 0.12);   // look at the side of the body the muscle is on
+    A.apply(); if (A.renderChips) A.renderChips(); const camP = cfg.ax === 'fore' && axv ? [0, 1, 2].map((k) => piv[k] + axv[k] * 0.12) : piv;
+    const post = e.c[2] < 0.0; X().cam.flyTo(camP, J.dist, post ? Math.PI + (side < 0 ? 0.4 : -0.4) : (side < 0 ? -0.4 : 0.4), 0.12);   // look at the side of the body the muscle is on
     $('app').classList.remove('psel'); $('panel').classList.add('closed'); $('panel').classList.remove('peek');
     const bar = document.createElement('div'); bar.id = 'movbar';
-    bar.innerHTML = `<div class="mvt">${esc(mvo ? T(mvo.en, mvo.ar) : '')}</div><div class="mvr"><button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><b id="movdeg">0°</b><button data-act="movend">✕</button></div>`;
+    bar.innerHTML = `<div class="mvt">${esc(mvo ? T(mvo.en, mvo.ar) : '')}</div><div class="mvr"><button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><button data-act="movend">✕</button></div>`;
     $('app').appendChild(bar);
     $('movsl').addEventListener('input', (ev) => { S.mov.play = false; $('movpl').textContent = '▶'; applyMove(+ev.target.value / 100); });
     const tick = (now) => { if (!S.mov) return; if (S.mov.play) { const ph = ((now - S.mov.t0) / 3000) % 2, k = ph < 1 ? ph : 2 - ph; applyMove(k * k * (3 - 2 * k)); } movRaf = requestAnimationFrame(tick); };
