@@ -255,9 +255,10 @@ window.__pjourneyLoaded = true;
   const ixOf = (a, b) => { const ka = DRUGS[a].k, kb = DRUGS[b].k; return IX.find((x) => (x[0] === ka && x[1] === kb) || (x[0] === kb && x[1] === ka)); };
   /* ───────── 3D "where it acts" scenes (mechanism tab + interactions tab). DRAFT — pending review ───────── */
   const AR_ = ['Z_ve_thoracic_aorta', 'Z_ve_abdominal_aorta'], KID = ['Z_or_kidney_l', 'Z_or_kidney_r'];
-  const ORG = { heart: { ids: HEART, tc: [.02, 1.24, .125], d: .3 }, kidney: { ids: KID, tc: [0, 1.053, .085], d: .42 }, liver: { ids: ['Z_or_liver'], tc: [-.011, 1.13, .12], d: .5 }, stomach: { ids: ['Z_or_stomach'], tc: [.039, 1.115, .133], d: .36 }, bron: { ids: null, tc: [.009, 1.24, .1], d: .52 }, panc: { ids: ['Z_or_pancreas'], tc: [.013, 1.066, .119], d: .32 }, gut: { ids: ['Z_or_jejunum', 'Z_or_duodenum', 'Z_or_transverse_colon'], tc: [.0, 1.0, .135], d: .55 }, aorta: { ids: AR_, tc: [.01, 1.14, .09], d: .62 } };
+  const ORG = { brain: { ids: null, tc: [0, 1.565, .088], d: .34 }, heart: { ids: HEART, tc: [.02, 1.24, .125], d: .3 }, kidney: { ids: KID, tc: [0, 1.053, .085], d: .42 }, liver: { ids: ['Z_or_liver'], tc: [-.011, 1.13, .12], d: .5 }, stomach: { ids: ['Z_or_stomach'], tc: [.039, 1.115, .133], d: .36 }, bron: { ids: null, tc: [.009, 1.24, .1], d: .52 }, panc: { ids: ['Z_or_pancreas'], tc: [.013, 1.066, .119], d: .32 }, gut: { ids: ['Z_or_jejunum', 'Z_or_duodenum', 'Z_or_transverse_colon'], tc: [.0, 1.0, .135], d: .55 }, aorta: { ids: AR_, tc: [.01, 1.14, .09], d: .62 } };
   const bronchiIds = () => (window.CATALOG || []).filter((x) => /bronch/.test(x.id)).map((x) => x.id);
-  const orgIds = (k) => (k === 'bron' ? bronchiIds() : ORG[k].ids);
+  const brainIds = () => (window.CATALOG || []).filter((x) => /^Z_br_/.test(x.id)).map((x) => x.id);
+  const orgIds = (k) => (k === 'bron' ? bronchiIds() : k === 'brain' ? brainIds() : ORG[k].ids);
   const CTXIDS = ['Z_or_liver', 'Z_or_stomach', 'Z_or_kidney_l', 'Z_or_kidney_r'].concat(HEART, AR_);
   const NATC = [.62, .85, 1], GOLDC = [.89, .73, .36], PURC = [.78, .6, 1], GRNC = [.25, .95, .55];
   const css3 = (c) => 'rgb(' + c.map((v) => Math.round(v * 255)).join(',') + ')';
@@ -282,6 +283,7 @@ window.__pjourneyLoaded = true;
   const dnm = (k) => { const d = DRUGS.find((x) => x.k === k); return T(d.n[0], d.n[1]); };
   function mechScene(d, wd) {
     const w = W[d.k], sets = [], lg = [];
+    if (w.mic) return microScene(d, wd);
     if (wd) { sets.push({ shape: 'hex', col: GOLDC, n: 10, mo: 'sit' }); lg.push([GOLDC, dn(d) + ' (' + T('the drug', 'الدوا') + ')']); }
     if (w.agon) { if (wd) sets.push({ shape: 'orb', col: GOLDC, n: 4, mo: 'approach' }); }
     else if (w.nat) { sets.push({ shape: 'orb', col: NATC, n: 5, mo: wd ? 'blocked' : 'approach' }); lg.push([NATC, T(w.nat[0], w.nat[1])]); }
@@ -289,6 +291,28 @@ window.__pjourneyLoaded = true;
     const g = w.g, cap = wd ? [T('Where it works', 'فين بيشتغل'), T(d.mech[0], d.mech[1])] : [T('Without the drug', 'من غير الدوا'), T('The normal situation in this organ.', 'الوضع الطبيعي في العضو ده.')];
     return { kind: 'organ', o: w.o, sets, open: wd, lg, gauge: { l: T(g[0], g[1]), v: wd ? g[3] : g[2], t: T((wd ? g[5] : g[4])[0], (wd ? g[5] : g[4])[1]), bad: false, good: wd }, cap };
   }
+  Object.assign(W, {
+    los: { o: 'aorta', nat: ['Angiotensin II', 'أنجيوتنسين II'], g: ['Blood pressure', 'ضغط الدم', .8, .45, ['Higher', 'أعلى'], ['Lower', 'أقل']] },
+    nit: { o: 'aorta', agon: true, g: ['Vessel width', 'اتساع الأوعية', .3, .85, ['Narrow', 'ضيقة'], ['Wide', 'واسعة']] },
+    clo: { o: 'aorta', nat: ['ADP', 'ADP'], pr: [[.62, .85, 1], 22, 6, ['Platelets clumping', 'تجمّع الصفائح']], g: ['Clot formation', 'تكوّن الجلطة', .85, .3, ['Normal', 'طبيعي'], ['Lower', 'أقل']] },
+    riv: { o: 'aorta', nat: ['Prothrombin', 'البروثرومبين'], pr: [[1, .4, .4], 22, 5, ['Fibrin clot', 'جلطة الفيبرين']], g: ['Clotting ability', 'قدرة التجلّط', .85, .3, ['Normal', 'طبيعية'], ['Slower', 'أبطأ']] },
+    spi: { o: 'kidney', nat: ['Aldosterone', 'الألدوستيرون'], pr: [[1, .9, .4], 6, 22, ['Salt and water', 'ملح وماء']], g: ['Urine output', 'كمية البول', .35, .8, ['Normal', 'عادية'], ['More', 'أكتر']] },
+    emp: { o: 'kidney', nat: ['Glucose', 'الجلوكوز'], pr: [[1, .85, .3], 5, 22, ['Sugar in the urine', 'سكر في البول']], g: ['Sugar in the urine', 'السكر في البول', .1, .85, ['Almost none', 'تقريبًا مفيش'], ['More', 'أكتر']] },
+    dig: { o: 'heart', nat: ['Na⁺/K⁺', 'Na⁺/K⁺'], g: ['Force of heartbeat', 'قوة النبضة', .45, .85, ['Normal', 'عادية'], ['Stronger', 'أقوى']] },
+    mtf: { o: 'liver', pr: [[1, .9, .4], 26, 8, ['Glucose', 'جلوكوز']], g: ['Glucose made by the liver', 'الجلوكوز اللي الكبد بيصنعه', .85, .4, ['High', 'عالي'], ['Lower', 'أقل']] },
+    ins: { o: 'liver', agon: true, g: ['Blood sugar', 'سكر الدم', .85, .4, ['High', 'عالي'], ['Lower', 'أقل']] },
+    bud: { o: 'bron', agon: true, g: ['Airway inflammation', 'التهاب الشعب', .8, .3, ['High', 'عالي'], ['Lower', 'أقل']] },
+    mcp: { o: 'stomach', nat: ['Dopamine', 'الدوبامين'], g: ['Nausea', 'الغثيان', .8, .3, ['Strong', 'قوي'], ['Less', 'أقل']] },
+    mor: { o: 'brain', agon: true, g: ['Pain signal', 'إشارة الألم', .85, .25, ['Strong', 'قوية'], ['Dulled', 'خفيفة']] },
+    tra: { o: 'brain', agon: true, g: ['Pain signal', 'إشارة الألم', .85, .35, ['Strong', 'قوية'], ['Dulled', 'خفيفة']] },
+    nlx: { o: 'brain', nat: ['Opioids', 'الأفيونات'], g: ['Breathing', 'التنفس', .2, .9, ['Very slow', 'بطيء جدًا'], ['Back to normal', 'رجع طبيعي']] },
+    dia: { o: 'brain', agon: true, g: ['Brain over-activity', 'النشاط الزايد في المخ', .85, .3, ['High', 'عالي'], ['Calmer', 'أهدى']] },
+    ser: { o: 'brain', nat: ['Serotonin', 'السيروتونين'], g: ['Mood signal', 'إشارة المزاج', .3, .75, ['Low', 'واطية'], ['Better', 'أحسن']] },
+    hal: { o: 'brain', nat: ['Dopamine', 'الدوبامين'], g: ['Psychosis symptoms', 'أعراض الذهان', .85, .3, ['Strong', 'قوية'], ['Calmer', 'أهدى']] },
+    cbz: { o: 'brain', nat: ['Na⁺', 'صوديوم Na⁺'], g: ['Abnormal firing', 'نشاط غير طبيعي', .85, .25, ['High', 'عالي'], ['Calmer', 'أهدى']] },
+    gab: { o: 'brain', nat: ['Ca²⁺', 'كالسيوم Ca²⁺'], g: ['Nerve pain signals', 'إشارات ألم الأعصاب', .85, .35, ['Strong', 'قوية'], ['Calmer', 'أهدى']] },
+    par: { o: 'brain', nat: ['Prostaglandins', 'البروستاجلاندين'], g: ['Fever and pain', 'الحرارة والألم', .85, .35, ['High', 'عالية'], ['Lower', 'أقل']] },
+  });
   W.mto = W.pro; W.hct = W.fur; W.pan = W.ome;
   /* interactions → 3D scene. kind: liver (inhibits the breakdown of A), bron, clot, organ. a = the drug that is affected, b = the interacting drug */
   const IXS = {
@@ -316,7 +340,7 @@ window.__pjourneyLoaded = true;
     'sal|ipr': { k: 'bron', a: 'sal', b: 'ipr', good: true, g: ['Airway width', 'اتساع الشعب', .55, .95, ['Wide', 'واسعة'], ['Wider', 'أوسع']] },
     'mor|lop': { k: 'organ', o: 'gut', a: 'mor', b: 'lop', g: ['Gut movement', 'حركة الأمعاء', .7, .1, ['Normal', 'عادية'], ['Almost stopped', 'شبه واقفة']] },
   };
-  Object.assign(IXS, {"dig|fur": {"k": "organ", "o": "heart", "a": "dig", "b": "fur", "g": ["Risk of digoxin toxicity", "خطر تسمم الديجوكسين", 0.15, 0.8, ["Low", "قليل"], ["High", "عالي"]]}, "clo|ome": {"k": "liver", "a": "clo", "b": "ome", "g": ["Active clopidogrel", "الكلوبيدوجريل الفعّال", 0.85, 0.35, ["Normal", "طبيعي"], ["Lower", "أقل"]]}, "clo|asp": {"k": "organ", "o": "stomach", "a": "clo", "b": "asp", "g": ["Bleeding risk", "خطر النزيف", 0.3, 0.75, ["Moderate", "متوسط"], ["High", "عالي"]]}, "riv|asp": {"k": "clot", "a": "riv", "b": "asp", "c": [7, 3, 0, 2, 3, 10], "g": ["Clotting ability", "قدرة التجلّط", 0.55, 0.1, ["Moderate", "متوسطة"], ["Very weak", "ضعيفة جدًا"]]}, "riv|ibu": {"k": "clot", "a": "riv", "b": "ibu", "c": [7, 3, 0, 3, 3, 8], "g": ["Clotting ability", "قدرة التجلّط", 0.55, 0.15, ["Moderate", "متوسطة"], ["Very weak", "ضعيفة جدًا"]]}, "ena|spi": {"k": "organ", "o": "kidney", "a": "ena", "b": "spi", "g": ["Potassium level", "مستوى البوتاسيوم", 0.3, 0.92, ["Normal", "طبيعي"], ["Dangerously high", "عالي بشكل خطير"]]}, "los|spi": {"k": "organ", "o": "kidney", "a": "los", "b": "spi", "g": ["Potassium level", "مستوى البوتاسيوم", 0.3, 0.8, ["Normal", "طبيعي"], ["High", "عالي"]]}, "los|ibu": {"k": "organ", "o": "kidney", "a": "los", "b": "ibu", "g": ["Risk of kidney injury", "خطر إصابة الكلى", 0.15, 0.65, ["Low", "قليل"], ["Higher", "أعلى"]]}, "hct|ibu": {"k": "organ", "o": "kidney", "a": "hct", "b": "ibu", "g": ["Diuretic effect", "تأثير المدر", 0.85, 0.4, ["Strong", "قوي"], ["Weaker", "أضعف"]]}, "mto|ins": {"k": "organ", "o": "heart", "a": "ins", "b": "mto", "g": ["Warning signs of low sugar", "علامات هبوط السكر", 0.85, 0.3, ["Clear (fast pulse, tremor)", "واضحة (نبض سريع ورعشة)"], ["Partly hidden", "مخبّية جزئيًا"]]}, "mto|sal": {"k": "bron", "a": "sal", "b": "mto", "g": ["Airway width", "اتساع الشعب", 0.9, 0.6, ["Wide", "واسعة"], ["Less wide", "أقل اتساعًا"]]}, "dia|mor": {"k": "organ", "o": "bron", "a": "dia", "b": "mor", "g": ["Breathing", "التنفس", 0.85, 0.2, ["Normal", "طبيعي"], ["Dangerously slow", "بطيء بشكل خطير"]]}, "dia|tra": {"k": "organ", "o": "bron", "a": "dia", "b": "tra", "g": ["Breathing", "التنفس", 0.85, 0.3, ["Normal", "طبيعي"], ["Very slow", "بطيء جدًا"]]}, "ser|asp": {"k": "organ", "o": "stomach", "a": "ser", "b": "asp", "g": ["Bleeding risk", "خطر النزيف", 0.25, 0.7, ["Low", "قليل"], ["Higher", "أعلى"]]}, "hal|ond": {"k": "organ", "o": "heart", "a": "ond", "b": "hal", "g": ["Risk of a dangerous rhythm", "خطر اضطراب نظم القلب", 0.1, 0.6, ["Low", "قليل"], ["High", "عالي"]]}, "hal|azi": {"k": "organ", "o": "heart", "a": "azi", "b": "hal", "g": ["Risk of a dangerous rhythm", "خطر اضطراب نظم القلب", 0.1, 0.5, ["Low", "قليل"], ["Higher", "أعلى"]]}, "war|cbz": {"k": "liver", "a": "war", "b": "cbz", "g": ["Warfarin level in the blood", "مستوى الوارفارين في الدم", 0.6, 0.2, ["Normal", "طبيعي"], ["Too low", "واطي جدًا"]]}, "cbz|flu": {"k": "liver", "a": "cbz", "b": "flu", "g": ["Carbamazepine level", "مستوى الكاربامازيبين", 0.4, 0.9, ["Normal", "طبيعي"], ["High", "عالي"]]}, "war|mtz": {"k": "liver", "a": "war", "b": "mtz", "g": ["Warfarin level in the blood", "مستوى الوارفارين في الدم", 0.4, 0.92, ["Normal", "طبيعي"], ["High", "عالي"]]}, "pre|ibu": {"k": "organ", "o": "stomach", "a": "pre", "b": "ibu", "g": ["Ulcer and bleeding risk", "خطر القرحة والنزيف", 0.3, 0.8, ["Low", "قليل"], ["High", "عالي"]]}, "ins|pre": {"k": "organ", "o": "panc", "a": "ins", "b": "pre", "g": ["Blood sugar", "سكر الدم", 0.5, 0.88, ["Controlled", "تحت السيطرة"], ["High", "عالي"]]}, "glb|pre": {"k": "organ", "o": "panc", "a": "glb", "b": "pre", "g": ["Blood sugar", "سكر الدم", 0.5, 0.85, ["Controlled", "تحت السيطرة"], ["High", "عالي"]]}, "mor|nlx": {"k": "organ", "o": "bron", "a": "mor", "b": "nlx", "good": true, "g": ["Breathing", "التنفس", 0.45, 0.9, ["Slowed", "مبطّأ"], ["Restored", "رجع طبيعي"]]}, "fur|gen": {"k": "organ", "o": "kidney", "a": "gen", "b": "fur", "g": ["Risk of kidney and ear injury", "خطر إصابة الكلى والأذن", 0.15, 0.85, ["Low", "قليل"], ["High", "عالي"]]}, "gen|van": {"k": "organ", "o": "kidney", "a": "gen", "b": "van", "g": ["Risk of kidney injury", "خطر إصابة الكلى", 0.2, 0.75, ["Low", "قليل"], ["High", "عالي"]]}, "gen|ibu": {"k": "organ", "o": "kidney", "a": "gen", "b": "ibu", "g": ["Risk of kidney injury", "خطر إصابة الكلى", 0.2, 0.7, ["Low", "قليل"], ["Higher", "أعلى"]]}, "fur|emp": {"k": "organ", "o": "kidney", "a": "emp", "b": "fur", "g": ["Risk of dehydration", "خطر الجفاف", 0.2, 0.7, ["Low", "قليل"], ["Higher", "أعلى"]]}, "pro|lid": {"k": "liver", "a": "lid", "b": "pro", "g": ["Lidocaine level", "مستوى الليدوكايين", 0.4, 0.8, ["Normal", "طبيعي"], ["High", "عالي"]]}});
+  Object.assign(IXS, {"dig|fur": {"k": "organ", "o": "heart", "a": "dig", "b": "fur", "g": ["Risk of digoxin toxicity", "خطر تسمم الديجوكسين", 0.15, 0.8, ["Low", "قليل"], ["High", "عالي"]]}, "clo|ome": {"k": "liver", "a": "clo", "b": "ome", "g": ["Active clopidogrel", "الكلوبيدوجريل الفعّال", 0.85, 0.35, ["Normal", "طبيعي"], ["Lower", "أقل"]]}, "clo|asp": {"k": "organ", "o": "stomach", "a": "clo", "b": "asp", "g": ["Bleeding risk", "خطر النزيف", 0.3, 0.75, ["Moderate", "متوسط"], ["High", "عالي"]]}, "riv|asp": {"k": "clot", "a": "riv", "b": "asp", "c": [7, 3, 0, 2, 3, 10], "g": ["Clotting ability", "قدرة التجلّط", 0.55, 0.1, ["Moderate", "متوسطة"], ["Very weak", "ضعيفة جدًا"]]}, "riv|ibu": {"k": "clot", "a": "riv", "b": "ibu", "c": [7, 3, 0, 3, 3, 8], "g": ["Clotting ability", "قدرة التجلّط", 0.55, 0.15, ["Moderate", "متوسطة"], ["Very weak", "ضعيفة جدًا"]]}, "ena|spi": {"k": "organ", "o": "kidney", "a": "ena", "b": "spi", "g": ["Potassium level", "مستوى البوتاسيوم", 0.3, 0.92, ["Normal", "طبيعي"], ["Dangerously high", "عالي بشكل خطير"]]}, "los|spi": {"k": "organ", "o": "kidney", "a": "los", "b": "spi", "g": ["Potassium level", "مستوى البوتاسيوم", 0.3, 0.8, ["Normal", "طبيعي"], ["High", "عالي"]]}, "los|ibu": {"k": "organ", "o": "kidney", "a": "los", "b": "ibu", "g": ["Risk of kidney injury", "خطر إصابة الكلى", 0.15, 0.65, ["Low", "قليل"], ["Higher", "أعلى"]]}, "hct|ibu": {"k": "organ", "o": "kidney", "a": "hct", "b": "ibu", "g": ["Diuretic effect", "تأثير المدر", 0.85, 0.4, ["Strong", "قوي"], ["Weaker", "أضعف"]]}, "mto|ins": {"k": "organ", "o": "heart", "a": "ins", "b": "mto", "g": ["Warning signs of low sugar", "علامات هبوط السكر", 0.85, 0.3, ["Clear (fast pulse, tremor)", "واضحة (نبض سريع ورعشة)"], ["Partly hidden", "مخبّية جزئيًا"]]}, "mto|sal": {"k": "bron", "a": "sal", "b": "mto", "g": ["Airway width", "اتساع الشعب", 0.9, 0.6, ["Wide", "واسعة"], ["Less wide", "أقل اتساعًا"]]}, "dia|mor": {"k": "organ", "o": "brain", "a": "dia", "b": "mor", "g": ["Breathing", "التنفس", 0.85, 0.2, ["Normal", "طبيعي"], ["Dangerously slow", "بطيء بشكل خطير"]]}, "dia|tra": {"k": "organ", "o": "brain", "a": "dia", "b": "tra", "g": ["Breathing", "التنفس", 0.85, 0.3, ["Normal", "طبيعي"], ["Very slow", "بطيء جدًا"]]}, "ser|asp": {"k": "organ", "o": "stomach", "a": "ser", "b": "asp", "g": ["Bleeding risk", "خطر النزيف", 0.25, 0.7, ["Low", "قليل"], ["Higher", "أعلى"]]}, "hal|ond": {"k": "organ", "o": "heart", "a": "ond", "b": "hal", "g": ["Risk of a dangerous rhythm", "خطر اضطراب نظم القلب", 0.1, 0.6, ["Low", "قليل"], ["High", "عالي"]]}, "hal|azi": {"k": "organ", "o": "heart", "a": "azi", "b": "hal", "g": ["Risk of a dangerous rhythm", "خطر اضطراب نظم القلب", 0.1, 0.5, ["Low", "قليل"], ["Higher", "أعلى"]]}, "war|cbz": {"k": "liver", "a": "war", "b": "cbz", "g": ["Warfarin level in the blood", "مستوى الوارفارين في الدم", 0.6, 0.2, ["Normal", "طبيعي"], ["Too low", "واطي جدًا"]]}, "cbz|flu": {"k": "liver", "a": "cbz", "b": "flu", "g": ["Carbamazepine level", "مستوى الكاربامازيبين", 0.4, 0.9, ["Normal", "طبيعي"], ["High", "عالي"]]}, "war|mtz": {"k": "liver", "a": "war", "b": "mtz", "g": ["Warfarin level in the blood", "مستوى الوارفارين في الدم", 0.4, 0.92, ["Normal", "طبيعي"], ["High", "عالي"]]}, "pre|ibu": {"k": "organ", "o": "stomach", "a": "pre", "b": "ibu", "g": ["Ulcer and bleeding risk", "خطر القرحة والنزيف", 0.3, 0.8, ["Low", "قليل"], ["High", "عالي"]]}, "ins|pre": {"k": "organ", "o": "panc", "a": "ins", "b": "pre", "g": ["Blood sugar", "سكر الدم", 0.5, 0.88, ["Controlled", "تحت السيطرة"], ["High", "عالي"]]}, "glb|pre": {"k": "organ", "o": "panc", "a": "glb", "b": "pre", "g": ["Blood sugar", "سكر الدم", 0.5, 0.85, ["Controlled", "تحت السيطرة"], ["High", "عالي"]]}, "mor|nlx": {"k": "organ", "o": "brain", "a": "mor", "b": "nlx", "good": true, "g": ["Breathing", "التنفس", 0.45, 0.9, ["Slowed", "مبطّأ"], ["Restored", "رجع طبيعي"]]}, "fur|gen": {"k": "organ", "o": "kidney", "a": "gen", "b": "fur", "g": ["Risk of kidney and ear injury", "خطر إصابة الكلى والأذن", 0.15, 0.85, ["Low", "قليل"], ["High", "عالي"]]}, "gen|van": {"k": "organ", "o": "kidney", "a": "gen", "b": "van", "g": ["Risk of kidney injury", "خطر إصابة الكلى", 0.2, 0.75, ["Low", "قليل"], ["High", "عالي"]]}, "gen|ibu": {"k": "organ", "o": "kidney", "a": "gen", "b": "ibu", "g": ["Risk of kidney injury", "خطر إصابة الكلى", 0.2, 0.7, ["Low", "قليل"], ["Higher", "أعلى"]]}, "fur|emp": {"k": "organ", "o": "kidney", "a": "emp", "b": "fur", "g": ["Risk of dehydration", "خطر الجفاف", 0.2, 0.7, ["Low", "قليل"], ["Higher", "أعلى"]]}, "pro|lid": {"k": "liver", "a": "lid", "b": "pro", "g": ["Lidocaine level", "مستوى الليدوكايين", 0.4, 0.8, ["Normal", "طبيعي"], ["High", "عالي"]]}});
   const ixKey = (x) => x[0] + '|' + x[1];
   function ixScene(x, wb) {
     const p = IXS[ixKey(x)], g = p.g, sev = x[2], A = dnm(p.a), B = dnm(p.b), lg = [], sets = [];
@@ -338,7 +362,7 @@ window.__pjourneyLoaded = true;
     if (!meshes) meshes = await loadMeshes();
     if (!xmeshes) {
       const C = window.CATALOG || [], packs = {}, M = {};
-      for (const id of ['Z_or_pancreas'].concat(bronchiIds())) { const c = C.find((x) => x.id === id); if (!c) continue; if (!packs[c.pk]) packs[c.pk] = await Packs.load(c.pk); const d = Packs.part(packs[c.pk], c.o), n = d.pos.length / 3, P = new Float32Array(n * 3), N = new Float32Array(n * 3); for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { P[i * 3 + k] = d.lo[k] + d.pos[i * 3 + k] / 65535 * d.span[k]; N[i * 3 + k] = d.nor[i * 3 + k] / 127; } M[id] = { P, N, I: d.idx }; }
+      for (const id of ['Z_or_pancreas'].concat(bronchiIds(), brainIds())) { const c = C.find((x) => x.id === id); if (!c) continue; if (!packs[c.pk]) packs[c.pk] = await Packs.load(c.pk); const d = Packs.part(packs[c.pk], c.o), n = d.pos.length / 3, P = new Float32Array(n * 3), N = new Float32Array(n * 3); for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { P[i * 3 + k] = d.lo[k] + d.pos[i * 3 + k] / 65535 * d.span[k]; N[i * 3 + k] = d.nor[i * 3 + k] / 127; } M[id] = { P, N, I: d.idx }; }
       xmeshes = M;
     }
     return Object.assign({}, meshes, xmeshes);
@@ -369,7 +393,7 @@ window.__pjourneyLoaded = true;
       if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
       gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true);
       let tc, D, yaw = st.yaw;
-      if (sc.kind === 'liver') { tc = [-.01, 1.14, .12]; D = .5; yaw += .25; } else if (sc.kind === 'clot') { tc = [.2, 1.02, .095]; D = .22; yaw += .1; } else { const O = ORG[sc.o]; tc = O.tc; D = O.d; }
+      if (sc.kind === 'liver') { tc = [-.01, 1.14, .12]; D = .5; yaw += .25; } else if (sc.kind === 'clot') { tc = [.2, 1.02, .095]; D = .22; yaw += .1; } else { const O = ORG[sc.o]; tc = O.tc; D = O.d; if (sc.o === 'brain') yaw += 1.0; }
       D *= 1.0;
       const eye = [tc[0] + D * Math.sin(yaw), tc[1] + .02, tc[2] + D * Math.cos(yaw)];
       gl.uniformMatrix4fv(U.uVP, false, mul(persp(.62, w / h, .02, 5), look(eye, tc, [0, 1, 0]))); gl.uniform3fv(U.uEye, eye); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -378,7 +402,7 @@ window.__pjourneyLoaded = true;
       if (sc.kind === 'organ') {
         const ids = orgIds(sc.o), isB = sc.o === 'bron';
         CTXIDS.forEach((id) => { if (!ids.includes(id)) draw(geo(id), COL[id] || [.7, .7, .7], .12); });
-        ids.forEach((id) => draw(geo(id), isB ? (sc.open ? [.35, .85, .6] : [.95, .45, .3]) : (COL[id] || [.85, .45, .4]), isB ? .9 : .5, isB ? (sc.open ? [0, .12, .06] : [.15, .03, 0]) : [.12, .05, .03]));
+        ids.forEach((id) => draw(geo(id), isB ? (sc.open ? [.35, .85, .6] : [.95, .45, .3]) : (sc.o === 'brain' ? [.86, .66, .7] : (COL[id] || [.85, .45, .4])), isB ? .9 : .5, isB ? (sc.open ? [0, .12, .06] : [.15, .03, 0]) : [.12, .05, .03]));
         gl.disable(gl.DEPTH_TEST);
         if (!sc.pts) sc.pts = sc.sets.map((s, i) => samp(ids, s.n, i * 5 + 1));
         sc.sets.forEach((s, si) => sc.pts[si].forEach((p, i) => {
@@ -416,12 +440,141 @@ window.__pjourneyLoaded = true;
     requestAnimationFrame(frame);
     return st;
   }
+  /* ───────── microscopic scenes: bacteria, virus, synapse, nerve (conceptual) ───────── */
+  function capData(rad, len, n) {
+    const P = [], N = [], I = [], rows = [];
+    for (let h = 0; h < 2; h++) for (let i = 0; i <= n; i++) rows.push([h ? Math.PI / 2 + i / n * Math.PI / 2 : i / n * Math.PI / 2, h ? -len / 2 : len / 2]);
+    rows.forEach((r) => { for (let j = 0; j <= n; j++) { const ph = j / n * 2 * Math.PI, cx = Math.cos(r[0]), sy = Math.sin(r[0]) * Math.cos(ph), sz = Math.sin(r[0]) * Math.sin(ph); P.push(rad * cx + r[1], rad * sy, rad * sz); N.push(cx, sy, sz); } });
+    for (let i = 0; i < rows.length - 1; i++) for (let j = 0; j < n; j++) { const a = i * (n + 1) + j, b = a + n + 1; I.push(a, b, a + 1, a + 1, b, b + 1); }
+    return { P: new Float32Array(P), N: new Float32Array(N), I: new Uint16Array(I) };
+  }
+  const MCOL = { body: [.35, .85, .55], wall: [.85, .92, 1], rib: [.9, .85, .4], prot: [.4, .95, .5], dna: [.55, .8, 1], red: [1, .3, .3], erg: [.95, .8, .4] };
+  const MIC = {
+    amx: { m: 'wall', lg: [[NATC, ['Cell-wall building blocks', 'مكوّنات بناء الجدار']]], g: ['Bacteria', 'البكتيريا', .9, .08, ['Growing', 'بتتكاثر'], ['Bursting and dying', 'بتنفجر وبتموت']] },
+    cef: { m: 'wall', lg: [[NATC, ['Cell-wall building blocks', 'مكوّنات بناء الجدار']]], g: ['Bacteria', 'البكتيريا', .9, .08, ['Growing', 'بتتكاثر'], ['Bursting and dying', 'بتنفجر وبتموت']] },
+    van: { m: 'wall', lg: [[NATC, ['Cell-wall building blocks', 'مكوّنات بناء الجدار']]], g: ['Bacteria', 'البكتيريا', .9, .08, ['Growing', 'بتتكاثر'], ['Bursting and dying', 'بتنفجر وبتموت']] },
+    dox: { m: 'ribo', lg: [[MCOL.rib, ['Ribosomes', 'الريبوسومات']], [MCOL.prot, ['New proteins', 'بروتينات جديدة']]], g: ['Protein making', 'تصنيع البروتين', .9, .08, ['Normal', 'طبيعي'], ['Stopped', 'واقف']] },
+    azi: { m: 'ribo', lg: [[MCOL.rib, ['Ribosomes', 'الريبوسومات']], [MCOL.prot, ['New proteins', 'بروتينات جديدة']]], g: ['Protein making', 'تصنيع البروتين', .9, .08, ['Normal', 'طبيعي'], ['Stopped', 'واقف']] },
+    gen: { m: 'ribo', faulty: true, lg: [[MCOL.rib, ['Ribosomes', 'الريبوسومات']], [MCOL.prot, ['Normal proteins', 'بروتينات سليمة']], [MCOL.red, ['Faulty proteins', 'بروتينات معيوبة']]], g: ['Working proteins', 'البروتينات السليمة', .9, .08, ['Normal', 'طبيعية'], ['Faulty', 'معيوبة']] },
+    cip: { m: 'dna', how: 'gyrase', lg: [[MCOL.dna, ['Bacterial DNA', 'DNA البكتيريا']]], g: ['DNA copying', 'نسخ الـ DNA', .9, .08, ['Normal', 'طبيعي'], ['Broken', 'متكسّر']] },
+    mtz: { m: 'dna', how: 'radical', lg: [[MCOL.dna, ['Microbe DNA', 'DNA الميكروب']], [MCOL.red, ['Reactive molecules', 'جزيئات نشطة']]], g: ['DNA damage', 'تلف الـ DNA', .08, .9, ['None', 'مفيش'], ['Heavy', 'شديد']] },
+    flu: { m: 'membrane', lg: [[MCOL.erg, ['Ergosterol (fungal membrane)', 'الإرجوستيرول (غشاء الفطر)']]], g: ['Fungal membrane', 'غشاء الفطر', .9, .15, ['Intact', 'سليم'], ['Leaking', 'بيسرّب']] },
+    acy: { m: 'copy', lg: [[MCOL.dna, ['Viral DNA', 'DNA الفيروس']], [MCOL.prot, ['New copy', 'النسخة الجديدة']]], g: ['Virus copies', 'نسخ الفيروس', .9, .15, ['Many', 'كتير'], ['Very few', 'قليل جدًا']] },
+    atr: { m: 'syn', target: 'receptor', lg: [[NATC, ['Acetylcholine', 'أستيل كولين']]], g: ['Signal to the muscle or gland', 'الإشارة للعضلة أو الغدة', .9, .12, ['Strong', 'قوية'], ['Blocked', 'متوقفة']] },
+    neo: { m: 'syn', target: 'enzyme', lg: [[NATC, ['Acetylcholine', 'أستيل كولين']], [GRNC, ['Cholinesterase enzyme', 'إنزيم الكولينستيريز']]], g: ['Signal to the muscle', 'الإشارة للعضلة', .35, .9, ['Weak', 'ضعيفة'], ['Stronger', 'أقوى']] },
+    lid: { m: 'pulse', lg: [[MCOL.prot, ['Sodium channels', 'قنوات الصوديوم']], [[1, .9, .5], ['Pain signal', 'إشارة الألم']]], g: ['Pain signal reaching the brain', 'إشارة الألم الواصلة للمخ', .9, .08, ['Strong', 'قوية'], ['Blocked', 'متوقفة']] },
+  };
+  Object.keys(MIC).forEach((k) => { W[k] = { o: 'micro', mic: MIC[k], g: MIC[k].g }; });
+  function microScene(d, wd) {
+    const w = W[d.k], m = w.mic, g = m.g, lg = [];
+    if (wd) lg.push([GOLDC, dn(d) + ' (' + T('the drug', 'الدوا') + ')']);
+    m.lg.forEach((x) => lg.push([x[0], T(x[1][0], x[1][1])]));
+    const cap = wd ? [T('How it works (conceptual, not to scale)', 'إزاي بيشتغل (توضيحي مش بالمقياس)'), T(d.mech[0], d.mech[1])] : [T('Without the drug', 'من غير الدوا'), T('What normally happens.', 'اللي بيحصل في الوضع الطبيعي.')];
+    return { kind: 'micro', m, wd, lg, gauge: { l: T(g[0], g[1]), v: wd ? g[3] : g[2], t: T((wd ? g[5] : g[4])[0], (wd ? g[5] : g[4])[1]), bad: false, good: wd }, cap };
+  }
+  function startMicro(cv, sc0) {
+    const gl = cv.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: false }) || cv.getContext('experimental-webgl');
+    if (!gl) throw new Error('no webgl');
+    const pr = gl.createProgram(); gl.attachShader(pr, sh(gl, gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl, gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr); gl.useProgram(pr);
+    const U = {}; ['uVP', 'uT', 'uC', 'uA', 'uE', 'uEye'].forEach((n) => { U[n] = gl.getUniformLocation(pr, n); });
+    const aP = gl.getAttribLocation(pr, 'aP'), aN = gl.getAttribLocation(pr, 'aN');
+    const buf = (t, d) => { const b = gl.createBuffer(); gl.bindBuffer(t, b); gl.bufferData(t, d, gl.STATIC_DRAW); return b; };
+    const mk = (d) => ({ bp: buf(gl.ARRAY_BUFFER, d.P), bn: buf(gl.ARRAY_BUFFER, d.N), bi: buf(gl.ELEMENT_ARRAY_BUFFER, d.I), n: d.I.length });
+    const draw = (m, col, a, em, off) => { gl.uniform3fv(U.uC, col); gl.uniform1f(U.uA, Math.max(0, Math.min(1, a))); gl.uniform3fv(U.uE, em || [0, 0, 0]); gl.uniform3fv(U.uT, off || [0, 0, 0]);
+      gl.bindBuffer(gl.ARRAY_BUFFER, m.bp); gl.enableVertexAttribArray(aP); gl.vertexAttribPointer(aP, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, m.bn); gl.enableVertexAttribArray(aN); gl.vertexAttribPointer(aN, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, m.bi); gl.drawElements(gl.TRIANGLES, m.n, gl.UNSIGNED_SHORT, 0); };
+    const G = { sm: mk(sphData(.005, 8)), md: mk(sphData(.009, 10)), lg: mk(sphData(.016, 12)), hx: mk(hexData(.014)), hs: mk(hexData(.009)), c0: mk(capData(.04, .1, 14)), c1: mk(capData(.052, .112, 14)), cw: mk(capData(.046, .106, 14)), host: mk(sphData(.075, 18)), term: mk(sphData(.06, 16)), post: mk(sphData(.07, 16)), ax: mk(capData(.012, .3, 10)), node: mk(sphData(.03, 12)) };
+    const st = { gl, dead: false, sc: sc0, yaw: 0 };
+    const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+    const cl = (v) => Math.max(0, Math.min(1, v));
+    const inCap = (i, s) => { const r = .028 * Math.sqrt(rnd(i * 3 + s + 1)), a = rnd(i * 5 + s + 2) * 6.283; return [(rnd(i * 7 + s + 3) - .5) * .085, r * Math.cos(a), r * Math.sin(a)]; };
+    const wallPt = (i) => { const a = rnd(i + 9) * 6.283; return [[(rnd(i) - .5) * .1, .046 * Math.cos(a), .046 * Math.sin(a)], [0, Math.cos(a), Math.sin(a)]]; };
+    const ring = (i, n) => { const a = i / n * 6.283; return [.036 * Math.cos(a), .026 * Math.sin(a), .007 * Math.sin(a * 3)]; };
+    function frame(now) {
+      if (st.dead || !cv.isConnected || cv.offsetParent === null) { if (scn === st) killScn(); return; }
+      const t = now / 1000, sc = st.sc, wd = sc.wd, m = sc.m, d = Math.min(window.devicePixelRatio || 1, 2), w = Math.max(2, Math.round(cv.clientWidth * d)), h = Math.max(2, Math.round(cv.clientHeight * d));
+      if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+      gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true);
+      const D = { wall: .36, ribo: .32, dna: .32, membrane: .36, copy: .34, syn: .84, pulse: .8 }[m.m] || .4, yaw = st.yaw + .35 * Math.sin(t * .25);
+      const eye = [D * Math.sin(yaw), .07, D * Math.cos(yaw)], tc = [0, 0, 0];
+      gl.uniformMatrix4fv(U.uVP, false, mul(persp(.62, w / h, .02, 5), look(eye, tc, [0, 1, 0]))); gl.uniform3fv(U.uEye, eye); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.disable(gl.DEPTH_TEST);
+      const em = (c, k) => [c[0] * k, c[1] * k, c[2] * k];
+      const S = (c, a, p, g) => draw(G.sm, c, a, em(c, g === undefined ? .3 : g), p), M = (c, a, p, g) => draw(G.md, c, a, em(c, g === undefined ? .35 : g), p), X = (p, a) => draw(G.hx, GOLDC, a === undefined ? .95 : a, em(GOLDC, .3), p);
+      if (m.m === 'wall') {
+        const u = (t / 8) % 1, sw = wd ? (u < .55 ? u / .55 : 1) : 0, bu = wd && u > .72 ? cl((u - .72) / .25) : 0;
+        draw(G.c0, MCOL.body, .42 * (1 - bu) * (1 - sw * .7), em(MCOL.body, .15));
+        draw(G.c1, MCOL.body, .32 * sw * (1 - bu), em(MCOL.body, .15));
+        draw(G.cw, wd ? [.85 + .15 * sw, .92 - .6 * sw, 1 - .7 * sw] : MCOL.wall, .3 * (1 - bu));
+        for (let i = 0; i < 8; i++) S(MCOL.rib, .85 * (1 - bu), inCap(i, 1), .2);
+        for (let i = 0; i < 8; i++) { const q = wallPt(i), s = q[0], o = q[1], k = (t * .28 + i / 8) % 1, a0 = [s[0], s[1] + o[1] * .075, s[2] + o[2] * .075];
+          let pos = lerp(a0, s, Math.min(1, k * 1.4)); if (wd) { const qq = k < .5 ? k / .5 * .7 : (1 - (k - .5) / .5) * .7; pos = lerp(a0, s, qq); } else if (k > .75) pos = s;
+          M(NATC, wd ? 1 : (k > .75 ? 1 - (k - .75) * 3 : 1), pos); }
+        if (wd) { for (let i = 0; i < 6; i++) X(wallPt(i)[0], 1 - bu); for (let i = 0; i < 20 && bu > 0; i++) { const a = rnd(i) * 6.283, b = rnd(i + 4) * 3.14, dd = bu * .1; S(MCOL.body, 1 - bu, [Math.cos(b) * dd * 1.2 + (rnd(i + 7) - .5) * .06, Math.sin(a) * Math.sin(b) * dd * .9, Math.cos(a) * Math.sin(b) * dd * .9], .3); } }
+      } else if (m.m === 'ribo') {
+        const u = (t / 8) % 1, dim = wd ? Math.min(1, u * 1.4) : 0;
+        draw(G.c0, wd ? [.35 + .2 * dim, .85 - .35 * dim, .55 - .1 * dim] : MCOL.body, .42 - .22 * dim, em(MCOL.body, .12));
+        draw(G.cw, MCOL.wall, .22);
+        for (let i = 0; i < 9; i++) { const p = inCap(i, 4); M(MCOL.rib, .95, p, .25);
+          if (wd) X(p, 1);
+          if (!wd || m.faulty) for (let j = 0; j < 4; j++) { const k = (t * .35 + i * .13 + j / 4) % 1, bad = wd && m.faulty; S(bad ? MCOL.red : MCOL.prot, 1 - k * .7, [p[0] + (rnd(i) - .5) * .02 * k, p[1] + .008 + k * .03, p[2] + (rnd(i + 3) - .5) * .02 * k + (bad ? Math.sin(t * 9 + j) * .005 : 0)], .3); } }
+      } else if (m.m === 'dna') {
+        const u = (t / 8) % 1, br = wd ? cl((u - .35) / .4) : 0;
+        draw(G.c0, MCOL.body, .36, em(MCOL.body, .12)); draw(G.cw, MCOL.wall, .2);
+        const n = 36;
+        for (let i = 0; i < n; i++) { const p = ring(i, n), o = [p[0], p[1], p[2]], j = rnd(i + 11); const q = [o[0] + (j - .5) * br * .06, o[1] + (rnd(i + 5) - .5) * br * .05, o[2] + (rnd(i + 8) - .5) * br * .05];
+          const hot = !wd && (((Math.floor(t * 7) - i) % n + n) % n) < 5; S(br > 0 ? [MCOL.dna[0] + (1 - MCOL.dna[0]) * br, MCOL.dna[1] * (1 - br * .7), MCOL.dna[2] * (1 - br * .7)] : hot ? [1, 1, 1] : MCOL.dna, 1, q, hot ? .6 : .3); }
+        if (wd && m.how === 'gyrase') [4, 16, 28].forEach((i) => X(ring(i, n)));
+        if (wd && m.how === 'radical') for (let i = 0; i < 6; i++) { const k = (t * .3 + i / 6) % 1, a = rnd(i) * 6.283, s = [.07 * Math.cos(a), .06 * Math.sin(a), .03], tg = ring(Math.floor(rnd(i + 2) * 36), 36); if (u < .55) draw(G.hx, GOLDC, .95, em(GOLDC, .3), lerp(s, [0, 0, 0], Math.min(1, k * 1.3))); else M(MCOL.red, 1 - k * .5, lerp([0, 0, 0], tg, k), .6); }
+      } else if (m.m === 'membrane') {
+        const u = (t / 8) % 1, f = wd ? cl(u * 1.2) : 0;
+        draw(G.c0, [.7, .55, .9], .4 * (1 - f * .45), em([.7, .55, .9], .12)); draw(G.cw, [.95, .8, .5], .26);
+        for (let i = 0; i < 34; i++) { const q = wallPt(i + 20), s = q[0], o = q[1], gone = wd && rnd(i + 50) < f, p = gone ? [s[0] + o[0] * f * .05, s[1] + o[1] * f * .05, s[2] + o[2] * f * .05] : [s[0] + o[0] * .004 * Math.sin(t * 3 + i), s[1] + o[1] * .004 * Math.sin(t * 3 + i), s[2] + o[2] * .004 * Math.sin(t * 3 + i)];
+          S(MCOL.erg, gone ? 1 - f * .6 : 1, p, .35); }
+        if (wd) { for (let i = 0; i < 5; i++) X(wallPt(i + 60)[0]); for (let i = 0; i < 14; i++) { const k = (t * .25 + i / 14) % 1, q = wallPt(i + 80), s = q[0], o = q[1]; S([.8, .9, 1], f * (1 - k), [s[0] + o[0] * k * .08, s[1] + o[1] * k * .08, s[2] + o[2] * k * .08], .3); } }
+      } else if (m.m === 'copy') {
+        const u = (t / 7) % 1, n = wd ? Math.min(8, Math.floor(u * 29)) : Math.min(24, Math.floor(u * 29));
+        draw(G.host, [.9, .65, .6], .2, em([.9, .65, .6], .1));
+        for (let i = 0; i < 24; i++) S(MCOL.dna, 1, [-.046 + i * .004, -.012, 0], .3);
+        for (let i = 0; i < n; i++) S(MCOL.prot, 1, [-.046 + i * .004, .012, 0], .3);
+        if (wd) { M(MCOL.red, 1, [-.046 + n * .004, .012, 0], .6); draw(G.hx, GRNC, .9, em(GRNC, .3), [-.046 + n * .004, .028, 0]); for (let i = 0; i < 5; i++) { const k = (t * .3 + i / 5) % 1; X([-.03 + i * .018, .045 + .01 * Math.sin(t * 2 + i), .01], 1 - k * .3); } }
+        else draw(G.hx, GRNC, .9, em(GRNC, .3), [-.046 + n * .004, .028, 0]);
+      } else if (m.m === 'syn') {
+        const rc = m.target === 'receptor', glow = rc ? (wd ? .05 : 1) : (wd ? 1 : .35), pul = .6 + .4 * Math.sin(t * 5);
+        draw(G.term, [.95, .85, .5], .3, em([.95, .85, .5], .1), [-.16, 0, 0]);
+        draw(G.post, [.9, .5, .5], .38, [.5 * glow * pul, .1 * glow * pul, .1 * glow * pul], [.16, 0, 0]);
+        const ys = [-.05, -.025, 0, .025, .05];
+        ys.forEach((y) => { draw(G.hs, wd && rc ? GOLDC : [.9, .7, .7], 1, em(GOLDC, wd && rc ? .3 : .1), [.082, y, 0]); });
+        if (!rc) ys.slice(0, 3).forEach((y, i) => { draw(G.hs, wd ? GOLDC : GRNC, .95, em(wd ? GOLDC : GRNC, .3), [-.005, -.04 + i * .04, -.03]); });
+        for (let i = 0; i < 9; i++) { const k = (t * .26 + i / 9) % 1, y = ys[i % 5] + (rnd(i) - .5) * .01, x0 = -.1, x1 = .07;
+          let x = x0 + (x1 - x0) * k, a = 1;
+          if (rc && wd && k > .8) x = x1 - (k - .8) * 4 * .06;
+          if (!rc && !wd && k > .45) a = Math.max(0, 1 - (k - .45) * 5);
+          M(NATC, a, [x, y, (rnd(i + 3) - .5) * .03], .4); }
+        if (!rc && wd) for (let i = 0; i < 6; i++) M(NATC, .85, [.06 + (rnd(i) - .5) * .012, (rnd(i + 2) - .5) * .1, (rnd(i + 5) - .5) * .03], .4);
+      } else if (m.m === 'pulse') {
+        const p = (t * .3) % 1, x = -.16 + p * .34, blk = wd && x > -.015, a = blk ? Math.max(0, 1 - (x + .015) / .035) : 1;
+        draw(G.node, [1, .6, .5], .4, [.25, .05, .03], [-.2, 0, 0]);
+        draw(G.ax, [.8, .85, 1], .4, [.05, .06, .1]);
+        draw(G.node, [.9, .6, .7], .4, wd ? [0, 0, 0] : [.3 * (.6 + .4 * Math.sin(t * 5)), .1, .1], [.2, 0, 0]);
+        for (let i = 0; i < 7; i++) { const cx = -.12 + i * .04, cov = wd && cx > -.03 && cx < .09; draw(G.hs, cov ? GOLDC : GRNC, 1, em(cov ? GOLDC : GRNC, .3), [cx, .02, 0]); if (cov) draw(G.hs, GOLDC, 1, em(GOLDC, .3), [cx, -.02, 0]); }
+        draw(G.lg, [1, .95, .55], a, [.6, .5, .1], [x, 0, 0]);
+      }
+      requestAnimationFrame(frame);
+    }
+    let dx = null; cv.addEventListener('pointerdown', (e) => { cv.setPointerCapture(e.pointerId); dx = e.clientX; });
+    cv.addEventListener('pointermove', (e) => { if (dx === null) return; st.yaw = Math.max(-1.2, Math.min(1.2, st.yaw + (e.clientX - dx) * 0.008)); dx = e.clientX; });
+    const up = () => { dx = null; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    requestAnimationFrame(frame);
+    return st;
+  }
   const gaugeHtml = (g) => `<div class="pjg"><span>${esc(g.l)} — <b>${esc(g.t)}</b></span><div class="b"><i style="width:${Math.round(g.v * 100)}%;background:${g.bad ? '#ff6b6b' : '#3fd67a'}"></i></div></div>`;
   const legHtml = (lg) => `<div class="pjleg">${lg.map((x) => `<span><i style="background:${css3(x[0])}"></i>${esc(x[1])}</span>`).join('')}</div>`;
   const capHtml = (c) => `<div class="pjcap"><small>${esc(c[0])}</small><span>${esc(c[1])}</span></div>`;
   function paintScene(sc, ids) { const gg = $(ids[0]), lg = $(ids[1]), cc = $(ids[2]); if (gg) gg.innerHTML = gaugeHtml(sc.gauge); if (lg) lg.innerHTML = legHtml(sc.lg); if (cc) cc.innerHTML = capHtml(sc.cap); }
   function mountScene(canvasId, sc, ids) {
     const cv = $(canvasId), msg = $('pjsmsg'); if (!cv) return; paintScene(sc, ids);
+    if (sc.kind === 'micro') { killScn(); try { scn = startMicro(cv, sc); if (msg) msg.remove(); } catch (e) { if (msg) msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); } return; }
     needMeshes().then((M) => { if (!cv.isConnected) return; killScn(); try { scn = startScene(cv, M, sc); if (msg) msg.remove(); } catch (e) { if (msg) msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); } })
       .catch(() => { if (msg && msg.isConnected) msg.textContent = T('Could not load the models — they need an internet connection the first time.', 'مقدرناش نحمّل المجسمات — أول مرة بتحتاج إنترنت.'); });
   }
