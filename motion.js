@@ -167,7 +167,7 @@ if (!window.__motionLoaded) (() => {
       const xf = {}; Object.keys(M.chain).forEach((i) => { xf[i] = chainXf(M.chain[i], M.a0 + (M.a1 - M.a0) * k); M.bones.forEach(() => 0); const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: xf[i].rot, piv: xf[i].piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
       M.muscles.forEach((r) => { const it = X().itemOf[r.q.i]; if (!it) return; const x = xf[r.bone] || { rot: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]), piv: [0, 0, 0] }, d = vsub(r.ins, r.org);
         it.anim = r.rigid ? { mode: 1, rot: x.rot, piv: x.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] } : { mode: 2, k: REACH, rot: x.rot, piv: x.piv, a: r.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))] };
-        const s = M.agonist ? 1 - k : k; it.tint = [1, 0.22 + 0.62 * s, 0.22 + 0.6 * s, 0.12 + 0.6 * s]; });
+        const s = M.agonist ? 1 - k : k; it.tint = M.sim && M.sim.on ? [0.72, 0.72, 0.74, 0.92] : [1, 0.22 + 0.62 * s, 0.22 + 0.6 * s, 0.12 + 0.6 * s]; });
       M.th = k; const sl = $('movsl'); if (sl && document.activeElement !== sl) sl.value = Math.round(k * 100); A.redraw(); return;
     }
     const phi = (M.cfg.ax === 'x' ? M.cfg.s : (M.cfg.s || 1) * (M.side < 0 ? -1 : 1)) * a * Math.PI / 180, m = rotM(M.ax, phi);
@@ -176,7 +176,7 @@ if (!window.__motionLoaded) (() => {
       const it = X().itemOf[r.q.i]; if (!it) return; const d = vsub(r.ins, r.org);
       it.anim = r.rigid ? { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] } : { mode: 2, k: REACH, rot: m, piv: M.piv, a: r.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))] };
       const s = M.agonist ? 1 - k : k;   // the muscle that performs the movement is shortest (red) at the end of the range, stretched (pale) at the start; antagonists the opposite
-      it.tint = [1, 0.22 + 0.62 * s, 0.22 + 0.6 * s, 0.12 + 0.6 * s];
+      it.tint = M.sim && M.sim.on ? [0.72, 0.72, 0.74, 0.92] : [1, 0.22 + 0.62 * s, 0.22 + 0.6 * s, 0.12 + 0.6 * s];
     });
     M.th = k; const rd = $('movdeg'); if (rd) rd.textContent = Math.abs(Math.round(a)) + '°';
     const sl = $('movsl'); if (sl && document.activeElement !== sl) sl.value = Math.round(k * 100);
@@ -221,12 +221,20 @@ if (!window.__motionLoaded) (() => {
     bar.innerHTML = `<div class="mvt">${esc(mvo ? T(mvo.en, mvo.ar) : '')}</div><div class="mvr"><button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><button data-act="movend">✕</button></div>`;
     $('app').appendChild(bar);
     $('movsl').addEventListener('input', (ev) => { S.mov.play = false; $('movpl').textContent = '▶'; applyMove(+ev.target.value / 100); });
-    const tick = (now) => { if (!S.mov) return; if (S.mov.play) { const ph = ((now - S.mov.t0) / 3000) % 2, k = ph < 1 ? ph : 2 - ph; applyMove(k * k * (3 - 2 * k)); } movRaf = requestAnimationFrame(tick); };
+    const tick = (now) => { if (!S.mov) return; const sm = S.mov.sim; if (sm && sm.on) { const ph = ((now - S.mov.t0) / 2400) % 1, att = Math.max(0, Math.sin(ph * Math.PI * 2)) * (0.75 + 0.25 * Math.sin(now / 55)); applyMove(sm.k0 + sm.amp * att); } else if (S.mov.play) { const ph = ((now - S.mov.t0) / 3000) % 2, k = ph < 1 ? ph : 2 - ph; applyMove(k * k * (3 - 2 * k)); } movRaf = requestAnimationFrame(tick); };
     movRaf = requestAnimationFrame(tick);
   }
   A.acts.actmv = (el) => startMove(el.dataset.id);
   A.acts.movplay = () => { if (!S.mov) return; S.mov.play = !S.mov.play; if (S.mov.play) S.mov.t0 = performance.now() - 1500 * S.mov.th; $('movpl').textContent = S.mov.play ? '⏸' : '▶'; };
-  A.acts.movend = () => { stopMove(); S.focus = null; A.apply(); if (A.renderChips) A.renderChips(); };
+  /* lesion simulator: the weak muscle stays grey and the joint cannot do the movement (it rests in the "drop" posture and only twitches); a toggle shows the healthy movement for comparison */
+  A.movSim = async (mvId, e, sim) => {
+    S.sel = e.i; await startMove(mvId); const M = S.mov; if (!M) return false;
+    M.sim = { k0: sim.k0, amp: sim.amp, on: true }; M.play = false; applyMove(sim.k0);
+    const bar = $('movbar'); if (bar) { bar.querySelector('.mvt').textContent = sim.title || ''; const sl = $('movsl'), pl = $('movpl'); if (sl) sl.style.display = 'none'; if (pl) { pl.style.display = ''; pl.dataset.act = 'simtoggle'; pl.textContent = '🩺'; pl.title = T('Lesion / healthy', 'مصاب / سليم'); } }
+    return true;
+  };
+  A.acts.simtoggle = () => { const M = S.mov; if (!M || !M.sim) return; M.sim.on = !M.sim.on; M.play = !M.sim.on; M.t0 = performance.now(); const pl = $('movpl'); if (pl) pl.textContent = M.sim.on ? '🩺' : '✅'; const t = document.querySelector('#movbar .mvt'); if (t) t.dataset.h = M.sim.on ? '' : '1'; if (M.sim.on) applyMove(M.sim.k0); };
+  A.acts.movend = () => { stopMove(); S.focus = null; S.hl = null; A.apply(); if (A.renderChips) A.renderChips(); };
 
   /* ───────────── hooks: panel section, chip, spot sync ───────────── */
   const movesOf = (e) => (e.mv || []).map((id) => (window.MOVES || []).find((m) => m.id === id)).filter(Boolean);
