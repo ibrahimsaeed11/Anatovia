@@ -139,7 +139,7 @@ const CL = [
   const newRound = () => { deck = shuffle(CL.map((_, i) => i)).slice(0, ROUND); idx = 0; score = 0; ans = null; order = shuffle([0, 1, 2, 3]); };
   function html() {
     if (!deck.length) newRound();
-    const head = `<h2>🩻 ${T('Clinical anatomy cases', 'حالات تشريح إكلينيكي')}</h2><p class="tiny">${T('Draft content – to be reviewed by a physician before being relied on.', 'محتوى مسودة – محتاج مراجعة دكتور قبل الاعتماد عليه.')}</p>`;
+    const head = `<h2>🩻 ${T('Clinical anatomy cases', 'حالات تشريح إكلينيكي')}</h2><button class="btn p wide" style="margin:2px 0 8px" data-act="clhunt">🎯 ${T('Find the lesion on the 3D model', 'دوّر على الإصابة على المجسم')} ${A.isPremium() ? '' : '🔒'}</button><p class="tiny">${T('Draft content – to be reviewed by a physician before being relied on.', 'محتوى مسودة – محتاج مراجعة دكتور قبل الاعتماد عليه.')}</p>`;
     if (idx >= deck.length) {
       const pc = Math.round(score / deck.length * 100);
       return head + `<div class="pjcurve" style="text-align:center;padding:18px 12px"><div dir="ltr" style="font-size:34px;font-weight:800;margin:6px 0">${score} / ${deck.length}</div><p>${pc >= 80 ? T('Excellent!', 'ممتاز!') : pc >= 50 ? T('Good – review the missed ones.', 'كويس – راجع اللي غلطت فيه.') : T('Keep practising.', 'كمّل تدريب.')}</p><button class="btn p" data-act="clrestart">${T('New round', 'جولة جديدة')}</button></div>`;
@@ -179,5 +179,52 @@ const CL = [
     X().cam.flyTo([cen[0], Math.max(0.05, cen[1]), cen[2]], Math.max(0.5, ext * 1.5 + 0.3), null, 0.1);
     A.apply(); A.toast(T('Showing the structures – "Show all" restores the view', 'عرض التراكيب المعنية — زر «إظهار الكل» يرجّع العرض'), 4200);
   };
+
+  /* ─────────── "Find the lesion": read the case, then tap the injured structure on the 3D model ─────────── */
+  const SYSL = { nerve: ['a nerve', 'عصب'], vessel: ['a blood vessel', 'وعاء دموي'], muscle: ['a muscle', 'عضلة'], bone: ['a bone', 'عظمة'], ligament: ['a ligament', 'رباط'], organ: ['an organ', 'عضو'], brain: ['a brain structure', 'تركيب في المخ'] };
+  const SKIP = [12, 24, 26, 27];   // cases whose target is not modelled (recurrent laryngeal nerve, deep inguinal ring…) or is not a single structure
+  const css = document.createElement('style');
+  css.textContent = '#hntbar{position:absolute;left:50%;transform:translateX(-50%);top:104px;z-index:31;display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:10px 14px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:0 6px 24px rgba(0,0,0,.35);max-width:calc(100vw - 96px);width:420px;font-size:13px}#hntbar .hq{font-weight:700;line-height:1.7}#hntbar .hs{opacity:.7;font-size:12px}#hntbar .hmsg{line-height:1.7}#hntbar .hr{display:flex;gap:8px;align-items:center;justify-content:center}#hntbar button{border:0;background:var(--surface2);color:inherit;min-width:38px;height:34px;padding:0 12px;border-radius:17px;font-size:14px;cursor:pointer}#hntbar button.p{background:var(--accent,#e9b949);color:#1a1a1a;font-weight:700}';
+  document.head.appendChild(css);
+  let H = null;
+  const bar = (h) => { let b = $('hntbar'); if (!b) { b = document.createElement('div'); b.id = 'hntbar'; $('app').appendChild(b); } b.innerHTML = h; };
+  const stopHunt = () => { H = null; const b = $('hntbar'); if (b) b.remove(); S.hl = null; A.apply(); };
+  const base = (e) => e.baseEn || e.en;
+  const target = (c, sd) => { const re = new RegExp(c[3][0], 'i'); let l = P.filter((e) => re.test(base(e)) && (e.side === sd || (e.side !== 'r' && e.side !== 'l'))); if (!l.length) l = P.filter((e) => re.test(base(e))); return l; };
+  const hdr = () => `<div class="hs">${T('Find the lesion', 'دوّر على الإصابة')} · ${T('Case', 'حالة')} ${H.i + 1}/${H.deck.length} · ${T('Score', 'النتيجة')} ${H.score}</div>`;
+  function huntCase() {
+    const c = CL[H.deck[H.i]], q = pair(c[0]); H.tries = 0; H.hint = 0; H.done = false; S.hl = null; A.apply();
+    bar(hdr() + `<div class="hq">${esc(T(q[0], q[1]))}</div><div class="hmsg" id="hntmsg">👆 ${T('Tap the injured structure on the model (peel the layers from the bottom chips if you need to).', 'دوس على التركيب المصاب في المجسم (قشّر الطبقات من الأزرار اللي تحت لو محتاج).')}</div><div class="hr"><button data-act="hnthint" title="${T('Hint (−1 point)', 'تلميح (−1 نقطة)')}">💡</button><button data-act="hntskip" title="${T('Skip', 'تخطّي')}">⏭</button><button data-act="hntend">✕</button></div>`);
+  }
+  async function huntStart() {
+    if (!A.isPremium()) return A.paywall('Find-the-lesion is part of Premium (it needs nerves, vessels and ligaments).', 'دوّر على الإصابة ضمن النسخة المميزة (محتاجة الأعصاب والأوعية والأربطة).');
+    A.closeModal(); S.sel = -1; A.deselect();
+    for (const s of ['bone', 'nerve', 'vessel', 'ligament', 'organ', 'muscle']) { S.layers[s] = s === 'muscle' ? 'ghost' : 'on'; try { await A.ensure(s); } catch (e) { /* ignore */ } }
+    S.region = null; S.iso = -1; S.focus = null; S.moveSet = null; S.hidden = new Set();
+    H = { deck: shuffle(CL.map((_, i) => i).filter((i) => !SKIP.includes(i))).slice(0, 8), i: 0, score: 0, tries: 0, hint: 0, done: false };
+    X().cam.reset(); huntCase();
+  }
+  function reveal(c, sd, pts, why) {
+    const hit = target(c, sd), hl = new Map(); hit.forEach((e) => hl.set(e.i, pts > 0 ? [0.25, 0.95, 0.45, 0.95] : [1, 0.55, 0.2, 0.95]));
+    S.hl = hl; A.apply(); if (hit[0]) A.flyToPart(hit[0]); H.done = true; H.score += pts;
+    const last = H.i + 1 >= H.deck.length;
+    bar(hdr() + `<div class="hq">${pts > 0 ? '✅' : '👀'} ${esc(why)}</div><div class="hmsg">${esc(tt(c[2]))}</div><div class="hr"><button class="p" data-act="hntnext">${last ? T('Finish', 'إنهاء') : T('Next case', 'الحالة اللي بعدها')}</button><button data-act="hntend">✕</button></div>`);
+  }
+  function huntTap(e) {
+    const c = CL[H.deck[H.i]], sd = e.side === 'r' || e.side === 'l' ? e.side : 'r', nm = (A.name1 && A.name1(e)) || e.en;
+    if (new RegExp(c[3][0], 'i').test(base(e))) { const pts = Math.max(1, 3 - H.tries - H.hint); return reveal(c, sd, pts, T('Correct! +', 'صح! +') + pts); }
+    H.tries++; const m = $('hntmsg'); if (!m) return;
+    if (H.tries >= 3) return reveal(c, c[4] || 'r', 0, T('Here is the structure.', 'ده التركيب المقصود.'));
+    let extra = '';
+    if (H.tries === 1) { const sl = SYSL[(target(c, c[4] || 'r')[0] || {}).sys]; if (sl) extra = ' ' + T('Hint: it is ' + sl[0] + '.', 'تلميح: هو ' + sl[1] + '.'); }
+    else { const t0 = target(c, c[4] || 'r')[0]; if (t0) X().cam.flyTo(t0.c, 1.0, null, 0.1); extra = ' ' + T('Look in this area.', 'بص في المنطقة دي.'); }
+    m.textContent = '✖ ' + nm + ' — ' + T('not it.', 'مش هو.') + extra + ' (' + (3 - H.tries) + ' ' + T('tries left', 'محاولات متبقية') + ')';
+  }
+  A.acts.clhunt = huntStart;
+  A.acts.hntnext = () => { if (!H) return; H.i++; if (H.i >= H.deck.length) { const mx = H.deck.length * 3; bar(`<div class="hq">🎯 ${T('Round finished', 'خلصت الجولة')}: ${H.score} / ${mx}</div><div class="hmsg">${H.score >= mx * 0.8 ? T('Excellent localisation!', 'تحديد ممتاز!') : H.score >= mx * 0.5 ? T('Good – review the missed cases.', 'كويس – راجع الحالات اللي فاتتك.') : T('Keep practising – try the multiple-choice mode to review the explanations.', 'كمّل تدريب – جرّب وضع الاختيارات عشان تراجع الشروحات.')}</div><div class="hr"><button class="p" data-act="clhunt">${T('New round', 'جولة جديدة')}</button><button data-act="hntend">✕</button></div>`); S.hl = null; A.apply(); return; } huntCase(); };
+  A.acts.hnthint = () => { if (!H || H.done) return; const c = CL[H.deck[H.i]], t0 = target(c, c[4] || 'r')[0]; if (!t0) return; H.hint = Math.min(2, H.hint + 1); const m = $('hntmsg'); if (!m) return; if (H.hint === 1) { const sl = SYSL[t0.sys]; m.textContent = '💡 ' + T('It is ' + (sl ? sl[0] : 'a structure') + '.', 'هو ' + (sl ? sl[1] : 'تركيب') + '.'); } else { X().cam.flyTo(t0.c, 1.0, null, 0.1); m.textContent = '💡 ' + T('Look in this area.', 'بص في المنطقة دي.'); } };
+  A.acts.hntskip = () => { if (!H || H.done) return; const c = CL[H.deck[H.i]]; reveal(c, c[4] || 'r', 0, T('Skipped – here is the structure.', 'اتخطّت – ده التركيب.')); };
+  A.acts.hntend = stopHunt;
+  waitFor(() => A.onTap, () => { const prev = A.onTap; A.onTap = (x, y) => { if (H && !H.done) { const idx = X().R.pick(X().cam, x, y); if (idx >= 0 && P[idx]) huntTap(P[idx]); return true; } return prev(x, y); }; });
   waitFor(() => A.hubExtra && A.modal, () => { A.hubExtra.clin = open; });
 })();
