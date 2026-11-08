@@ -96,6 +96,7 @@ if (!window.__motionLoaded) (() => {
     neck_flex: { j: 'neck', ax: 'x', s: 1, a: [0, 45], yaw: 1.5708 }, neck_ext: { j: 'neck', ax: 'x', s: 1, a: [0, -40], yaw: 1.5708 },
     trunk_flex: { j: 'trunk', ax: 'x', s: 1, a: [0, 60], yaw: 1.5708 }, trunk_ext: { j: 'trunk', ax: 'x', s: 1, a: [0, -30], yaw: 1.5708 }, trunk_rot: { j: 'trunk', ax: 'y', s: 1, a: [0, 40] },
     jaw_close: { j: 'jaw', ax: 'x', s: 1, a: [25, 0], yaw: 1.5708 }, breath_in: { j: 'breath', ax: 'x', s: -1, a: [0, 12], yaw: 1.5708 },
+    finger_flex: { j: 'fingers', chain: 'finger', a: [0, 1], yaw: 1.2 }, finger_ext: { j: 'fingers', chain: 'finger', a: [1, -0.25], yaw: 1.2 }, thumb_opp: { j: 'thumbj', chain: 'thumb', a: [0, 1], yaw: 1.2 },
     scap_pro: { j: 'scap', ax: 'y', s: -1, a: [0, 15], pivProx: true }, scap_ret: { j: 'scap', ax: 'y', s: -1, a: [0, -15], pivProx: true },
     foot_inv: { j: 'subtalar', ax: 'z', s: 1, a: [0, 20] }, foot_ev: { j: 'subtalar', ax: 'z', s: 1, a: [0, -15] },
   };
@@ -112,15 +113,63 @@ if (!window.__motionLoaded) (() => {
     jaw: { axial: true, prox: /temporal bone/i, mv: (q) => /mandible|^lower/i.test(q.en), dist: .55 },
     breath: { axial: true, prox: /vertebra T[5-8]\b/i, mv: (q) => /^rib|costal cartilage|sternum|manubrium|xiphoid/i.test(q.en), dist: 2.4 },
     scap: { axial: true, prox: /vertebra T[3-5]\b/i, mv: (q, sd) => q.reg === 'upper' && sideOf(q) === sd, dist: 2.0 },
+    fingers: { prox: /carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate|metacarpal/i, mv: (q) => /phalanx/i.test(q.en) && /index|middle finger|ring|little finger/i.test(q.en), dist: .5 },
+    thumbj: { prox: /carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate|metacarpal [2-5]/i, mv: (q) => /thumb|metacarpal 1\b/i.test(q.en), dist: .5 },
     subtalar: { prox: /talus/i, mv: (q) => /calcaneus|navicular|cuboid|cuneiform|metatars|phalan/i.test(q.en), dist: 1.0 },
   };
   const FOOT = /toe|metatars|talus|calcaneus|navicular|cuboid|cuneiform|sesamoid/i, HAND = /finger|thumb|carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate/i;   // a name match like 'phalan' must never pull hand bones into a leg movement or toe bones into an arm one
-  const UPJ = new Set(['shoulder', 'elbow', 'forearm', 'wrist', 'scap']), LOJ = new Set(['hip', 'knee', 'ankle', 'subtalar']);
+  const UPJ = new Set(['fingers', 'thumbj', 'shoulder', 'elbow', 'forearm', 'wrist', 'scap']), LOJ = new Set(['hip', 'knee', 'ankle', 'subtalar']);
+  /* chain-of-joints (fingers, thumb): every bone moves with the joints proximal to it. A rigid motion p→R·p+t is sent to the shader as a rotation about a pivot (the translation along the axis is dropped). */
+  const m3mul = (A, B) => A.map((r, i) => [0, 1, 2].map((j) => r[0] * B[0][j] + r[1] * B[1][j] + r[2] * B[2][j]));
+  const m3vec = (A, v) => A.map((r) => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
+  const rot3 = (k, th) => { const c = Math.cos(th), s = Math.sin(th), t = 1 - c, [x, y, z] = k; return [[t * x * x + c, t * x * y - s * z, t * x * z + s * y], [t * x * y + s * z, t * y * y + c, t * y * z - s * x], [t * x * z - s * y, t * y * z + s * x, t * z * z + c]]; };
+  const inv3 = (m) => { const [[a, b, c], [d, e, f], [g, h, i]] = m, A = e * i - f * h, B = f * g - d * i, C = d * h - e * g, det = a * A + b * B + c * C || 1e-9;
+    return [[A / det, (c * h - b * i) / det, (b * f - c * e) / det], [B / det, (a * i - c * g) / det, (c * d - a * f) / det], [C / det, (b * g - a * h) / det, (a * e - b * d) / det]]; };
+  function chainXf(steps, f) {   // steps: [{c, ax, ang(f)}] outermost joint first; the bone sits after the last step
+    let R = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], t = [0, 0, 0];
+    for (let k = steps.length - 1; k >= 0; k--) { const st = steps[k], Rk = rot3(st.ax, st.ang(f) * Math.PI / 180), c = st.c; t = vadd(c, m3vec(Rk, vsub(t, c))); R = m3mul(Rk, R); }
+    const th = Math.acos(Math.max(-1, Math.min(1, (R[0][0] + R[1][1] + R[2][2] - 1) / 2)));
+    const rot = new Float32Array([R[0][0], R[1][0], R[2][0], R[0][1], R[1][1], R[2][1], R[0][2], R[1][2], R[2][2]]);
+    if (th < 1e-4) return { rot, piv: [0, 0, 0] };
+    const a = vnorm([R[2][1] - R[1][2], R[0][2] - R[2][0], R[1][0] - R[0][1]]);
+    const M = [[1 - R[0][0] + a[0] * a[0], -R[0][1] + a[0] * a[1], -R[0][2] + a[0] * a[2]], [-R[1][0] + a[1] * a[0], 1 - R[1][1] + a[1] * a[1], -R[1][2] + a[1] * a[2]], [-R[2][0] + a[2] * a[0], -R[2][1] + a[2] * a[1], 1 - R[2][2] + a[2] * a[2]]];
+    const tp = vsub(t, vmul(a, vdot(t, a)));
+    return { rot, piv: m3vec(inv3(M), tp) };
+  }
+  const joinC = (qa, qb) => { const A = bverts(qa), B = bverts(qb); let m = 9, pa = null, pb = null; A.forEach((a) => { for (const b of B) { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } } }); return vmul(vadd(pa, pb), 0.5); };
+  function buildChain(kind, side, hand) {   // → { i: steps[] } for every moving bone
+    const by = (re) => hand.find((q) => re.test(q.en)), out = {};
+    const AX = [1, 0, 0], sd = side < 0 ? 1 : -1;   // sd = +1 for the right hand, whose medial side is +x
+    if (kind === 'finger') {
+      [['Index', 2, 1], ['Middle', 3, 1.05], ['Ring', 4, 1.1], ['Little', 5, 1.15]].forEach(([nm, mc, g]) => {
+        const m = by(new RegExp('Metacarpal ' + mc + '\\b', 'i')), p = by(new RegExp('Proximal phalanx – ' + nm + ' finger', 'i')), d = by(new RegExp('Middle phalanx – ' + nm + ' finger', 'i')), e = by(new RegExp('Distal phalanx – ' + nm + ' finger', 'i'));
+        if (!m || !p || !d || !e) return;
+        const c1 = joinC(m, p), c2 = joinC(p, d), c3 = joinC(d, e);
+        const S1 = { c: c1, ax: AX, ang: (f) => -85 * g * f }, S2 = { c: c2, ax: AX, ang: (f) => -100 * Math.max(0, f) }, S3 = { c: c3, ax: AX, ang: (f) => -62 * Math.max(0, f) };
+        out[p.i] = [S1]; out[d.i] = [S1, S2]; out[e.i] = [S1, S2, S3];
+      });
+    } else {
+      const tz = by(/Trapezium/i), m = by(/Metacarpal 1\b/i), p = by(/Proximal phalanx – Thumb/i), d = by(/Distal phalanx – Thumb/i);
+      if (tz && m && p && d) {
+        const c1 = joinC(tz, m), c2 = joinC(m, p), c3 = joinC(p, d);
+        const A1 = { c: c1, ax: AX, ang: (f) => -30 * f }, A2 = { c: c1, ax: [0, 0, 1], ang: (f) => -sd * 20 * f }, B = { c: c2, ax: AX, ang: (f) => -20 * f }, C = { c: c3, ax: AX, ang: (f) => -15 * f };
+        out[m.i] = [A1, A2]; out[p.i] = [A1, A2, B]; out[d.i] = [A1, A2, B, C];
+      }
+    }
+    return out;
+  }
   const REACH = 0.55;   // only the part of the muscle beyond this fraction (towards the insertion) follows the moving bone; the belly stays anchored to the body
   let movRaf = 0;
   function stopMove() { if (movRaf) cancelAnimationFrame(movRaf); movRaf = 0; X().R.items.forEach((it) => { it.anim = null; }); S.mov = null; const b = $('movbar'); if (b) b.remove(); A.redraw(); }
   function applyMove(k) {
     const M = S.mov; if (!M) return; const a = M.a0 + (M.a1 - M.a0) * k;
+    if (M.chain) {
+      const xf = {}; Object.keys(M.chain).forEach((i) => { xf[i] = chainXf(M.chain[i], M.a0 + (M.a1 - M.a0) * k); M.bones.forEach(() => 0); const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: xf[i].rot, piv: xf[i].piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
+      M.muscles.forEach((r) => { const it = X().itemOf[r.q.i]; if (!it) return; const x = xf[r.bone] || { rot: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]), piv: [0, 0, 0] }, d = vsub(r.ins, r.org);
+        it.anim = r.rigid ? { mode: 1, rot: x.rot, piv: x.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] } : { mode: 2, k: REACH, rot: x.rot, piv: x.piv, a: r.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))] };
+        const s = M.agonist ? 1 - k : k; it.tint = [1, 0.22 + 0.62 * s, 0.22 + 0.6 * s, 0.12 + 0.6 * s]; });
+      M.th = k; const sl = $('movsl'); if (sl && document.activeElement !== sl) sl.value = Math.round(k * 100); A.redraw(); return;
+    }
     const phi = (M.cfg.ax === 'x' ? M.cfg.s : (M.cfg.s || 1) * (M.side < 0 ? -1 : 1)) * a * Math.PI / 180, m = rotM(M.ax, phi);
     M.bones.forEach((i) => { const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
     M.muscles.forEach((r) => {
@@ -146,6 +195,7 @@ if (!window.__motionLoaded) (() => {
     if (!prox.length || !moving.length) { A.toast(T('Could not set up this joint', 'مش قادر أجهّز المفصل ده'), 3200); return; }
     const pv = prox.flatMap(bverts); let best = null;   // joint centre = midpoint of the closest pair of surface points between the proximal bone and the moving bones
     (J.pc ? moving.filter((q) => J.pc.test(q.en)) : moving).filter((q) => !/patella/i.test(q.en)).forEach((q) => { const V = bverts(q); let m = 9, pa = null, pb = null; V.forEach((a) => { for (const b of pv) { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } } }); if (pa && (!best || m < best.m)) best = { m, p: vmul(vadd(pa, pb), 0.5) }; });
+    if (cfg.chain) best = { m: 0, p: [0, 1, 2].map((k) => moving.reduce((m, q) => m + q.c[k], 0) / moving.length) };
     if (!best) { A.toast(T('Could not find the joint', 'ملقيتش المفصل'), 3200); return; }
     let piv = best.p, axv = null;
     if (cfg.ax === 'fore') { const rv = moving.filter((q) => /radius/i.test(q.en)).flatMap(bverts), uv = prox.flatMap(bverts); if (rv.length && uv.length) { const top = rv.reduce((m, v) => (v[1] > m[1] ? v : m)), bot = uv.reduce((m, v) => (v[1] < m[1] ? v : m)); piv = top; axv = vnorm(vsub(bot, top)); } }
@@ -157,12 +207,15 @@ if (!window.__motionLoaded) (() => {
       if (dm(org) < dm(ins)) { const t = org; org = ins; ins = t; }   // the insertion is the end that lies on the moving bones
       return { q, org, ins, rigid: dm(org) < 0.03 };
     }).filter(Boolean);
+    let chain = null;
+    if (cfg.chain) { chain = buildChain(cfg.chain, side, bones.filter((q) => HAND.test(q.en) || /phalanx|metacarpal/i.test(q.en))); if (!Object.keys(chain).length) { A.toast(T('Could not set up this joint', 'مش قادر أجهّز المفصل ده'), 3200); return; }
+      mus.forEach((r) => { let bm = 9; moving.forEach((b) => { if (!chain[b.i]) return; const d = mind(bverts(b), r.ins); if (d < bm) { bm = d; r.bone = b.i; } }); }); }
     if (!mus.length) { A.toast(T('Cannot animate this muscle', 'مش قادر أحرّك العضلة دي'), 3000); return; }
     S.focus = new Set([...mus.map((r) => r.q.i), ...prox.map((q) => q.i), ...moving.map((q) => q.i)]); S.att = true; lastSig = '';
-    S.mov = { id: mvId, cfg, ax: axv || (cfg.ax === 'x' ? [1, 0, 0] : cfg.ax === 'y' ? [0, 1, 0] : [0, 0, 1]), piv, side, a0: cfg.a[0], a1: cfg.a[1], bones: moving.map((q) => q.i), muscles: mus, th: 0, t0: performance.now(),
+    S.mov = { id: mvId, cfg, ax: axv || (cfg.ax === 'x' ? [1, 0, 0] : cfg.ax === 'y' ? [0, 1, 0] : [0, 0, 1]), piv, side, a0: cfg.a[0], a1: cfg.a[1], bones: moving.map((q) => q.i), muscles: mus, chain, th: 0, t0: performance.now(),
       play: true, agonist: ((mvo && mvo.m) || []).some((n) => (e.grp || '').toLowerCase().includes(n)) };
     A.apply(); if (A.renderChips) A.renderChips(); const camP = cfg.ax === 'fore' && axv ? [0, 1, 2].map((k) => piv[k] + axv[k] * 0.12) : piv;
-    const post = e.c[2] < 0.0; X().cam.flyTo(camP, J.dist, cfg.yaw !== undefined ? cfg.yaw : post ? Math.PI + (side < 0 ? 0.4 : -0.4) : (side < 0 ? -0.4 : 0.4), 0.12);   // look at the side of the body the muscle is on
+    const post = e.c[2] < 0.0; X().cam.flyTo(camP, J.dist, cfg.yaw !== undefined ? (cfg.chain && side > 0 ? -cfg.yaw : cfg.yaw) : post ? Math.PI + (side < 0 ? 0.4 : -0.4) : (side < 0 ? -0.4 : 0.4), 0.12);   // look at the side of the body the muscle is on
     $('app').classList.remove('psel'); $('panel').classList.add('closed'); $('panel').classList.remove('peek');
     const bar = document.createElement('div'); bar.id = 'movbar';
     bar.innerHTML = `<div class="mvt">${esc(mvo ? T(mvo.en, mvo.ar) : '')}</div><div class="mvr"><button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><button data-act="movend">✕</button></div>`;
