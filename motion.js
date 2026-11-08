@@ -172,6 +172,7 @@ if (!window.__motionLoaded) (() => {
     }
     const phi = (M.cfg.ax === 'x' ? M.cfg.s : (M.cfg.s || 1) * (M.side < 0 ? -1 : 1)) * a * Math.PI / 180, m = rotM(M.ax, phi);
     M.bones.forEach((i) => { const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
+    (M.extra || []).forEach((x) => { const it = X().itemOf[x.i]; if (it) it.anim = x.rigid ? { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] } : { mode: 2, k: 0, rot: m, piv: M.piv, a: x.org, dl: x.dl }; });
     M.muscles.forEach((r) => {
       const it = X().itemOf[r.q.i]; if (!it) return; const d = vsub(r.ins, r.org);
       it.anim = r.rigid ? { mode: 1, rot: m, piv: M.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] } : { mode: 2, k: REACH, rot: m, piv: M.piv, a: r.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))] };
@@ -210,9 +211,29 @@ if (!window.__motionLoaded) (() => {
     let chain = null;
     if (cfg.chain) { chain = buildChain(cfg.chain, side, bones.filter((q) => HAND.test(q.en) || /phalanx|metacarpal/i.test(q.en))); if (!Object.keys(chain).length) { A.toast(T('Could not set up this joint', 'مش قادر أجهّز المفصل ده'), 3200); return; }
       mus.forEach((r) => { let bm = 9; moving.forEach((b) => { if (!chain[b.i]) return; const d = mind(bverts(b), r.ins); if (d < bm) { bm = d; r.bone = b.i; } }); }); }
+    /* soft tissue that crosses the joint (nerves, vessels, ligaments) has to move with the bones: items lying wholly on the moving side turn rigidly; items that straddle the joint are blended across a short zone around it */
+    const extra = [];
+    if (!cfg.chain && !J.axial) {
+      const mvc = [0, 1, 2].map((k) => moving.reduce((m, q) => m + q.c[k], 0) / moving.length); let dd = vsub(mvc, piv);
+      if (vlen(dd) > 0.02) {
+        dd = vnorm(dd); const lo = [9, 9, 9], hi = [-9, -9, -9], MG = 0.05, H = 0.07;
+        moving.forEach((b) => bverts(b).forEach((v) => { for (let k = 0; k < 3; k++) { if (v[k] < lo[k]) lo[k] = v[k]; if (v[k] > hi[k]) hi[k] = v[k]; } }));
+        const inBox = (v) => v[0] > lo[0] - MG && v[0] < hi[0] + MG && v[1] > lo[1] - MG && v[1] < hi[1] + MG && v[2] > lo[2] - MG && v[2] < hi[2] + MG;
+        P.forEach((q) => {
+          if (q.sys !== 'vessel' && q.sys !== 'nerve' && q.sys !== 'ligament') return;
+          const it = X().itemOf[q.i]; if (!it || !it.vpos) return;
+          if ((q.side === 'r' || q.side === 'l') && sideOf(q) !== side) return;
+          const V = it._bv || (it._bv = vworld(it, 220)); let nin = 0, smin = 9, smax = -9;
+          V.forEach((v) => { const sd = vdot(vsub(v, piv), dd); if (sd < smin) smin = sd; if (sd > smax) smax = sd; if (inBox(v)) nin++; });
+          if (!nin || smax < -H) return;
+          if (nin / V.length >= 0.9 && smin > -0.01) extra.push({ i: q.i, rigid: true });
+          else extra.push({ i: q.i, rigid: false, org: [0, 1, 2].map((k) => piv[k] - dd[k] * H), dl: [...dd, 2 * H] });
+        });
+      }
+    }
     if (!mus.length) { A.toast(T('Cannot animate this muscle', 'مش قادر أحرّك العضلة دي'), 3000); return; }
     S.focus = new Set([...mus.map((r) => r.q.i), ...prox.map((q) => q.i), ...moving.map((q) => q.i)]); S.att = true; lastSig = '';
-    S.mov = { id: mvId, cfg, ax: axv || (cfg.ax === 'x' ? [1, 0, 0] : cfg.ax === 'y' ? [0, 1, 0] : [0, 0, 1]), piv, side, a0: cfg.a[0], a1: cfg.a[1], bones: moving.map((q) => q.i), muscles: mus, chain, th: 0, t0: performance.now(),
+    S.mov = { id: mvId, cfg, ax: axv || (cfg.ax === 'x' ? [1, 0, 0] : cfg.ax === 'y' ? [0, 1, 0] : [0, 0, 1]), piv, side, a0: cfg.a[0], a1: cfg.a[1], bones: moving.map((q) => q.i), muscles: mus, chain, extra, th: 0, t0: performance.now(),
       play: true, agonist: ((mvo && mvo.m) || []).some((n) => (e.grp || '').toLowerCase().includes(n)) };
     A.apply(); if (A.renderChips) A.renderChips(); const camP = cfg.ax === 'fore' && axv ? [0, 1, 2].map((k) => piv[k] + axv[k] * 0.12) : piv;
     const post = e.c[2] < 0.0; X().cam.flyTo(camP, J.dist, cfg.yaw !== undefined ? (cfg.chain && side > 0 ? -cfg.yaw : cfg.yaw) : post ? Math.PI + (side < 0 ? 0.4 : -0.4) : (side < 0 ? -0.4 : 0.4), 0.12);   // look at the side of the body the muscle is on
