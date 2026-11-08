@@ -1,0 +1,183 @@
+/* clinmed.js — "Clinical anatomy cases": a vignette (sign / symptom) → which structure is injured, with a "show on the 3D model" button.
+   DRAFT medical content — must be reviewed by a physician. Educational only. */
+'use strict';
+window.__clinmedLoaded = true;
+/* each: [vignette en|ar, [4 options en|ar — the FIRST is correct], explanation en|ar, show regexes (matched against structure names), side] */
+const CL = [
+['A man has wrist drop and loss of finger extension after a mid-shaft humeral fracture. Which nerve is injured?|راجل عنده سقوط في رسغ اليد وفقد بسط الأصابع بعد كسر في منتصف عظمة العضد. أنهي عصب اتأذى؟',
+ ['Radial nerve|العصب الكعبري','Median nerve|العصب الأوسط','Ulnar nerve|العصب الزندي','Axillary nerve|العصب الإبطي'],
+ 'The radial nerve runs in the radial (spiral) groove on the posterior humerus and supplies all the extensors of the wrist and fingers. "Saturday-night palsy" (pressure in the arm) gives the same picture.|العصب الكعبري بيلف في الميزاب الحلزوني ورا العضد وبيغذي كل باسطات الرسغ والأصابع. "شلل ليلة السبت" (ضغط على الدراع) بيدّي نفس الصورة.',
+ ['^Radial nerve$','^Humerus'],null],
+['After axillary lymph-node dissection a woman has a "winged" scapula when she pushes against a wall. Which nerve?|بعد استئصال العقد الليمفاوية بالإبط ظهر عند ست لوح كتف "بارز زي الجناح" لما بتدفع حيطة. أنهي عصب؟',
+ ['Long thoracic nerve|العصب الصدري الطويل','Thoracodorsal nerve|العصب الصدري الظهري','Dorsal scapular nerve|العصب الكتفي الظهري','Spinal accessory nerve|العصب الشوكي الإضافي'],
+ 'The long thoracic nerve (C5–C7) runs on the surface of serratus anterior, which holds the scapula against the chest wall. It is injured in mastectomy / axillary surgery.|العصب الصدري الطويل (C5–C7) بيمشي على سطح العضلة المسننة الأمامية اللي بتثبّت لوح الكتف على القفص الصدري، وبيتأذى في جراحات الثدي والإبط.',
+ ['^Long thoracic nerve$','^Serratus anterior$'],null],
+['A footballer is kicked on the lateral side of the knee and cannot dorsiflex the foot (foot drop) with numbness of the dorsum of the foot. Which nerve?|لاعب كورة اتضرب على الناحية الجانبية للركبة ومبقاش يقدر يرفع القدم لفوق (قدم متدلية) مع تنميل ظهر القدم. أنهي عصب؟',
+ ['Common fibular (peroneal) nerve|العصب الشظوي المشترك','Tibial nerve|العصب الظنبوبي','Femoral nerve|العصب الفخذي','Sural nerve|العصب الربلي'],
+ 'The common fibular nerve winds around the neck of the fibula, where it is superficial and easily injured. It supplies the dorsiflexors and evertors.|العصب الشظوي المشترك بيلف حوالين رقبة الشظية وهو سطحي هناك فبيتأذى بسهولة، وبيغذي رافعات القدم ومُقلِّباتها للخارج.',
+ ['^Common fibular','^Fibula$'],null],
+['A woman has night-time tingling in the thumb, index and middle fingers and weakness of thumb opposition. Which nerve is compressed, and where?|ست عندها تنميل بالليل في الإبهام والسبابة والوسطى وضعف في مقابلة الإبهام. أنهي عصب متضغط وفين؟',
+ ['Median nerve in the carpal tunnel|العصب الأوسط في النفق الرسغي','Ulnar nerve in Guyon canal|العصب الزندي في قناة جيّون','Radial nerve in the spiral groove|العصب الكعبري في الميزاب الحلزوني','Median nerve at the elbow (pronator teres)|العصب الأوسط عند الكوع'],
+ 'Carpal tunnel syndrome: the median nerve is compressed under the flexor retinaculum. The thenar muscles waste; sensation of the lateral 3½ digits is lost but the thenar eminence skin is spared (palmar cutaneous branch arises proximally).|متلازمة النفق الرسغي: العصب الأوسط بيتضغط تحت الرباط الثاني. عضلات الإبهام بتضمر وبيروح الإحساس في 3 أصابع ونص ناحية الإبهام، لكن جلد بروز الإبهام سليم لأن الفرع الراحي بيطلع قبل النفق.',
+ ['^Median nerve$','^Flexor retinaculum|Flexor retinaculum'],null],
+['After a fracture of the medial epicondyle the patient develops a "claw hand" with weak finger adduction and numbness of the little finger. Which nerve?|بعد كسر اللقيمة الإنسية للعضد ظهرت "يد مخلبية" مع ضعف ضم الأصابع وتنميل الخنصر. أنهي عصب؟',
+ ['Ulnar nerve|العصب الزندي','Median nerve|العصب الأوسط','Radial nerve|العصب الكعبري','Musculocutaneous nerve|العصب العضلي الجلدي'],
+ 'The ulnar nerve passes behind the medial epicondyle ("funny bone"). Loss of the medial lumbricals gives the claw; the interossei no longer adduct/abduct the fingers (Froment sign).|العصب الزندي بيعدّي ورا اللقيمة الإنسية. ضعف الديدانيات الإنسية بيعمل المخلب، والعضلات بين العظمية مبقتش تضم وتفرد الأصابع (علامة فرومنت).',
+ ['^Ulnar nerve$','^Humerus$'],null],
+['A newborn after a difficult delivery holds the arm adducted, internally rotated and extended with the forearm pronated ("waiter\'s tip"). Which part of the brachial plexus?|مولود بعد ولادة عسيرة ماسك دراعه مضموم ودايِر لجوه ومفرود والساعد مكبوب ("وضع جرسون البقشيش"). أنهي جزء في الضفيرة العضدية؟',
+ ['Upper trunk (C5–C6) – Erb palsy|الجذع العلوي (C5–C6) – شلل إرب','Lower trunk (C8–T1) – Klumpke|الجذع السفلي (C8–T1) – كلومبكي','Posterior cord|الحبل الخلفي','Medial cord|الحبل الإنسي'],
+ 'Erb–Duchenne palsy: excessive neck–shoulder separation injures C5–C6. Deltoid, supraspinatus, infraspinatus, biceps and brachialis are weak. Klumpke (C8–T1) affects the small hand muscles and may give Horner syndrome.|شلل إرب: ابتعاد الرقبة عن الكتف بقوة بيأذي C5–C6، فبتضعف الدالية وفوق وتحت الشوكة والعضلة ذات الرأسين والعضدية. شلل كلومبكي (C8–T1) بيأثر على عضلات اليد الصغيرة وممكن يظهر معاه متلازمة هورنر.',
+ ['^Brachial plexus – superior trunk','^Brachial plexus – roots'],null],
+['A young man dislocates his shoulder anteriorly and has weak abduction past 15° and numbness over the "regimental-badge" area. Which nerve?|شاب كتفه خلع للأمام وعنده ضعف في فتح الدراع بعد 15 درجة وتنميل في منطقة "الشارة" على الكتف. أنهي عصب؟',
+ ['Axillary nerve|العصب الإبطي','Suprascapular nerve|العصب فوق الكتف','Musculocutaneous nerve|العصب العضلي الجلدي','Thoracodorsal nerve|العصب الصدري الظهري'],
+ 'The axillary nerve (C5–C6) wraps the surgical neck of the humerus with the posterior circumflex humeral artery; it supplies deltoid and teres minor and the skin over the lateral deltoid.|العصب الإبطي (C5–C6) بيلف حوالين الرقبة الجراحية للعضد مع الشريان المحيط الخلفي، وبيغذي الدالية والمدورة الصغرى وجلد الجزء الجانبي من الكتف.',
+ ['^Axillary nerve$','^Deltoid \\('],null],
+['A patient cannot start abduction of the arm but can continue it if the arm is passively lifted ~15° (positive drop-arm). Which muscle is torn?|مريض مش قادر يبدأ فتح الدراع لكن يكمل لو الدراع اترفع 15 درجة بإيد حد (اختبار سقوط الدراع إيجابي). أنهي عضلة اتقطعت؟',
+ ['Supraspinatus|فوق الشوكة','Infraspinatus|تحت الشوكة','Subscapularis|تحت لوح الكتف','Teres minor|المدورة الصغرى'],
+ 'Supraspinatus starts abduction (first ~15°) and is the most commonly torn rotator-cuff muscle because it is pinched under the acromion (impingement).|فوق الشوكة بتبدأ فتح الدراع (أول 15 درجة تقريبا) وهي أكتر عضلة بتتقطع في الكفة المدورة لأنها بتتضغط تحت الأخرم.',
+ ['^Supraspinatus$','^Scapula'],null],
+['A woman walks with the pelvis dropping on the opposite side when she stands on one leg (positive Trendelenburg) after a gluteal injection. Which nerve?|ست مشيتها الحوض بينزل ناحية الجنب التاني لما تقف على رجل واحدة (علامة ترندلنبرج إيجابية) بعد حقنة في الإلية. أنهي عصب؟',
+ ['Superior gluteal nerve|العصب الإلوي العلوي','Inferior gluteal nerve|العصب الإلوي السفلي','Sciatic nerve|العصب الوركي','Obturator nerve|العصب السدادي'],
+ 'The superior gluteal nerve supplies gluteus medius/minimus and tensor fasciae latae, which stabilise the pelvis in single-leg stance. Safe injection site: upper outer quadrant of the buttock.|العصب الإلوي العلوي بيغذي الإلوية المتوسطة والصغرى والموترة للفافة العريضة اللي بتثبّت الحوض في الوقوف على رجل. مكان الحقن الآمن: الربع العلوي الخارجي من الإلية.',
+ ['^Superior gluteal nerve$','^Gluteus medius$'],null],
+['After a gluteal injection into the lower inner quadrant, a patient has foot drop and loss of hamstring function. Which nerve was injured?|بعد حقنة في الربع السفلي الداخلي للإلية ظهرت قدم متدلية وضعف في العضلات الخلفية للفخذ. أنهي عصب اتأذى؟',
+ ['Sciatic nerve|العصب الوركي','Femoral nerve|العصب الفخذي','Obturator nerve|العصب السدادي','Superior gluteal nerve|العصب الإلوي العلوي'],
+ 'The sciatic nerve leaves the pelvis through the greater sciatic foramen below piriformis and runs down the posterior thigh, so it lies in the lower-medial buttock. Hamstrings and everything below the knee are affected.|العصب الوركي بيخرج من الحوض عبر الثقبة الوركية الكبيرة تحت العضلة الكمثرية وينزل في خلف الفخذ، فهو في الإلية السفلية الداخلية. بيتأثر الخلفيات وكل اللي تحت الركبة.',
+ ['^Sciatic nerve$','^Piriformis$'],null],
+['A patient cannot extend the knee and has lost the patellar reflex with numbness on the anterior thigh. Which nerve?|مريض مش قادر يفرد الركبة وراح عنده منعكس الرضفة مع تنميل في مقدمة الفخذ. أنهي عصب؟',
+ ['Femoral nerve (L2–L4)|العصب الفخذي (L2–L4)','Obturator nerve|العصب السدادي','Sciatic nerve|العصب الوركي','Tibial nerve|العصب الظنبوبي'],
+ 'The femoral nerve supplies quadriceps (knee extension) and sartorius, and the anterior thigh skin; the patellar reflex tests L2–L4.|العصب الفخذي بيغذي الرباعية (فرد الركبة) والخياطية وجلد مقدمة الفخذ، ومنعكس الرضفة بيفحص L2–L4.',
+ ['^Femoral nerve$','^Quadriceps|Rectus femoris'],null],
+['A pregnant, overweight woman has burning pain and numbness over the anterolateral thigh with no weakness. Which nerve is entrapped?|ست حامل وزنها زيادة عندها حرقان وتنميل في الناحية الأمامية الجانبية للفخذ من غير ضعف. أنهي عصب متضغط؟',
+ ['Lateral femoral cutaneous nerve|العصب الجلدي الفخذي الجانبي','Femoral nerve|العصب الفخذي','Obturator nerve|العصب السدادي','Ilioinguinal nerve|العصب الحرقفي الأربي'],
+ 'Meralgia paraesthetica: a purely sensory nerve that passes under/through the inguinal ligament near the ASIS.|Meralgia paraesthetica: عصب حسي بحت بيعدّي تحت أو خلال الرباط الإربي قرب الشوكة الحرقفية الأمامية العليا.',
+ ['^Lateral femoral cutaneous','^Inguinal ligament'],null],
+['After thyroid surgery a patient is hoarse and has a weak voice. Which nerve is most likely injured, and which artery is it related to?|بعد جراحة الغدة الدرقية المريض صوته مبحوح وضعيف. أنهي عصب غالبا اتأذى ومرتبط بأنهي شريان؟',
+ ['Recurrent laryngeal nerve – inferior thyroid artery|العصب الحنجري الراجع – الشريان الدرقي السفلي','External laryngeal nerve – superior thyroid artery|العصب الحنجري الخارجي – الشريان الدرقي العلوي','Glossopharyngeal nerve – lingual artery|العصب اللساني البلعومي – الشريان اللساني','Hypoglossal nerve – facial artery|العصب تحت اللسان – الشريان الوجهي'],
+ 'The recurrent laryngeal nerve (a branch of the vagus) ascends in the tracheo-oesophageal groove and is closely related to the inferior thyroid artery. It supplies all intrinsic laryngeal muscles except cricothyroid (external laryngeal nerve, which accompanies the superior thyroid artery). Ligate the inferior thyroid artery away from the gland.|العصب الحنجري الراجع (فرع من المبهم) بيطلع في الميزاب بين القصبة والمريء وقريب من الشريان الدرقي السفلي، وبيغذي كل عضلات الحنجرة الداخلية ماعدا الحلقية الدرقية (العصب الحنجري الخارجي مع الشريان الدرقي العلوي).',
+ ['^Thyroid gland$','^Inferior thyroid artery','^Vagus nerve|^Larynx$'],null],
+['A teenager develops periumbilical pain that moves to the right iliac fossa over 12 hours, with tenderness at McBurney point. Which organ?|مراهق عنده ألم حوالين السرة انتقل للحفرة الحرقفية اليمنى بعد 12 ساعة مع ألم عند نقطة ماكبرني. أنهي عضو؟',
+ ['Vermiform appendix|الزائدة الدودية','Gallbladder|المرارة','Right ureter|الحالب الأيمن','Sigmoid colon|القولون السيني'],
+ 'Early visceral pain from the midgut (appendix) is referred to the periumbilical region (T10); once the parietal peritoneum is irritated the pain localises to the right iliac fossa (McBurney point: 1/3 from the ASIS to the umbilicus).|الألم الحشوي المبكر من الأمعاء المتوسطة (الزائدة) بيتحس حوالين السرة (T10)، ولما الصفاق الجداري يتهيج الألم بيتحدد في الحفرة الحرقفية اليمنى (نقطة ماكبرني: ثلث المسافة من الشوكة الحرقفية للسرة).',
+ ['^Vermiform appendix$','^Ascending colon$'],null],
+['A patient has right upper-quadrant pain that radiates to the tip of the right shoulder. Why?|مريض عنده ألم في الربع العلوي الأيمن بيمتد لطرف الكتف اليمين. ليه؟',
+ ['Diaphragmatic irritation – phrenic nerve (C3–C5)|تهيج الحجاب الحاجز – العصب الحجابي (C3–C5)','Vagus nerve referral|ألم محال من المبهم','Intercostal nerve compression|ضغط على الأعصاب الوربية','Pressure on the brachial plexus|ضغط على الضفيرة العضدية'],
+ 'Gallbladder inflammation irritates the diaphragm; the phrenic nerve (C3–C5) shares spinal levels with the skin over the shoulder tip (supraclavicular nerves, C3–C4), so the pain is referred there (Kehr sign).|التهاب المرارة بيهيج الحجاب الحاجز، والعصب الحجابي (C3–C5) بيشارك نفس المستويات الشوكية مع جلد طرف الكتف (C3–C4)، فبيتحس الألم هناك (علامة كير).',
+ ['^Gallbladder$','^Diaphragm$','^Liver$'],'r'],
+['A patient with a temporal-bone fracture lucid interval then rapidly loses consciousness. Which vessel is torn?|مريض بكسر في العظم الصدغي كان واعي فترة وبعدين فقد الوعي بسرعة. أنهي وعاء اتقطع؟',
+ ['Middle meningeal artery (epidural haematoma)|الشريان السحائي المتوسط (ورم دموي خارج الجافية)','Bridging veins (subdural haematoma)|الأوردة الجسرية (ورم دموي تحت الجافية)','Anterior cerebral artery|الشريان المخي الأمامي','Superior sagittal sinus|الجيب السهمي العلوي'],
+ 'The middle meningeal artery (from the maxillary artery) enters via the foramen spinosum and runs under the pterion, the thinnest part of the lateral skull. Bleeding strips the dura from the bone: biconvex (lens-shaped) clot.|الشريان السحائي المتوسط (من الفكي) بيدخل من الثقب الشوكي وبيعدّي تحت النقطة الجناحية، أرق جزء في الجمجمة من الجنب. النزيف بيفصل الأم الجافية عن العظم وشكل التجلط عدسي محدب.',
+ ['^Middle meningeal artery$','^Temporal bone$'],null],
+['A patient has a ptosis, miosis and anhidrosis on one side after a lung-apex (Pancoast) tumour. Which structure is compressed?|مريض عنده تدلي جفن وانقباض في الحدقة وعدم تعرق في جهة واحدة بعد ورم في قمة الرئة (بانكوست). أنهي تركيب اتضغط؟',
+ ['Sympathetic chain / stellate ganglion|السلسلة السمبثاوية / العقدة النجمية','Phrenic nerve|العصب الحجابي','Recurrent laryngeal nerve|العصب الحنجري الراجع','Vagus nerve|العصب المبهم'],
+ 'Horner syndrome = interruption of the cervical sympathetic pathway (ptosis, miosis, anhidrosis, enophthalmos). The apical tumour invades the stellate ganglion and may also affect the lower trunk of the brachial plexus (C8–T1).|متلازمة هورنر = قطع المسار السمبثاوي العنقي (تدلي جفن، انقباض حدقة، عدم تعرق، غور العين). ورم القمة بيغزو العقدة النجمية وممكن يأثر على الجذع السفلي للضفيرة (C8–T1).',
+ ['^Sympathetic trunk','^Brachial plexus – inferior trunk','^Right lung – |^Left lung – '],null],
+['A man cannot close the eye or wrinkle the forehead on one side, and the mouth droops on the same side. Which nerve, and is the lesion upper or lower motor neuron?|راجل مش قادر يقفل عينه ولا يكرمش جبهته في جهة واحدة والفم نازل في نفس الجهة. أنهي عصب ونوع الإصابة؟',
+ ['Facial nerve – lower motor neuron (Bell palsy)|العصب الوجهي – إصابة عصبون حركي سفلي (شلل بيل)','Facial nerve – upper motor neuron (stroke)|العصب الوجهي – إصابة عصبون حركي علوي (سكتة)','Trigeminal nerve – lower motor neuron|العصب ثلاثي التوائم – عصبون سفلي','Hypoglossal nerve|العصب تحت اللسان'],
+ 'The upper face receives bilateral cortical input, so a stroke (UMN lesion) spares the forehead. When the whole half of the face is paralysed, the facial nerve itself (VII) is injured (LMN), e.g. Bell palsy.|الوجه العلوي بيجيله تغذية من القشرة الدماغية للجهتين، فالسكتة (إصابة علوية) بتسيب الجبهة سليمة. لو نص الوجه كله مشلول فالعصب الوجهي نفسه (VII) هو المصاب (عصبون سفلي) زي شلل بيل.',
+ ['^Facial nerve'],null],
+['After a carotid endarterectomy the tongue deviates to the right on protrusion. Which nerve and on which side is the lesion?|بعد عملية في الشريان السباتي اللسان بيميل لليمين لما يطلعه. أنهي عصب وفي أنهي جهة الإصابة؟',
+ ['Right hypoglossal nerve|العصب تحت اللسان الأيمن','Left hypoglossal nerve|العصب تحت اللسان الأيسر','Right glossopharyngeal nerve|العصب اللساني البلعومي الأيمن','Left lingual nerve|العصب اللساني الأيسر'],
+ 'The tongue deviates TOWARD the side of a hypoglossal lesion, because the intact genioglossus on the other side pushes the tongue across. The nerve crosses the carotid arteries in the neck.|اللسان بيميل ناحية جهة الإصابة في العصب تحت اللسان لأن العضلة الذقنية اللسانية السليمة في الجهة التانية بتزقه. والعصب بيعدّي فوق الشرايين السباتية في الرقبة.',
+ ['^Hypoglossal nerve'],'r'],
+['After a head injury a patient reports loss of smell and clear fluid dripping from the nose. Which bone is fractured?|بعد إصابة في الراس مريض فقد حاسة الشم وبينزل سائل رائق من الأنف. أنهي عظمة مكسورة؟',
+ ['Cribriform plate of the ethmoid|الصفيحة الغربالية للعظم الغربالي','Petrous part of the temporal bone|الجزء الصخري للعظم الصدغي','Greater wing of the sphenoid|الجناح الأكبر للوتدي','Occipital bone|العظم القذالي'],
+ 'The olfactory nerve fibres pass through the cribriform plate; a fracture tears them (anosmia) and the meninges (CSF rhinorrhoea), a route for meningitis.|ألياف العصب الشمي بتعدّي من الصفيحة الغربالية، فالكسر بيقطعها (فقدان الشم) وبيقطع السحايا (تسريب سائل مخي شوكي من الأنف) وده طريق لالتهاب السحايا.',
+ ['^Ethmoid bone$','^Olfactory nerve'],null],
+['A patient cannot abduct the right eye and has horizontal double vision (medial squint) at rest. Which nerve and muscle?|مريض مش قادر يحرك العين اليمين للخارج وعنده ازدواج رؤية أفقي (حول داخلي) وهو ساكت. أنهي عصب وعضلة؟',
+ ['Abducens nerve (VI) – lateral rectus|العصب المبعد (VI) – المستقيمة الوحشية','Oculomotor nerve (III) – medial rectus|العصب المحرك للعين (III) – المستقيمة الإنسية','Trochlear nerve (IV) – superior oblique|العصب البكري (IV) – المائلة العلوية','Optic nerve (II)|العصب البصري (II)'],
+ 'CN VI has the longest intracranial course so it is injured easily by raised intracranial pressure. Rule: LR6 SO4 all the rest 3 (lateral rectus – VI, superior oblique – IV, others – III).|العصب القحفي السادس أطول مسار داخل الجمجمة فبيتأذى بسهولة مع زيادة الضغط. قاعدة: LR6 SO4 والباقي 3.',
+ ['^Abducens nerve'],'r'],
+['A child inhales a peanut while playing. In which main bronchus is it most likely to lodge, and why?|طفل شفط فول سوداني وهو بيلعب. غالبا هيستقر في أنهي شعبة رئيسية وليه؟',
+ ['Right – wider, shorter and more vertical|اليمنى – أوسع وأقصر وأكتر عمودية','Left – wider and shorter|اليسرى – أوسع وأقصر','Left – more vertical|اليسرى – أكتر عمودية','Both equally|الاتنين بالتساوي'],
+ 'The right main bronchus is wider, shorter and runs more vertically than the left, so aspirated objects usually enter it (typically the right lower lobe when upright or the posterior segment of the right upper lobe when supine).|الشعبة الرئيسية اليمنى أوسع وأقصر وأكتر عمودية من اليسرى، فالأجسام المستنشقة بتدخلها غالبا (الفص السفلي الأيمن في الوقوف، أو القطعة الخلفية للفص العلوي الأيمن وهو نايم).',
+ ['^Right main bronchus|^Trachea$','^Left main bronchus'],null],
+['A hiker falls on an outstretched hand and has tenderness in the anatomical snuffbox. Which bone is likely fractured, and what is the main complication?|شخص وقع على إيده المفرودة وعنده ألم في الحفرة التشريحية (التبغ). أنهي عظمة غالبا مكسورة وإيه أهم مضاعفاتها؟',
+ ['Scaphoid – avascular necrosis|الزورقية – نخر لاوعائي','Lunate – carpal tunnel syndrome|الهلالية – متلازمة النفق الرسغي','Hamate – ulnar nerve injury|الكلابية – إصابة العصب الزندي','Radius – wrist drop|الكعبرة – سقوط الرسغ'],
+ 'The scaphoid is the most commonly fractured carpal bone; its blood supply (radial artery branches) enters distally and runs retrograde, so a waist/proximal-pole fracture risks avascular necrosis and non-union. The snuffbox is bounded by the tendons of abductor pollicis longus/extensor pollicis brevis and extensor pollicis longus.|الزورقية أكتر عظمة رسغية بتتكسر، ودمها (من فروع الشريان الكعبري) بيدخل من الطرف البعيد ويرجع ناحية القريب، فكسر الخصر أو القطب القريب بيعرضها للنخر وعدم الالتئام. الحفرة التشريحية حدودها وتر المبعدة الطويلة والباسطة القصيرة للإبهام، والباسطة الطويلة.',
+ ['^Scaphoid$','^Radial artery'],null],
+['A soccer player twists his knee: the tibia shifts forward in the anterior drawer test. Which ligament is torn?|لاعب كورة لف ركبته وعظمة القصبة بتتحرك لقدام في اختبار الدرج الأمامي. أنهي رباط اتقطع؟',
+ ['Anterior cruciate ligament|الرباط الصليبي الأمامي','Posterior cruciate ligament|الرباط الصليبي الخلفي','Medial collateral ligament|الرباط الجانبي الإنسي','Lateral collateral ligament|الرباط الجانبي الوحشي'],
+ 'ACL prevents anterior translation of the tibia on the femur. The "unhappy triad" (O\'Donoghue) is ACL + medial collateral ligament + medial meniscus, from a valgus blow with rotation.|الرباط الصليبي الأمامي بيمنع انزلاق القصبة لقدام على الفخذ. "الثالوث التعيس" هو الصليبي الأمامي + الجانبي الإنسي + الغضروف الهلالي الإنسي نتيجة ضربة بتفتح الركبة للخارج مع لف.',
+ ['^Anterior cruciate','^Medial collateral','^Medial meniscus'],null],
+['A man has a bulge above the inguinal ligament that passes through the deep inguinal ring, lateral to the inferior epigastric vessels. Which hernia?|راجل عنده انتفاخ فوق الرباط الإربي بيعدّي من الحلقة الإربية العميقة وجانبي لأوعية الشرسوفية السفلية. أنهي فتق؟',
+ ['Indirect inguinal hernia|فتق إربي غير مباشر','Direct inguinal hernia|فتق إربي مباشر','Femoral hernia|فتق فخذي','Umbilical hernia|فتق سري'],
+ 'Indirect hernias leave through the deep ring (lateral to the inferior epigastric vessels) and may enter the scrotum inside the spermatic cord; direct hernias go through Hesselbach triangle (medial to the vessels). Femoral hernias are below and lateral to the pubic tubercle.|الفتق غير المباشر بيخرج من الحلقة العميقة (جانبي لأوعية الشرسوفية السفلية) وممكن ينزل للصفن جوه الحبل المنوي، والمباشر بيعدّي من مثلث هيسلباخ (إنسي للأوعية). الفتق الفخذي تحت وجانبي لحدبة العانة.',
+ ['^Inferior epigastric artery','^Inguinal ligament'],null],
+['A patient has colicky loin-to-groin pain from a kidney stone. At which narrow points can the ureter be obstructed?|مريض عنده مغص كلوي من الحالب بيمتد من الجنب للأربية بسبب حصوة. أنهي نقاط التضيق اللي ممكن الحصوة تقف فيها؟',
+ ['Pelviureteric junction, pelvic brim, and vesicoureteric junction|الوصلة الحويضية الحالبية، حافة الحوض، والوصلة الحالبية المثانية','Only the vesicoureteric junction|الوصلة الحالبية المثانية فقط','Renal hilum and bladder neck|سرة الكلية وعنق المثانة','Iliac crest and inguinal ring|عرف الحرقفة والحلقة الإربية'],
+ 'Three constrictions: pelviureteric junction, where it crosses the pelvic brim (iliac vessels) and where it enters the bladder wall (narrowest). Pain travels loin-to-groin via T11–L2 (genitofemoral/ilioinguinal territory).|فيه 3 تضيقات: الوصلة الحويضية الحالبية، وعند عبور حافة الحوض (الأوعية الحرقفية)، وعند دخول جدار المثانة (الأضيق). الألم بيمتد من الجنب للأربية عن طريق T11–L2.',
+ ['^Ureter$','^Kidney$'],null],
+['A needle decompression for a tension pneumothorax is placed in the 2nd intercostal space at the midclavicular line, just above the 3rd rib. Why above the rib?|إبرة تفريغ الهواء لاسترواح الصدر الضاغط بتتحط في الفراغ الوربي التاني في الخط منتصف الترقوة فوق الضلع التالت. ليه فوق الضلع؟',
+ ['The neurovascular bundle runs along the inferior border of each rib|الحزمة الوعائية العصبية بتمشي على الحافة السفلية لكل ضلع','Muscles are thinner above the rib|العضلات أرق فوق الضلع','The pleura is thicker above the rib|الجنبة أسمك فوق الضلع','The lung apex lies above the rib|قمة الرئة فوق الضلع'],
+ 'In the costal groove the order from superior to inferior is Vein–Artery–Nerve (VAN), so insert the needle at the upper border of the rib below to avoid them.|في الميزاب الضلعي الترتيب من فوق لتحت هو وريد–شريان–عصب (VAN)، فتدخل الإبرة عند الحافة العلوية للضلع اللي تحت عشان تتجنبهم.',
+ ['^Right lung – ','^Rib 2|^Rib 3'],null],
+['A lumbar puncture is performed in an adult at the L3–L4 level. Why is this level safe, and what layers does the needle cross?|بزل قطني بيتعمل لبالغ عند L3–L4. ليه المستوى ده آمن وإيه الطبقات اللي الإبرة بتعدّيها؟',
+ ['The spinal cord ends at L1–L2; skin → supraspinous/interspinous ligaments → ligamentum flavum → epidural space → dura–arachnoid|النخاع الشوكي بينتهي عند L1–L2؛ جلد ← أربطة بين الشوكية ← الرباط الأصفر ← الحيز فوق الجافية ← الجافية والعنكبوتية','The cord ends at S2; the needle crosses the posterior longitudinal ligament|النخاع بينتهي عند S2 والإبرة بتعدّي الرباط الطولي الخلفي','The cord ends at T12 so L3–L4 contains only the filum|النخاع بينتهي عند T12','The cord ends at L5; the needle crosses the anterior longitudinal ligament|النخاع بينتهي عند L5'],
+ 'In adults the conus medullaris is at L1–L2 (L3 in infants). Below it the subarachnoid space holds the cauda equina floating in CSF, so the needle at L3–L4 (the line joining the iliac crests, L4) rarely hits the cord.|في البالغين نهاية النخاع عند L1–L2 (L3 عند الرضّع). تحتها الحيز تحت العنكبوتية فيه ذيل الفرس سايح في السائل المخي الشوكي، فالإبرة عند L3–L4 (خط عرفي الحرقفة ≈ L4) نادرا ما تلمس النخاع.',
+ ['^Spinal cord$','^Lumbar vertebra L[34]|^L[34] '],null],
+['A man has a stab wound just left of the sternum at the 4th–5th intercostal space. Which heart chamber is most likely injured?|راجل عنده طعنة على يسار عظمة القص عند الفراغ الوربي الرابع-الخامس. أنهي حجرة في القلب غالبا اتأذت؟',
+ ['Right ventricle|البطين الأيمن','Left ventricle|البطين الأيسر','Right atrium|الأذين الأيمن','Left atrium|الأذين الأيسر'],
+ 'The right ventricle forms most of the anterior (sternocostal) surface of the heart, and so is most exposed behind the sternum and left parasternal region. The left atrium is the most posterior chamber.|البطين الأيمن بيكوّن معظم السطح الأمامي للقلب فهو الأكتر عرضة ورا القص وعلى يساره. الأذين الأيسر هو أكتر حجرة ناحية الخلف.',
+ ['^Right ventricle$','^Body of sternum$'],null],
+];
+
+(() => {
+  const T = (en, ar) => (S.lang === 'ar' ? ar : en);
+  const $ = (id) => document.getElementById(id);
+  const X = () => window.__anat || {};
+  const waitFor = (fn, cb) => { const t0 = setInterval(() => { if (fn()) { clearInterval(t0); cb(); } }, 200); setTimeout(() => clearInterval(t0), 20000); };
+  Object.assign(STR, {
+    clin: { en: 'Clinical anatomy cases', ar: 'حالات تشريح إكلينيكي' },
+    clinSub: { en: 'Signs & symptoms → the injured structure · view it in 3D', ar: 'الأعراض ← التركيب المصاب · وشوفه على المجسم' },
+  });
+  const pair = (s) => { const i = s.indexOf('|'); return [s.slice(0, i), s.slice(i + 1)]; };
+  const tt = (s) => { const p = pair(s); return T(p[0], p[1]); };
+  const ROUND = 10;
+  let deck = [], idx = 0, score = 0, ans = null, order = [];
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const newRound = () => { deck = shuffle(CL.map((_, i) => i)).slice(0, ROUND); idx = 0; score = 0; ans = null; order = shuffle([0, 1, 2, 3]); };
+  function html() {
+    if (!deck.length) newRound();
+    const head = `<h2>🩻 ${T('Clinical anatomy cases', 'حالات تشريح إكلينيكي')}</h2><p class="tiny">${T('Draft content – to be reviewed by a physician before being relied on.', 'محتوى مسودة – محتاج مراجعة دكتور قبل الاعتماد عليه.')}</p>`;
+    if (idx >= deck.length) {
+      const pc = Math.round(score / deck.length * 100);
+      return head + `<div class="pjcurve" style="text-align:center;padding:18px 12px"><div dir="ltr" style="font-size:34px;font-weight:800;margin:6px 0">${score} / ${deck.length}</div><p>${pc >= 80 ? T('Excellent!', 'ممتاز!') : pc >= 50 ? T('Good – review the missed ones.', 'كويس – راجع اللي غلطت فيه.') : T('Keep practising.', 'كمّل تدريب.')}</p><button class="btn p" data-act="clrestart">${T('New round', 'جولة جديدة')}</button></div>`;
+    }
+    const c = CL[deck[idx]], q = pair(c[0]);
+    const opts = order.map((i) => {
+      const ok = i === 0, st = ans === null ? '' : ok ? 'border-color:#3fd67a;background:rgba(63,214,122,.15)' : ans === i ? 'border-color:#ff6b6b;background:rgba(255,107,107,.15)' : '';
+      return `<button class="btn" style="display:block;width:100%;margin:5px 0;text-align:start;${st}" data-act="clans" data-i="${i}" ${ans === null ? '' : 'disabled'}>${esc(tt(c[1][i]))}</button>`;
+    }).join('');
+    let fb = '';
+    if (ans !== null) {
+      fb = `<div class="pjcurve" style="margin-top:8px"><b>${ans === 0 ? T('Correct!', 'تمام!') : T('Not quite.', 'مش بالظبط.')}</b><p style="margin:4px 0 8px;font-size:13px;line-height:1.7">${esc(tt(c[2]))}</p>` +
+        `<div class="row"><button class="btn" data-act="clshow">🧍 ${T('Show on the 3D model', 'اعرضه على المجسم')}</button><button class="btn p" data-act="clnext">${idx + 1 >= deck.length ? T('Finish', 'إنهاء') : T('Next', 'التالي')}</button></div></div>`;
+    }
+    return head + `<div class="pjcurve"><small><span>${T('Case', 'حالة')} ${idx + 1} / ${deck.length}</span> · <span>${T('Score', 'النتيجة')} ${score}</span></small><p style="margin:8px 0;font-size:14px;line-height:1.8">${esc(T(q[0], q[1]))}</p>${opts}</div>` + fb;
+  }
+  const open = () => { newRound(); A.modal(html); };
+  A.acts.clans = (el) => { if (ans !== null) return; ans = +el.dataset.i; if (ans === 0) score++; A.rerenderModal(); };
+  A.acts.clnext = () => { idx++; ans = null; order = shuffle([0, 1, 2, 3]); A.rerenderModal(); };
+  A.acts.clrestart = () => { newRound(); A.rerenderModal(); };
+  A.acts.clshow = async () => {
+    const c = CL[deck[idx]]; if (!c) return;
+    const res = c[3].map((r) => new RegExp(r, 'i'));
+    const base = (e) => e.baseEn || e.en;
+    const sd = c[4] || 'r';   // one side only, so the camera frames the structure and not the whole body
+    let hit = P.filter((e) => res.some((r) => r.test(base(e))) && (e.side === sd || (e.side !== 'r' && e.side !== 'l')));
+    if (!hit.length) hit = P.filter((e) => res.some((r) => r.test(base(e))));
+    if (!hit.length) return;
+    A.closeModal();
+    const sys = [...new Set(hit.map((e) => e.sys))];
+    S.region = null; S.iso = -1; S.hidden = new Set();
+    for (const s of sys) { S.layers[s] = 'on'; try { await A.ensure(s); } catch (e) { /* ignore */ } }
+    S.focus = new Set(hit.map((e) => e.i)); S.sel = -1; A.deselect();
+    const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+    for (const e of hit) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], e.c[k] - (e.r || .05) * 0.6); hi[k] = Math.max(hi[k], e.c[k] + (e.r || .05) * 0.6); }
+    const cen = [0, 1, 2].map((k) => (lo[k] + hi[k]) / 2), ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+    X().cam.flyTo([cen[0], Math.max(0.05, cen[1]), cen[2]], Math.max(0.5, ext * 1.5 + 0.3), null, 0.1);
+    A.apply(); A.toast(T('Showing the structures – "Show all" restores the view', 'عرض التراكيب المعنية — زر «إظهار الكل» يرجّع العرض'), 4200);
+  };
+  waitFor(() => A.hubExtra && A.modal, () => { A.hubExtra.clin = open; });
+})();
