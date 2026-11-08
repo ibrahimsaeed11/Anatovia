@@ -98,6 +98,7 @@ if (!window.__motionLoaded) (() => {
     jaw_close: { j: 'jaw', ax: 'x', s: 1, a: [25, 0], yaw: 1.5708 }, breath_in: { j: 'breath', ax: 'x', s: -1, a: [0, 12], yaw: 1.5708 },
     finger_flex: { j: 'fingers', chain: 'finger', a: [0, 1], yaw: 1.2 }, finger_ext: { j: 'fingers', chain: 'finger', a: [1, -0.25], yaw: 1.2 }, thumb_opp: { j: 'thumbj', chain: 'thumb', a: [0, 1], yaw: 1.2 },
     claw_ulnar: { j: 'fingers', chain: 'finger', pose: 'claw', a: [0, 1], yaw: 1.2 },   // not a user movement: the ulnar-nerve "claw" posture, used by the lesion simulator
+    scap_elev: { j: 'shrug', ax: 'z', s: 1, a: [0, 10] },
     scap_pro: { j: 'scap', ax: 'y', s: -1, a: [0, 15], pivProx: true }, scap_ret: { j: 'scap', ax: 'y', s: -1, a: [0, -15], pivProx: true },
     foot_inv: { j: 'subtalar', ax: 'z', s: 1, a: [0, 20] }, foot_ev: { j: 'subtalar', ax: 'z', s: 1, a: [0, -15] },
   };
@@ -114,6 +115,7 @@ if (!window.__motionLoaded) (() => {
     jaw: { axial: true, prox: /temporal bone/i, mv: (q) => /mandible|^lower/i.test(q.en), dist: .55 },
     breath: { axial: true, prox: /vertebra T[5-8]\b/i, mv: (q) => /^rib|costal cartilage|sternum|manubrium|xiphoid/i.test(q.en), dist: 2.4 },
     scap: { axial: true, prox: /vertebra T[3-5]\b/i, mv: (q, sd) => q.reg === 'upper' && sideOf(q) === sd, dist: 2.0 },
+    shrug: { axial: true, prox: /manubrium/i, mv: (q, sd) => q.reg === 'upper' && sideOf(q) === sd, dist: 2.0 },
     fingers: { prox: /carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate|metacarpal/i, mv: (q) => /phalanx/i.test(q.en) && /index|middle finger|ring|little finger/i.test(q.en), dist: .5 },
     thumbj: { prox: /carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate|metacarpal [2-5]/i, mv: (q) => /thumb|metacarpal 1\b/i.test(q.en), dist: .5 },
     subtalar: { prox: /talus/i, mv: (q) => /calcaneus|navicular|cuboid|cuneiform|metatars|phalan/i.test(q.en), dist: 1.0 },
