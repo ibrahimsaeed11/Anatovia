@@ -114,6 +114,8 @@ if (!window.__motionLoaded) (() => {
     scap: { axial: true, prox: /vertebra T[3-5]\b/i, mv: (q, sd) => q.reg === 'upper' && sideOf(q) === sd, dist: 2.0 },
     subtalar: { prox: /talus/i, mv: (q) => /calcaneus|navicular|cuboid|cuneiform|metatars|phalan/i.test(q.en), dist: 1.0 },
   };
+  const FOOT = /toe|metatars|talus|calcaneus|navicular|cuboid|cuneiform|sesamoid/i, HAND = /finger|thumb|carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate/i;   // a name match like 'phalan' must never pull hand bones into a leg movement or toe bones into an arm one
+  const UPJ = new Set(['shoulder', 'elbow', 'forearm', 'wrist', 'scap']), LOJ = new Set(['hip', 'knee', 'ankle', 'subtalar']);
   const REACH = 0.55;   // only the part of the muscle beyond this fraction (towards the insertion) follows the moving bone; the belly stays anchored to the body
   let movRaf = 0;
   function stopMove() { if (movRaf) cancelAnimationFrame(movRaf); movRaf = 0; X().R.items.forEach((it) => { it.anim = null; }); S.mov = null; const b = $('movbar'); if (b) b.remove(); A.redraw(); }
@@ -140,7 +142,7 @@ if (!window.__motionLoaded) (() => {
     for (const k of ['bone', 'muscle']) { if (S.layers[k] === 'off') S.layers[k] = 'on'; await A.ensure(k); }
     S.explode = 0; S.hidden.delete(e.i); A.apply(); await new Promise((r) => setTimeout(r, 60));
     const J = JOINT[cfg.j], side = sideOf(e), bones = P.filter((q) => q.k === 'bone' && X().itemOf[q.i] && X().itemOf[q.i].vpos && (J.axial || sideOf(q) === side));
-    const prox = bones.filter((q) => J.prox.test(q.en)), moving = bones.filter((q) => J.mv(q, side));
+    const prox = bones.filter((q) => J.prox.test(q.en)), moving = bones.filter((q) => J.mv(q, side) && !(UPJ.has(cfg.j) && FOOT.test(q.en)) && !(LOJ.has(cfg.j) && HAND.test(q.en)));
     if (!prox.length || !moving.length) { A.toast(T('Could not set up this joint', 'مش قادر أجهّز المفصل ده'), 3200); return; }
     const pv = prox.flatMap(bverts); let best = null;   // joint centre = midpoint of the closest pair of surface points between the proximal bone and the moving bones
     (J.pc ? moving.filter((q) => J.pc.test(q.en)) : moving).filter((q) => !/patella/i.test(q.en)).forEach((q) => { const V = bverts(q); let m = 9, pa = null, pb = null; V.forEach((a) => { for (const b of pv) { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } } }); if (pa && (!best || m < best.m)) best = { m, p: vmul(vadd(pa, pb), 0.5) }; });
