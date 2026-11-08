@@ -93,6 +93,10 @@ if (!window.__motionLoaded) (() => {
     forearm_pro: { j: 'forearm', ax: 'fore', s: 1, a: [0, 80] }, forearm_sup: { j: 'forearm', ax: 'fore', s: 1, a: [80, 0] },
     wrist_flex: { j: 'wrist', ax: 'x', s: -1, a: [0, 60] }, wrist_ext: { j: 'wrist', ax: 'x', s: -1, a: [0, -50] },
     ankle_df: { j: 'ankle', ax: 'x', s: -1, a: [0, 20] }, ankle_pf: { j: 'ankle', ax: 'x', s: -1, a: [0, -40] },
+    neck_flex: { j: 'neck', ax: 'x', s: 1, a: [0, 45], yaw: 1.5708 }, neck_ext: { j: 'neck', ax: 'x', s: 1, a: [0, -40], yaw: 1.5708 },
+    trunk_flex: { j: 'trunk', ax: 'x', s: 1, a: [0, 60], yaw: 1.5708 }, trunk_ext: { j: 'trunk', ax: 'x', s: 1, a: [0, -30], yaw: 1.5708 }, trunk_rot: { j: 'trunk', ax: 'y', s: 1, a: [0, 40] },
+    jaw_close: { j: 'jaw', ax: 'x', s: 1, a: [25, 0], yaw: 1.5708 }, breath_in: { j: 'breath', ax: 'x', s: -1, a: [0, 12], yaw: 1.5708 },
+    scap_pro: { j: 'scap', ax: 'y', s: -1, a: [0, 15], pivProx: true }, scap_ret: { j: 'scap', ax: 'y', s: -1, a: [0, -15], pivProx: true },
     foot_inv: { j: 'subtalar', ax: 'z', s: 1, a: [0, 20] }, foot_ev: { j: 'subtalar', ax: 'z', s: 1, a: [0, -15] },
   };
   const JOINT = {
@@ -103,6 +107,11 @@ if (!window.__motionLoaded) (() => {
     forearm: { prox: /ulna/i, mv: (q) => /radius|carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate|metacarpal|phalan/i.test(q.en), dist: 1.4 },
     wrist: { prox: /radius|ulna/i, mv: (q) => /carpal|scaphoid|lunate|triquetr|pisiform|trapez|capitate|hamate|metacarpal|phalan/i.test(q.en), dist: .7 },
     ankle: { prox: /tibia|fibula/i, mv: (q) => /talus|calcaneus|navicular|cuboid|cuneiform|metatars|phalan/i.test(q.en), dist: 1.2 },
+    neck: { axial: true, prox: /vertebra T1\b/i, mv: (q) => q.reg === 'head' || q.reg === 'neck' || /cervical|prominens/i.test(q.en), dist: 1.0 },
+    trunk: { axial: true, prox: /sacrum/i, pc: /lumbar vertebra L5|\(L5\)/i, mv: (q) => ['spine', 'thorax', 'upper', 'head', 'neck'].includes(q.reg) && !/sacrum/i.test(q.en), dist: 3.2 },
+    jaw: { axial: true, prox: /temporal bone/i, mv: (q) => /mandible|^lower/i.test(q.en), dist: .55 },
+    breath: { axial: true, prox: /vertebra T[5-8]\b/i, mv: (q) => /^rib|costal cartilage|sternum|manubrium|xiphoid/i.test(q.en), dist: 2.4 },
+    scap: { axial: true, prox: /vertebra T[3-5]\b/i, mv: (q, sd) => q.reg === 'upper' && sideOf(q) === sd, dist: 2.0 },
     subtalar: { prox: /talus/i, mv: (q) => /calcaneus|navicular|cuboid|cuneiform|metatars|phalan/i.test(q.en), dist: 1.0 },
   };
   const REACH = 0.55;   // only the part of the muscle beyond this fraction (towards the insertion) follows the moving bone; the belly stays anchored to the body
@@ -130,14 +139,15 @@ if (!window.__motionLoaded) (() => {
     A.toast(T('Preparing the movement…', 'بجهّز الحركة…'), 1400);
     for (const k of ['bone', 'muscle']) { if (S.layers[k] === 'off') S.layers[k] = 'on'; await A.ensure(k); }
     S.explode = 0; S.hidden.delete(e.i); A.apply(); await new Promise((r) => setTimeout(r, 60));
-    const J = JOINT[cfg.j], side = sideOf(e), bones = P.filter((q) => q.k === 'bone' && X().itemOf[q.i] && X().itemOf[q.i].vpos && sideOf(q) === side);
-    const prox = bones.filter((q) => J.prox.test(q.en)), moving = bones.filter(J.mv);
+    const J = JOINT[cfg.j], side = sideOf(e), bones = P.filter((q) => q.k === 'bone' && X().itemOf[q.i] && X().itemOf[q.i].vpos && (J.axial || sideOf(q) === side));
+    const prox = bones.filter((q) => J.prox.test(q.en)), moving = bones.filter((q) => J.mv(q, side));
     if (!prox.length || !moving.length) { A.toast(T('Could not set up this joint', 'مش قادر أجهّز المفصل ده'), 3200); return; }
     const pv = prox.flatMap(bverts); let best = null;   // joint centre = midpoint of the closest pair of surface points between the proximal bone and the moving bones
-    moving.filter((q) => !/patella/i.test(q.en)).forEach((q) => { const V = bverts(q); let m = 9, pa = null, pb = null; V.forEach((a) => { for (const b of pv) { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } } }); if (pa && (!best || m < best.m)) best = { m, p: vmul(vadd(pa, pb), 0.5) }; });
+    (J.pc ? moving.filter((q) => J.pc.test(q.en)) : moving).filter((q) => !/patella/i.test(q.en)).forEach((q) => { const V = bverts(q); let m = 9, pa = null, pb = null; V.forEach((a) => { for (const b of pv) { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } } }); if (pa && (!best || m < best.m)) best = { m, p: vmul(vadd(pa, pb), 0.5) }; });
     if (!best) { A.toast(T('Could not find the joint', 'ملقيتش المفصل'), 3200); return; }
     let piv = best.p, axv = null;
     if (cfg.ax === 'fore') { const rv = moving.filter((q) => /radius/i.test(q.en)).flatMap(bverts), uv = prox.flatMap(bverts); if (rv.length && uv.length) { const top = rv.reduce((m, v) => (v[1] > m[1] ? v : m)), bot = uv.reduce((m, v) => (v[1] < m[1] ? v : m)); piv = top; axv = vnorm(vsub(bot, top)); } }
+    if (cfg.pivProx) piv = [0, 1, 2].map((k) => pv.reduce((m, v) => m + v[k], 0) / pv.length);
     if (cfg.ax === 'limb' && J.lng) { const lv = moving.filter((q) => J.lng.test(q.en)).flatMap(bverts).sort((a, b) => a[1] - b[1]).slice(0, 40); if (lv.length) { const c = [0, 1, 2].map((k) => lv.reduce((m, v) => m + v[k], 0) / lv.length); axv = vnorm(vsub(c, piv)); } }
     const dm = (p) => Math.min(...moving.map((b) => mind(bverts(b), p)));
     const mus = groupItems(e).map((q) => {
@@ -150,7 +160,7 @@ if (!window.__motionLoaded) (() => {
     S.mov = { id: mvId, cfg, ax: axv || (cfg.ax === 'x' ? [1, 0, 0] : cfg.ax === 'y' ? [0, 1, 0] : [0, 0, 1]), piv, side, a0: cfg.a[0], a1: cfg.a[1], bones: moving.map((q) => q.i), muscles: mus, th: 0, t0: performance.now(),
       play: true, agonist: ((mvo && mvo.m) || []).some((n) => (e.grp || '').toLowerCase().includes(n)) };
     A.apply(); if (A.renderChips) A.renderChips(); const camP = cfg.ax === 'fore' && axv ? [0, 1, 2].map((k) => piv[k] + axv[k] * 0.12) : piv;
-    const post = e.c[2] < 0.0; X().cam.flyTo(camP, J.dist, post ? Math.PI + (side < 0 ? 0.4 : -0.4) : (side < 0 ? -0.4 : 0.4), 0.12);   // look at the side of the body the muscle is on
+    const post = e.c[2] < 0.0; X().cam.flyTo(camP, J.dist, cfg.yaw !== undefined ? cfg.yaw : post ? Math.PI + (side < 0 ? 0.4 : -0.4) : (side < 0 ? -0.4 : 0.4), 0.12);   // look at the side of the body the muscle is on
     $('app').classList.remove('psel'); $('panel').classList.add('closed'); $('panel').classList.remove('peek');
     const bar = document.createElement('div'); bar.id = 'movbar';
     bar.innerHTML = `<div class="mvt">${esc(mvo ? T(mvo.en, mvo.ar) : '')}</div><div class="mvr"><button data-act="movplay" id="movpl">⏸</button><input id="movsl" type="range" min="0" max="100" value="0"><button data-act="movend">✕</button></div>`;
