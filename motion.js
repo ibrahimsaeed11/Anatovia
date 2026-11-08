@@ -97,6 +97,7 @@ if (!window.__motionLoaded) (() => {
     trunk_flex: { j: 'trunk', ax: 'x', s: 1, a: [0, 60], yaw: 1.5708 }, trunk_ext: { j: 'trunk', ax: 'x', s: 1, a: [0, -30], yaw: 1.5708 }, trunk_rot: { j: 'trunk', ax: 'y', s: 1, a: [0, 40] },
     jaw_close: { j: 'jaw', ax: 'x', s: 1, a: [25, 0], yaw: 1.5708 }, breath_in: { j: 'breath', ax: 'x', s: -1, a: [0, 12], yaw: 1.5708 },
     finger_flex: { j: 'fingers', chain: 'finger', a: [0, 1], yaw: 1.2 }, finger_ext: { j: 'fingers', chain: 'finger', a: [1, -0.25], yaw: 1.2 }, thumb_opp: { j: 'thumbj', chain: 'thumb', a: [0, 1], yaw: 1.2 },
+    claw_ulnar: { j: 'fingers', chain: 'finger', pose: 'claw', a: [0, 1], yaw: 1.2 },   // not a user movement: the ulnar-nerve "claw" posture, used by the lesion simulator
     scap_pro: { j: 'scap', ax: 'y', s: -1, a: [0, 15], pivProx: true }, scap_ret: { j: 'scap', ax: 'y', s: -1, a: [0, -15], pivProx: true },
     foot_inv: { j: 'subtalar', ax: 'z', s: 1, a: [0, 20] }, foot_ev: { j: 'subtalar', ax: 'z', s: 1, a: [0, -15] },
   };
@@ -137,15 +138,16 @@ if (!window.__motionLoaded) (() => {
     return { rot, piv: m3vec(inv3(M), tp) };
   }
   const joinC = (qa, qb) => { const A = bverts(qa), B = bverts(qb); let m = 9, pa = null, pb = null; A.forEach((a) => { for (const b of B) { const d = vlen(vsub(a, b)); if (d < m) { m = d; pa = a; pb = b; } } }); return vmul(vadd(pa, pb), 0.5); };
-  function buildChain(kind, side, hand) {   // → { i: steps[] } for every moving bone
+  function buildChain(kind, side, hand, pose) {   // → { i: steps[] } for every moving bone
     const by = (re) => hand.find((q) => re.test(q.en)), out = {};
     const AX = [1, 0, 0], sd = side < 0 ? 1 : -1;   // sd = +1 for the right hand, whose medial side is +x
     if (kind === 'finger') {
-      [['Index', 2, 1], ['Middle', 3, 1.05], ['Ring', 4, 1.1], ['Little', 5, 1.15]].forEach(([nm, mc, g]) => {
+      [['Index', 2, 1], ['Middle', 3, 1.05], ['Ring', 4, 1.1], ['Little', 5, 1.15]].filter(([nm]) => pose !== 'claw' || /Ring|Little/.test(nm)).forEach(([nm, mc, g]) => {
         const m = by(new RegExp('Metacarpal ' + mc + '\\b', 'i')), p = by(new RegExp('Proximal phalanx – ' + nm + ' finger', 'i')), d = by(new RegExp('Middle phalanx – ' + nm + ' finger', 'i')), e = by(new RegExp('Distal phalanx – ' + nm + ' finger', 'i'));
         if (!m || !p || !d || !e) return;
         const c1 = joinC(m, p), c2 = joinC(p, d), c3 = joinC(d, e);
-        const S1 = { c: c1, ax: AX, ang: (f) => -85 * g * f }, S2 = { c: c2, ax: AX, ang: (f) => -100 * Math.max(0, f) }, S3 = { c: c3, ax: AX, ang: (f) => -62 * Math.max(0, f) };
+        const claw = pose === 'claw';   // claw hand: MCP hyper-extended, PIP and DIP flexed
+        const S1 = { c: c1, ax: AX, ang: (f) => (claw ? 38 * f : -85 * g * f) }, S2 = { c: c2, ax: AX, ang: (f) => (claw ? -75 : -100) * Math.max(0, f) }, S3 = { c: c3, ax: AX, ang: (f) => (claw ? -50 : -62) * Math.max(0, f) };
         out[p.i] = [S1]; out[d.i] = [S1, S2]; out[e.i] = [S1, S2, S3];
       });
     } else {
@@ -210,7 +212,7 @@ if (!window.__motionLoaded) (() => {
       return { q, org, ins, rigid: dm(org) < 0.03 };
     }).filter(Boolean);
     let chain = null;
-    if (cfg.chain) { chain = buildChain(cfg.chain, side, bones.filter((q) => HAND.test(q.en) || /phalanx|metacarpal/i.test(q.en))); if (!Object.keys(chain).length) { A.toast(T('Could not set up this joint', 'مش قادر أجهّز المفصل ده'), 3200); return; }
+    if (cfg.chain) { chain = buildChain(cfg.chain, side, bones.filter((q) => HAND.test(q.en) || /phalanx|metacarpal/i.test(q.en)), cfg.pose); if (!Object.keys(chain).length) { A.toast(T('Could not set up this joint', 'مش قادر أجهّز المفصل ده'), 3200); return; }
       mus.forEach((r) => { let bm = 9; moving.forEach((b) => { if (!chain[b.i]) return; const d = mind(bverts(b), r.ins); if (d < bm) { bm = d; r.bone = b.i; } }); }); }
     /* soft tissue that crosses the joint (nerves, vessels, ligaments) has to move with the bones: items lying wholly on the moving side turn rigidly; items that straddle the joint are blended across a short zone around it */
     const extra = [];
@@ -271,11 +273,11 @@ if (!window.__motionLoaded) (() => {
   /* lesion simulator: the weak muscle stays grey and the joint cannot do the movement (it rests in the "drop" posture and only twitches); a toggle shows the healthy movement for comparison */
   A.movSim = async (mvId, e, sim) => {
     S.sel = e.i; await startMove(mvId); const M = S.mov; if (!M) return false;
-    M.sim = { k0: sim.k0, amp: sim.amp, on: true }; M.play = false; applyMove(sim.k0);
+    M.sim = { k0: sim.k0, amp: sim.amp, hk: sim.hk, on: true }; M.play = false; applyMove(sim.k0);
     const bar = $('movbar'); if (bar) { bar.querySelector('.mvt').textContent = sim.title || ''; const sl = $('movsl'), pl = $('movpl'); if (sl) sl.style.display = 'none'; if (pl) { pl.style.display = ''; pl.dataset.act = 'simtoggle'; pl.textContent = '🩺'; pl.title = T('Lesion / healthy', 'مصاب / سليم'); } }
     return true;
   };
-  A.acts.simtoggle = () => { const M = S.mov; if (!M || !M.sim) return; M.sim.on = !M.sim.on; M.play = !M.sim.on; M.t0 = performance.now(); const pl = $('movpl'); if (pl) pl.textContent = M.sim.on ? '🩺' : '✅'; const t = document.querySelector('#movbar .mvt'); if (t) t.dataset.h = M.sim.on ? '' : '1'; if (M.sim.on) applyMove(M.sim.k0); };
+  A.acts.simtoggle = () => { const M = S.mov; if (!M || !M.sim) return; M.sim.on = !M.sim.on; M.play = !M.sim.on && M.sim.hk === undefined; M.t0 = performance.now(); const pl = $('movpl'); if (pl) pl.textContent = M.sim.on ? '🩺' : '✅'; const t = document.querySelector('#movbar .mvt'); if (t) t.dataset.h = M.sim.on ? '' : '1'; if (M.sim.on) applyMove(M.sim.k0); else if (M.sim.hk !== undefined) applyMove(M.sim.hk); };
   A.acts.movend = () => { stopMove(); S.focus = null; S.hl = null; A.apply(); if (A.renderChips) A.renderChips(); };
 
   /* ───────────── hooks: panel section, chip, spot sync ───────────── */

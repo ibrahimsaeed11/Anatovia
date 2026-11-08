@@ -88,7 +88,7 @@
       'Loss of taste on the anterior two-thirds of the tongue (chorda tympani); no facial skin sensory loss (that is the trigeminal nerve).', 'فقدان التذوق في ثلثي اللسان الأماميين (الحبل الطبلي)؛ مفيش فقدان إحساس جلد الوجه (ده للتوأمي).'],
   ];
   /* lesion simulator: nerve id → [movement id, resting offset k0 (outside 0..1 = the "drop" posture), twitch amplitude] */
-  const SIM = { axillary: ['shoulder_abd', 0, .1], musculocutaneous: ['elbow_flex', 0, .1], radial_groove: ['wrist_ext', -0.9, .1], radial_axilla: ['wrist_ext', -0.9, .1], pin: ['finger_ext', 0.03, .06], median_wrist: ['thumb_opp', 0, .1], median_elbow: ['forearm_pro', 0, .1], long_thoracic: ['scap_pro', 0, .1], suprascapular: ['shoulder_er', 0, .1], femoral: ['knee_ext', 0.03, .08], obturator: ['hip_add', 0, .1], sup_gluteal: ['hip_abd', 0, .1], sciatic: ['ankle_df', -1.4, .1], common_fibular: ['ankle_df', -1.4, .1], tibial: ['ankle_pf', 0, .1] };
+  const SIM = { axillary: ['shoulder_abd', 0, .1], musculocutaneous: ['elbow_flex', 0, .1], radial_groove: ['wrist_ext', -0.9, .1], radial_axilla: ['wrist_ext', -0.9, .1], pin: ['finger_ext', 0.03, .06], median_wrist: ['thumb_opp', 0, .1], median_elbow: ['forearm_pro', 0, .1], long_thoracic: ['scap_pro', 0, .1], suprascapular: ['shoulder_er', 0, .1], femoral: ['knee_ext', 0.03, .08], obturator: ['hip_add', 0, .1], sup_gluteal: ['hip_abd', 0, .1], sciatic: ['ankle_df', -1.4, .1], common_fibular: ['ankle_df', -1.4, .1], tibial: ['ankle_pf', 0, .1], ulnar_elbow: ['claw_ulnar', 0.85, .04, /interossei of hand|digiti minimi of hand|Lumbricals of hand/, 0], ulnar_wrist: ['claw_ulnar', 1, .04, /interossei of hand|digiti minimi of hand|Lumbricals of hand/, 0] };
   const REG = { ul: ['Upper limb & neck', 'الطرف العلوي والرقبة'], ll: ['Lower limb', 'الطرف السفلي'], hd: ['Face', 'الوجه'] };
   const NERVES = N.map((a) => ({ id: a[0], reg: a[1], en: a[2], ar: a[3], roots: a[4], siteEn: a[5], siteAr: a[6], trunk: R(a[7]), mus: a[8].map(R), cut: a[9].map(R), mEn: a[10], mAr: a[11], sEn: a[12], sAr: a[13] }));
   window.NERVE_MAP = NERVES;
@@ -126,11 +126,11 @@
     const n = NERVES.find((x) => x.id === el.dataset.id), sm = n && SIM[n.id]; if (!sm) return;
     if (!A.isPremium()) return A.paywall('The lesion simulator is part of Premium.', 'محاكي الإصابة ضمن النسخة المميزة.');
     const pt = parts(n), mv = sm[0];
-    const e = pt.mus.map((q) => P.find((x) => x.baseEn === q.baseEn && x.side === 'r') || q).find((q) => (q.mv || []).includes(mv));
+    const e = pt.mus.map((q) => P.find((x) => x.baseEn === q.baseEn && x.side === 'r') || q).find((q) => sm[3] ? sm[3].test(q.baseEn) : (q.mv || []).includes(mv));
     if (!e) { A.toast(T('This muscle has no animation yet', 'العضلة دي لسه من غير أنيميشن'), 3000); return; }
     A.closeModal(); S.sel = -1; A.deselect();
     await A.ensure('nerve');
-    const ok = await A.movSim(mv, e, { k0: sm[1], amp: sm[2], title: '⚡ ' + T(n.en, n.ar) + ' — ' + T('patient tries to move', 'المريض بيحاول يحرّك') });
+    const ok = await A.movSim(mv, e, { k0: sm[1], amp: sm[2], hk: sm[4], title: '⚡ ' + T(n.en, n.ar) + ' — ' + T('patient tries to move', 'المريض بيحاول يحرّك') });
     if (!ok) return;
     S.layers.nerve = 'on';
     const hl = new Map(S.hl || []); pt.trunk.forEach((q) => hl.set(q.i, [0.2, 0.85, 1, 0.95])); pt.cut.forEach((q) => hl.set(q.i, [1, 0.25, 0.85, 0.9]));
