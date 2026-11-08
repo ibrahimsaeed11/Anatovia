@@ -165,6 +165,7 @@ if (!window.__motionLoaded) (() => {
     const M = S.mov; if (!M) return; const a = M.a0 + (M.a1 - M.a0) * k;
     if (M.chain) {
       const xf = {}; Object.keys(M.chain).forEach((i) => { xf[i] = chainXf(M.chain[i], M.a0 + (M.a1 - M.a0) * k); M.bones.forEach(() => 0); const it = X().itemOf[i]; if (it) it.anim = { mode: 1, rot: xf[i].rot, piv: xf[i].piv, a: [0, 0, 0], dl: [0, 0, 1, 1] }; });
+      (M.extra || []).forEach((x) => { const it = X().itemOf[x.i], f = xf[x.bone]; if (it && f) it.anim = x.rigid ? { mode: 1, rot: f.rot, piv: f.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] } : { mode: 2, k: 0, rot: f.rot, piv: f.piv, a: x.org, dl: x.dl }; });
       M.muscles.forEach((r) => { const it = X().itemOf[r.q.i]; if (!it) return; const x = xf[r.bone] || { rot: new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]), piv: [0, 0, 0] }, d = vsub(r.ins, r.org);
         it.anim = r.rigid ? { mode: 1, rot: x.rot, piv: x.piv, a: [0, 0, 0], dl: [0, 0, 1, 1] } : { mode: 2, k: REACH, rot: x.rot, piv: x.piv, a: r.org, dl: [...vnorm(d), Math.max(0.01, vlen(d))] };
         const s = M.agonist ? 1 - k : k; it.tint = M.sim && M.sim.on ? [0.72, 0.72, 0.74, 0.92] : [1, 0.22 + 0.62 * s, 0.22 + 0.6 * s, 0.12 + 0.6 * s]; });
@@ -230,6 +231,26 @@ if (!window.__motionLoaded) (() => {
           else extra.push({ i: q.i, rigid: false, org: [0, 1, 2].map((k) => piv[k] - dd[k] * H), dl: [...dd, 2 * H] });
         });
       }
+    }
+    if (cfg.chain && chain) {   // fingers / thumb: each digital nerve, vessel or ligament follows the phalanx it lies on
+      const keys = Object.keys(chain).map(Number), H = 0.02, MG = 0.02, lo = [9, 9, 9], hi = [-9, -9, -9];
+      moving.forEach((b) => bverts(b).forEach((v) => { for (let k = 0; k < 3; k++) { if (v[k] < lo[k]) lo[k] = v[k]; if (v[k] > hi[k]) hi[k] = v[k]; } }));
+      const inBox = (v) => v[0] > lo[0] - MG && v[0] < hi[0] + MG && v[1] > lo[1] - MG && v[1] < hi[1] + MG && v[2] > lo[2] - MG && v[2] < hi[2] + MG;
+      P.forEach((q) => {
+        if (q.sys !== 'vessel' && q.sys !== 'nerve' && q.sys !== 'ligament') return;
+        const it = X().itemOf[q.i]; if (!it || !it.vpos) return;
+        if ((q.side === 'r' || q.side === 'l') && sideOf(q) !== side) return;
+        const V = it._bv || (it._bv = vworld(it, 220)), vin = V.filter(inBox); if (!vin.length) return;
+        const bl = [9, 9, 9], bh = [-9, -9, -9]; vin.forEach((v) => { for (let k = 0; k < 3; k++) { if (v[k] < bl[k]) bl[k] = v[k]; if (v[k] > bh[k]) bh[k] = v[k]; } });
+        if ([0, 1, 2].map((k) => bh[k] - bl[k]).sort((a, b) => a - b)[1] > 0.022) return;   // thin cords only; flat sheets / bulky tissue (palmar fascia, retinaculum) would shear
+        const m = [0, 1, 2].map((k) => vin.reduce((a, v) => a + v[k], 0) / vin.length);
+        let best = null; keys.forEach((i) => { const d = mind(bverts(P[i]), m); if (!best || d < best.d) best = { d, i }; });
+        if (!best || best.d > 0.03) return;
+        const c0 = chain[best.i][0].c, bc = P[best.i].c; let dd = vsub(bc, c0); if (vlen(dd) < 0.005) return; dd = vnorm(dd);
+        let smin = 9; V.forEach((v) => { const sd = vdot(vsub(v, c0), dd); if (sd < smin) smin = sd; });
+        if (vin.length / V.length >= 0.9 && smin > -0.005) extra.push({ i: q.i, bone: best.i, rigid: true });
+        else extra.push({ i: q.i, bone: best.i, rigid: false, org: [0, 1, 2].map((k) => c0[k] - dd[k] * H), dl: [...dd, 2 * H] });
+      });
     }
     if (!mus.length) { A.toast(T('Cannot animate this muscle', 'مش قادر أحرّك العضلة دي'), 3000); return; }
     S.focus = new Set([...mus.map((r) => r.q.i), ...prox.map((q) => q.i), ...moving.map((q) => q.i)]); S.att = true; lastSig = '';
