@@ -137,9 +137,9 @@ const CL = [
   let deck = [], idx = 0, score = 0, ans = null, order = [];
   const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const newRound = () => { deck = shuffle(CL.map((_, i) => i)).slice(0, ROUND); idx = 0; score = 0; ans = null; order = shuffle([0, 1, 2, 3]); };
-  function html() {
+  function quizHtml() {
     if (!deck.length) newRound();
-    const head = `<h2>🩻 ${T('Clinical anatomy cases', 'حالات تشريح إكلينيكي')}</h2><button class="btn p wide" style="margin:2px 0 8px" data-act="clhunt">🎯 ${T('Find the lesion on the 3D model', 'دوّر على الإصابة على المجسم')} ${A.isPremium() ? '' : '🔒'}</button><p class="tiny">${T('Draft content – to be reviewed by a physician before being relied on.', 'محتوى مسودة – محتاج مراجعة دكتور قبل الاعتماد عليه.')}</p>`;
+    const head = `<h2>🩻 ${T('Clinical anatomy cases', 'حالات تشريح إكلينيكي')}</h2><div class="row" style="margin:2px 0 8px"><button class="btn" data-act="clstage">🩺 ${T('Stepwise cases', 'حالات بمراحل')}</button><button class="btn" data-act="clrep">📊 ${T('My progress', 'تقدمي')}</button></div><button class="btn p wide" style="margin:2px 0 8px" data-act="clhunt">🎯 ${T('Find the lesion on the 3D model', 'دوّر على الإصابة على المجسم')} ${A.isPremium() ? '' : '🔒'}</button><p class="tiny">${T('Draft content – to be reviewed by a physician before being relied on.', 'محتوى مسودة – محتاج مراجعة دكتور قبل الاعتماد عليه.')}</p>`;
     if (idx >= deck.length) {
       const pc = Math.round(score / deck.length * 100);
       return head + `<div class="pjcurve" style="text-align:center;padding:18px 12px"><div dir="ltr" style="font-size:34px;font-weight:800;margin:6px 0">${score} / ${deck.length}</div><p>${pc >= 80 ? T('Excellent!', 'ممتاز!') : pc >= 50 ? T('Good – review the missed ones.', 'كويس – راجع اللي غلطت فيه.') : T('Keep practising.', 'كمّل تدريب.')}</p><button class="btn p" data-act="clrestart">${T('New round', 'جولة جديدة')}</button></div>`;
@@ -156,8 +156,85 @@ const CL = [
     }
     return head + `<div class="pjcurve"><small><span>${T('Case', 'حالة')} ${idx + 1} / ${deck.length}</span> · <span>${T('Score', 'النتيجة')} ${score}</span></small><p style="margin:8px 0;font-size:14px;line-height:1.8">${esc(T(q[0], q[1]))}</p>${opts}</div>` + fb;
   }
-  const open = () => { newRound(); A.modal(html); };
-  A.acts.clans = (el) => { if (ans !== null) return; ans = +el.dataset.i; if (ans === 0) score++; A.rerenderModal(); };
+    /* ─────────── progress report + staged cases ─────────── */
+  const CATS = [['ul', 'Upper-limb nerves', 'أعصاب الطرف العلوي', [0, 1, 3, 4, 5, 6]], ['ll', 'Lower-limb nerves', 'أعصاب الطرف السفلي', [2, 8, 9, 10, 11]], ['hn', 'Head, neck & cranial nerves', 'الرأس والرقبة والأعصاب القحفية', [12, 15, 16, 17, 18, 19, 20]], ['th', 'Thorax', 'الصدر', [21, 26, 28]], ['ab', 'Abdomen, pelvis & spine', 'البطن والحوض والعمود الفقري', [13, 14, 24, 25, 27]], ['ms', 'Bones, joints & ligaments', 'العظام والمفاصل والأربطة', [7, 22, 23]]];
+  const SKEY = 'anat_clin';
+  const stats = () => { try { return JSON.parse(localStorage.getItem(SKEY) || '{}'); } catch (e) { return {}; } };
+  const rec = (k, ok) => { try { const s = stats(), r = s[k] || { n: 0, ok: 0 }; r.n++; if (ok) r.ok++; r.t = Date.now(); s[k] = r; localStorage.setItem(SKEY, JSON.stringify(s)); } catch (e) { /* storage may be blocked */ } };
+  const pct = (r) => (r && r.n ? Math.round(r.ok / r.n * 100) : null);
+  let view = 'quiz';
+  const repHtml = () => {
+    const s = stats(); let tn = 0, tok = 0;
+    const rows = CATS.map(([k, en, ar, ids]) => { let n = 0, ok = 0; ids.forEach((i) => { const r = s[i]; if (r) { n += r.n; ok += r.ok; } }); tn += n; tok += ok; return { en, ar, n, p: n ? Math.round(ok / n * 100) : null }; });
+    const bar = (r) => `<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${T(r.en, r.ar)}</span><span dir="ltr">${r.p === null ? T('not tried', 'لسه') : r.p + '% · ' + r.n}</span></div><div style="height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;margin-top:4px"><div style="height:100%;width:${r.p || 0}%;background:${r.p === null ? 'transparent' : r.p >= 80 ? '#3fd67a' : r.p >= 50 ? '#e9b949' : '#ff6b6b'}"></div></div></div>`;
+    const weak = weakDeck().slice(0, 5).map((i) => { const r = s[i], q = pair(CL[i][0]); return `<li style="margin:4px 0;font-size:13px">${esc(T(q[0], q[1]).slice(0, 90))}… <small dir="ltr">${r ? pct(r) + '%' : T('new', 'جديدة')}</small></li>`; }).join('');
+    const sg = SG.map((c, i) => { const r = s['s' + i]; return r ? `<small>${pct(r)}%</small>` : ''; });
+    return `<h2>📊 ${T('My clinical progress', 'تقدمي الإكلينيكي')}</h2><p class="tiny">${T('Saved on this device only.', 'محفوظ على الجهاز ده بس.')}</p>` +
+      (tn ? '' : `<p>${T('No attempts yet – answer a few cases first.', 'لسه معملتش محاولات – جاوب كام حالة الأول.')}</p>`) + rows.map(bar).join('') +
+      `<h3 style="margin:14px 0 4px">${T('Weakest cases', 'أضعف حالاتك')}</h3><ol style="padding-inline-start:20px">${weak}</ol>` +
+      `<div class="row"><button class="btn p" data-act="clweak">🔁 ${T('Practise my weak spots', 'تدرّب على نقط ضعفي')}</button><button class="btn" data-act="clquiz">${T('Back', 'رجوع')}</button></div>`;
+  };
+  function weakDeck() {   // never-tried first, then the lowest accuracy
+    const s = stats(); return CL.map((_, i) => i).sort((a, b) => { const ra = s[a], rb = s[b]; const sa = ra ? (pct(ra) + (ra.n > 3 ? 5 : 0)) : 40, sb = rb ? (pct(rb) + (rb.n > 3 ? 5 : 0)) : 40; return sa - sb || Math.random() - .5; });
+  }
+  const SG = [
+    { nerve: 'radial_groove', hx: ['A 35-year-old man fell asleep with his arm over a chair after a party. He wakes up and cannot lift his hand.|راجل عنده 35 سنة نام وإيده متعلقة على كرسي بعد سهرة. صحي ومش قادر يرفع إيده.'],
+      ex: [['Extend the wrist and fingers against resistance|بسط الرسغ والأصابع ضد مقاومة', 'Cannot extend – the wrist drops (wrist drop).|مش قادر – الرسغ بيقع (سقوط الرسغ).', 2], ['Sensation over the dorsum of the first web space|الإحساس على ظهر الحيز بين الإبهام والسبابة', 'Reduced.|ناقص.', 2], ['Triceps power and reflex|قوة ومنعكس ثلاثية الرؤوس', 'Normal – the lesion is distal to the triceps branches.|طبيعي – الإصابة بعد فروع الثلاثية.', 2], ['Finger abduction / adduction|فتح وضم الأصابع', 'Normal.|طبيعي.', 0], ['Thumb opposition|مقابلة الإبهام', 'Normal.|طبيعي.', 0], ['Elbow flexion (biceps)|ثني الكوع', 'Normal.|طبيعي.', 0]],
+      dx: ['Radial nerve in the spiral groove|العصب الكعبري في الميزاب الحلزوني', 'Posterior cord of the brachial plexus (axilla)|الحبل الخلفي للضفيرة', 'Posterior interosseous nerve only|العصب بين العظمين الخلفي فقط', 'Median nerve at the wrist|العصب الأوسط عند الرسغ'],
+      exp: ['A wrist drop with normal triceps places the lesion in the spiral groove (distal to the triceps branches). A posterior-cord / axillary lesion would also weaken triceps and deltoid; a posterior interosseous lesion spares wrist extension (extensor carpi radialis longus) and sensation.|سقوط الرسغ مع ثلاثية رؤوس سليمة بيحدد الإصابة في الميزاب الحلزوني (بعد فروع الثلاثية). إصابة الحبل الخلفي بتضعف الثلاثية والدالية كمان، وإصابة العصب بين العظمين الخلفي بتسيب بسط الرسغ والإحساس سليمين.'] },
+    { nerve: 'common_fibular', hx: ['A footballer was kicked on the outer side of the knee. Since then his foot slaps on the ground when he walks.|لاعب كورة اتضرب على الناحية الخارجية للركبة. من وقتها قدمه بتخبط في الأرض وهو ماشي.'],
+      ex: [['Dorsiflexion of the ankle|رفع القدم لفوق', 'Impossible – foot drop with a high-stepping gait.|مش ممكن – قدم متدلية ومشية عالية الخطوة.', 2], ['Eversion of the foot|تقليب القدم للخارج', 'Weak.|ضعيف.', 2], ['Sensation over the dorsum of the foot and lateral leg|الإحساس على ظهر القدم وجانب الساق', 'Reduced.|ناقص.', 2], ['Plantar flexion (gastrocnemius)|ثني القدم لتحت', 'Normal – tibial nerve intact.|طبيعي – العصب الظنبوبي سليم.', 1], ['Foot inversion|تقليب القدم للداخل', 'Normal (tibialis posterior – tibial nerve).|طبيعي (الظنبوبية الخلفية – العصب الظنبوبي).', 1], ['Knee jerk|منعكس الركبة', 'Normal.|طبيعي.', 0]],
+      dx: ['Common fibular (peroneal) nerve at the fibular neck|العصب الشظوي المشترك عند رقبة الشظية', 'Tibial nerve|العصب الظنبوبي', 'Sciatic nerve in the buttock|العصب الوركي في الإلية', 'L5 radiculopathy only|اعتلال جذر L5 فقط'],
+      exp: ['Foot drop with weak eversion and dorsal-foot numbness, but normal plantar flexion and inversion, localises to the common fibular nerve at the fibular neck. A sciatic lesion would also weaken plantar flexion and inversion and the hamstrings.|القدم المتدلية مع ضعف التقليب للخارج وتنميل ظهر القدم، وثني القدم لتحت والتقليب للداخل سليمين، بتحدد العصب الشظوي المشترك عند رقبة الشظية. إصابة الوركي كانت هتضعف كمان ثني القدم لتحت والتقليب للداخل والعضلات الخلفية للفخذ.'] },
+    { nerve: 'ulnar_wrist', hx: ['A cyclist has had numbness of the little finger and difficulty gripping the handlebars for weeks.|سواق عجلة عنده تنميل في الخنصر وصعوبة في مسك المقود بقاله أسابيع.'],
+      ex: [['Finger abduction / adduction (interossei)|فتح وضم الأصابع', 'Weak; ring and little fingers are clawed.|ضعيف؛ البنصر والخنصر مخلبيين.', 2], ['Froment sign (hold paper between thumb and index)|علامة فرومنت (مسك ورقة بين الإبهام والسبابة)', 'Positive – the thumb flexes to compensate.|إيجابية – الإبهام بيتني للتعويض.', 2], ['Sensation over the little finger and the palmar ulnar border|الإحساس في الخنصر وحافة الكف الزندية', 'Reduced.|ناقص.', 2], ['Sensation over the dorsal ulnar side of the hand|الإحساس على الظهر الزندي لليد', 'Normal – the dorsal branch leaves above the wrist.|طبيعي – الفرع الظهري بيخرج قبل الرسغ.', 2], ['Wrist flexion with ulnar deviation (FCU)|ثني الرسغ مع ميل زندي', 'Strong – FCU is spared.|قوي – العضلة الزندية الثانية سليمة.', 1], ['Thumb opposition|مقابلة الإبهام', 'Normal.|طبيعي.', 0]],
+      dx: ['Ulnar nerve at the wrist (Guyon canal)|العصب الزندي عند الرسغ (قناة جيّون)', 'Ulnar nerve at the elbow (cubital tunnel)|العصب الزندي عند الكوع', 'C8–T1 roots (lower trunk)|الجذور C8–T1 (الجذع السفلي)', 'Median nerve at the carpal tunnel|العصب الأوسط في النفق الرسغي'],
+      exp: ['Intrinsic hand weakness and palmar little-finger numbness with a normal dorsal ulnar sensation and a strong FCU puts the lesion at the wrist (Guyon canal); an elbow lesion would also reduce FCU and dorsal-ulnar sensation.|ضعف عضلات اليد الصغيرة وتنميل الخنصر من ناحية الكف، مع إحساس طبيعي بالظهر الزندي وعضلة زندية قوية، بيحدد الإصابة عند الرسغ (قناة جيّون). إصابة الكوع كانت هتضعف كمان العضلة الزندية والإحساس بالظهر.'] },
+    { nerve: 'axillary', hx: ['A young man dislocated his shoulder anteriorly while playing rugby; it was reduced in the ER. Now he cannot raise his arm to the side.|شاب خلع كتفه للأمام في رجبي واتردّ في الطوارئ. دلوقتي مش قادر يرفع دراعه للجنب.'],
+      ex: [['Abduction beyond the first 15°|فتح الدراع بعد أول 15 درجة', 'Weak – cannot hold the arm up.|ضعيف – مش قادر يثبّت الدراع لفوق.', 2], ['Sensation over the lateral shoulder (regimental badge)|الإحساس على جانب الكتف (الشارة)', 'Reduced.|ناقص.', 2], ['Initiation of abduction (first 15°)|بدء فتح الدراع (أول 15 درجة)', 'Possible – supraspinatus is intact.|ممكن – فوق الشوكة سليمة.', 1], ['External rotation (teres minor)|الدوران للخارج', 'Weak.|ضعيف.', 1], ['Elbow flexion and sensation over the lateral forearm|ثني الكوع وإحساس الساعد الجانبي', 'Normal – musculocutaneous nerve intact.|طبيعي – العصب العضلي الجلدي سليم.', 0], ['Wrist extension|بسط الرسغ', 'Normal.|طبيعي.', 0]],
+      dx: ['Axillary nerve|العصب الإبطي', 'Suprascapular nerve|العصب فوق الكتف', 'Radial nerve|العصب الكعبري', 'Musculocutaneous nerve|العصب العضلي الجلدي'],
+      exp: ['The axillary nerve wraps the surgical neck of the humerus and is injured in anterior dislocation: deltoid and teres minor weakness with sensory loss over the lateral shoulder. The initial 15° of abduction (supraspinatus – suprascapular nerve) is preserved.|العصب الإبطي بيلف حوالين الرقبة الجراحية للعضد وبيتأذى في الخلع الأمامي: ضعف الدالية والمدورة الصغرى وفقد الإحساس بجانب الكتف. أول 15 درجة من الفتح (فوق الشوكة – العصب فوق الكتف) سليمة.'] },
+    { nerve: 'femoral', hx: ['After a long pelvic operation a patient says his right knee gives way when he climbs stairs.|بعد عملية طويلة في الحوض مريض بيقول إن ركبته اليمين بتخونه وهو بيطلع السلم.'],
+      ex: [['Knee extension against resistance|فرد الركبة ضد مقاومة', 'Weak – quadriceps.|ضعيف – الرباعية.', 2], ['Patellar reflex|منعكس الرضفة', 'Absent.|مفقود.', 2], ['Sensation over the anterior thigh and medial leg|الإحساس على مقدمة الفخذ وإنسية الساق', 'Reduced.|ناقص.', 2], ['Hip adduction|ضم الفخذ', 'Normal – obturator nerve intact.|طبيعي – العصب السدادي سليم.', 1], ['Ankle dorsiflexion and plantar flexion|حركة القدم لفوق ولتحت', 'Normal.|طبيعية.', 0], ['Hip abduction|فتح الفخذ', 'Normal.|طبيعي.', 0]],
+      dx: ['Femoral nerve|العصب الفخذي', 'Obturator nerve|العصب السدادي', 'Sciatic nerve|العصب الوركي', 'Superior gluteal nerve|العصب الإلوي العلوي'],
+      exp: ['Quadriceps weakness, absent patellar reflex and anterior-thigh sensory loss with preserved adductors point to the femoral nerve (L2–L4), classically injured by retractors in pelvic surgery or an iliacus haematoma.|ضعف الرباعية ومنعكس الرضفة المفقود وفقد إحساس مقدمة الفخذ مع سلامة المقرّبات بتدل على العصب الفخذي (L2–L4)، وبيتأذى غالبا من الفاتحات في جراحات الحوض أو ورم دموي في الحرقفية.'] },
+    { nerve: 'median_wrist', hx: ['A woman who works at a keyboard wakes at night with burning fingers and drops cups.|ست بتشتغل على الكيبورد بتصحى بالليل وصوابعها بتحرقها وبتوقّع الأكواب.'],
+      ex: [['Phalen test (wrist flexion for 60 s)|اختبار فالن (ثني الرسغ دقيقة)', 'Positive – tingling reproduced.|إيجابي – التنميل رجع.', 2], ['Thumb opposition and abduction|مقابلة الإبهام وإبعاده', 'Weak.|ضعيفة.', 2], ['Sensation over the thenar eminence|الإحساس على بروز الإبهام', 'Normal – the palmar cutaneous branch arises above the tunnel.|طبيعي – الفرع الجلدي الراحي بيطلع قبل النفق.', 2], ['Sensation over the thumb, index and middle fingers|الإحساس في الإبهام والسبابة والوسطى', 'Reduced.|ناقص.', 2], ['Flexion of the finger tips (FDP/FDS)|ثني أطراف الأصابع', 'Normal – forearm muscles are spared.|طبيعي – عضلات الساعد سليمة.', 1], ['Finger abduction / adduction|فتح وضم الأصابع', 'Normal.|طبيعي.', 0]],
+      dx: ['Median nerve compression in the carpal tunnel|ضغط العصب الأوسط في النفق الرسغي', 'Median nerve at the elbow (pronator syndrome)|العصب الأوسط عند الكوع', 'C6 radiculopathy|اعتلال جذر C6', 'Ulnar nerve at Guyon canal|العصب الزندي في قناة جيّون'],
+      exp: ['Thenar weakness and lateral-3½-digit numbness with sparing of the thenar eminence skin and of the forearm flexors localises the lesion to the carpal tunnel, distal to the palmar cutaneous branch.|ضعف عضلات الإبهام وتنميل 3 أصابع ونص مع سلامة جلد بروز الإبهام وعضلات الساعد بيحدد الإصابة في النفق الرسغي، بعد الفرع الجلدي الراحي.'] },
+  ];
+  let sg = null;   // { i, asked:Set, stage:'ex'|'dx'|'done', order, pick }
+  const sgList = () => `<h2>🩺 ${T('Stepwise cases', 'حالات بمراحل')}</h2><p class="tiny">${T('Take the history, choose your examinations, watch the patient on the 3D model, then decide. Draft content – physician review needed.', 'خد التاريخ المرضي، اختار الفحوصات، شوف المريض على المجسم، وبعدين قرّر. محتوى مسودة – محتاج مراجعة دكتور.')}</p>` +
+    SG.map((c, i) => { const r = stats()['s' + i]; return `<button class="btn" style="display:block;width:100%;margin:6px 0;text-align:start" data-act="sgopen" data-i="${i}">${i + 1}. ${esc(tt(c.hx[0]).slice(0, 80))}… ${r ? '<small>(' + pct(r) + '%)</small>' : ''}</button>`; }).join('') +
+    `<div class="row"><button class="btn" data-act="clquiz">${T('Back', 'رجوع')}</button></div>`;
+  const sgCase = () => {
+    const c = SG[sg.i], ex = c.ex.map((e, j) => { const on = sg.asked.has(j); const rs = pair(e[1]); return `<div style="margin:4px 0"><button class="btn" style="width:100%;text-align:start;${on ? 'opacity:.75' : ''}" data-act="sgex" data-j="${j}" ${on ? 'disabled' : ''}>🔎 ${esc(tt(e[0]))}</button>${on ? `<div style="padding:4px 10px;font-size:13px;color:#7fd8a0">→ ${esc(T(rs[0], rs[1]))}</div>` : ''}</div>`; }).join('');
+    let tail = '';
+    if (sg.stage === 'ex') tail = `<div class="row" style="margin-top:8px"><button class="btn" data-act="sgsim">🧍 ${T('Watch the patient on the 3D model', 'شوف المريض على المجسم')} ${A.isPremium() ? '' : '🔒'}</button><button class="btn p" data-act="sgdx">${T('I am ready to decide', 'جاهز أقرّر')}</button></div>`;
+    else {
+      const ok = sg.pick === 0, o = sg.order.map((k) => { const st = sg.stage === 'done' ? (k === 0 ? 'border-color:#3fd67a;background:rgba(63,214,122,.15)' : sg.pick === k ? 'border-color:#ff6b6b;background:rgba(255,107,107,.15)' : '') : ''; return `<button class="btn" style="display:block;width:100%;margin:5px 0;text-align:start;${st}" data-act="sgans" data-k="${k}" ${sg.stage === 'done' ? 'disabled' : ''}>${esc(tt(c.dx[k]))}</button>`; }).join('');
+      tail = `<h3 style="margin:10px 0 2px">${T('Where is the lesion / what is the diagnosis?', 'فين الإصابة / إيه التشخيص؟')}</h3>${o}`;
+      if (sg.stage === 'done') tail += `<div class="pjcurve" style="margin-top:8px"><b>${ok ? T('Correct!', 'تمام!') : T('Not quite.', 'مش بالظبط.')} ${sg.pts !== undefined ? '+' + sg.pts : ''}</b><p style="font-size:13px;line-height:1.7;margin:4px 0">${esc(tt(c.exp[0]))}</p><div class="row"><button class="btn" data-act="sgsim">🧍 ${T('See it on the model', 'شوفها على المجسم')}</button><button class="btn p" data-act="clstage">${T('More cases', 'حالات تانية')}</button></div></div>`;
+    }
+    return `<h2>🩺 ${T('Stepwise case', 'حالة بمراحل')} ${sg.i + 1}</h2><div class="pjcurve"><p style="margin:0;line-height:1.8">${esc(tt(c.hx[0]))}</p></div><h3 style="margin:10px 0 2px">${T('Examinations', 'الفحوصات')} <small>(${sg.asked.size}/${c.ex.length})</small></h3>${ex}${tail}`;
+  };
+  const html = () => (view === 'rep' ? repHtml() : view === 'stl' ? sgList() : view === 'stg' && sg ? sgCase() : quizHtml());
+  const show = (v) => { view = v; if (!$('modal') || $('modal').hidden) A.modal(html); else A.rerenderModal(); };
+  A.acts.clrep = () => show('rep'); A.acts.clquiz = () => show('quiz'); A.acts.clstage = () => show('stl');
+  A.acts.clweak = () => { deck = weakDeck().slice(0, ROUND); idx = 0; score = 0; ans = null; order = shuffle([0, 1, 2, 3]); show('quiz'); };
+  A.acts.sgopen = (el) => { sg = { i: +el.dataset.i, asked: new Set(), stage: 'ex', order: shuffle([0, 1, 2, 3]) }; show('stg'); };
+  A.acts.sgex = (el) => { if (sg && sg.stage === 'ex') { sg.asked.add(+el.dataset.j); A.rerenderModal(); } };
+  A.acts.sgdx = () => { if (sg) { sg.stage = 'dx'; A.rerenderModal(); } };
+  A.acts.sgans = (el) => { if (!sg || sg.stage === 'done') return; sg.pick = +el.dataset.k; const c = SG[sg.i], key = c.ex.filter((e) => e[2] === 2).length, got = [...sg.asked].filter((j) => c.ex[j][2] === 2).length, waste = [...sg.asked].filter((j) => c.ex[j][2] === 0).length;
+    sg.pts = sg.pick === 0 ? Math.max(1, 3 - (got < Math.min(2, key) ? 1 : 0) - (waste > 1 ? 1 : 0)) : 0; sg.stage = 'done'; rec('s' + sg.i, sg.pick === 0); A.rerenderModal(); };
+  A.acts.sgsim = () => {
+    if (!sg) return; if (!A.isPremium()) return A.paywall('Watching the patient on the 3D model is part of Premium.', 'مشاهدة المريض على المجسم ضمن النسخة المميزة.');
+    const id = SG[sg.i].nerve; A.closeModal();
+    Promise.resolve(A.acts.nsim({ dataset: { id } })).then(() => { const b = document.createElement('div'); b.id = 'hntbar'; b.innerHTML = `<div class="hr"><button class="p" data-act="sgreturn">⬅ ${T('Back to the case', 'رجوع للحالة')}</button></div>`; const old = $('hntbar'); if (old) old.remove(); $('app').appendChild(b); });
+  };
+  A.acts.sgreturn = () => { A.acts.movend(); const b = $('hntbar'); if (b) b.remove(); show('stg'); };
+  const open = () => { newRound(); view = 'quiz'; A.modal(html); };
+  A.acts.clans = (el) => { if (ans !== null) return; ans = +el.dataset.i; rec(deck[idx], ans === 0); if (ans === 0) score++; A.rerenderModal(); };
   A.acts.clnext = () => { idx++; ans = null; order = shuffle([0, 1, 2, 3]); A.rerenderModal(); };
   A.acts.clrestart = () => { newRound(); A.rerenderModal(); };
   A.acts.clshow = async () => {
@@ -206,7 +283,7 @@ const CL = [
   }
   function reveal(c, sd, pts, why) {
     const hit = target(c, sd), hl = new Map(); hit.forEach((e) => hl.set(e.i, pts > 0 ? [0.25, 0.95, 0.45, 0.95] : [1, 0.55, 0.2, 0.95]));
-    S.hl = hl; A.apply(); if (hit[0]) A.flyToPart(hit[0]); H.done = true; H.score += pts;
+    S.hl = hl; A.apply(); if (hit[0]) A.flyToPart(hit[0]); H.done = true; H.score += pts; rec(H.deck[H.i], pts >= 2);
     const last = H.i + 1 >= H.deck.length;
     bar(hdr() + `<div class="hq">${pts > 0 ? '✅' : '👀'} ${esc(why)}</div><div class="hmsg">${esc(tt(c[2]))}</div><div class="hr"><button class="p" data-act="hntnext">${last ? T('Finish', 'إنهاء') : T('Next case', 'الحالة اللي بعدها')}</button><button data-act="hntend">✕</button></div>`);
   }
