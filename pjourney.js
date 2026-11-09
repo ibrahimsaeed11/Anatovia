@@ -312,6 +312,13 @@ window.__pjourneyLoaded = true;
     cbz: { o: 'brain', nat: ['Na⁺', 'صوديوم Na⁺'], g: ['Abnormal firing', 'نشاط غير طبيعي', .85, .25, ['High', 'عالي'], ['Calmer', 'أهدى']] },
     gab: { o: 'brain', nat: ['Ca²⁺', 'كالسيوم Ca²⁺'], g: ['Nerve pain signals', 'إشارات ألم الأعصاب', .85, .35, ['Strong', 'قوية'], ['Calmer', 'أهدى']] },
     par: { o: 'brain', nat: ['Prostaglandins', 'البروستاجلاندين'], g: ['Fever and pain', 'الحرارة والألم', .85, .35, ['High', 'عالية'], ['Lower', 'أقل']] },
+    lor: { o: 'bron', nat: ['Histamine', 'هيستامين'], g: ['Allergy symptoms (itch, sneezing)', 'أعراض الحساسية (هرش وعطس)', .85, .3, ['Strong', 'قوية'], ['Calmer', 'أهدى']] },
+    cet: { o: 'bron', nat: ['Histamine', 'هيستامين'], g: ['Allergy symptoms (itch, sneezing)', 'أعراض الحساسية (هرش وعطس)', .85, .3, ['Strong', 'قوية'], ['Calmer', 'أهدى']] },
+    asp: { o: 'aorta', nat: ['Thromboxane A2', 'ثرومبوكسان A2'], pr: [[.62, .85, 1], 22, 7, ['Platelets clumping', 'تجمّع الصفائح']], g: ['Clot formation', 'تكوّن الجلطة', .85, .35, ['Normal', 'طبيعي'], ['Lower', 'أقل']] },
+    ibu: { o: 'brain', nat: ['Prostaglandins', 'البروستاجلاندين'], g: ['Pain and inflammation', 'الألم والالتهاب', .85, .35, ['High', 'عالي'], ['Lower', 'أقل']] },
+    dic: { o: 'brain', nat: ['Prostaglandins', 'البروستاجلاندين'], g: ['Pain and inflammation', 'الألم والالتهاب', .85, .3, ['High', 'عالي'], ['Lower', 'أقل']] },
+    pre: { o: 'bron', agon: true, g: ['Airway / body inflammation', 'التهاب الشعب / الجسم', .85, .3, ['High', 'عالي'], ['Lower', 'أقل']] },
+    lev: { o: 'heart', agon: true, g: ['Metabolism and heart rate', 'الأيض ونبض القلب', .25, .7, ['Low (hypothyroid)', 'واطي (قصور الدرقية)'], ['Back to normal', 'رجع طبيعي']] },
   });
   W.mto = W.pro; W.hct = W.fur; W.pan = W.ome;
   /* interactions → 3D scene. kind: liver (inhibits the breakdown of A), bron, clot, organ. a = the drug that is affected, b = the interacting drug */

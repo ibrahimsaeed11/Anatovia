@@ -88,7 +88,7 @@
       'Loss of taste on the anterior two-thirds of the tongue (chorda tympani); no facial skin sensory loss (that is the trigeminal nerve).', 'فقدان التذوق في ثلثي اللسان الأماميين (الحبل الطبلي)؛ مفيش فقدان إحساس جلد الوجه (ده للتوأمي).'],
   ];
   /* lesion simulator: nerve id → [movement id, resting offset k0 (outside 0..1 = the "drop" posture), twitch amplitude] */
-  const SIM = { axillary: ['shoulder_abd', 0, .1], musculocutaneous: ['elbow_flex', 0, .1], radial_groove: ['wrist_ext', -0.9, .1], radial_axilla: ['wrist_ext', -0.9, .1], pin: ['finger_ext', 0.03, .06], median_wrist: ['thumb_opp', 0, .1], median_elbow: ['forearm_pro', 0, .1], long_thoracic: ['scap_pro', 0, .1], suprascapular: ['shoulder_er', 0, .1], femoral: ['knee_ext', 0.03, .08], obturator: ['hip_add', 0, .1], sup_gluteal: ['hip_abd', 0, .1], sciatic: ['ankle_df', -1.4, .1], common_fibular: ['ankle_df', -1.4, .1], tibial: ['ankle_pf', 0, .1], accessory: ['scap_elev', -0.7, .1], ulnar_elbow: ['claw_ulnar', 0.85, .04, /interossei of hand|digiti minimi of hand|Lumbricals of hand/, 0], ulnar_wrist: ['claw_ulnar', 1, .04, /interossei of hand|digiti minimi of hand|Lumbricals of hand/, 0] };
+  const SIM = { axillary: ['shoulder_abd', 0, .1], musculocutaneous: ['elbow_flex', 0, .1], radial_groove: ['wrist_ext', -0.9, .1], radial_axilla: ['wrist_ext', -0.9, .1], pin: ['finger_ext', 0.03, .06], median_wrist: ['thumb_opp', 0, .1], median_elbow: ['forearm_pro', 0, .1], long_thoracic: ['scap_pro', 0, .1], suprascapular: ['shoulder_er', 0, .1], femoral: ['knee_ext', 0.03, .08], obturator: ['hip_add', 0, .1], sup_gluteal: ['hip_abd', 0, .1], sciatic: ['ankle_df', -1.4, .1], common_fibular: ['ankle_df', -1.4, .1], tibial: ['ankle_pf', 0, .1], accessory: ['scap_elev', -0.7, .1], ulnar_elbow: ['claw_ulnar', 0.85, .04, /interossei of hand|digiti minimi of hand|Lumbricals of hand/, 0], ulnar_wrist: ['claw_ulnar', 1, .04, /interossei of hand|digiti minimi of hand|Lumbricals of hand/, 0], facial: ['face'] };
   const REG = { ul: ['Upper limb & neck', 'الطرف العلوي والرقبة'], ll: ['Lower limb', 'الطرف السفلي'], hd: ['Face', 'الوجه'] };
   const NERVES = N.map((a) => ({ id: a[0], reg: a[1], en: a[2], ar: a[3], roots: a[4], siteEn: a[5], siteAr: a[6], trunk: R(a[7]), mus: a[8].map(R), cut: a[9].map(R), mEn: a[10], mAr: a[11], sEn: a[12], sAr: a[13] }));
   window.NERVE_MAP = NERVES;
@@ -125,6 +125,7 @@
   A.acts.nsim = async (el) => {
     const n = NERVES.find((x) => x.id === el.dataset.id), sm = n && SIM[n.id]; if (!sm) return;
     if (!A.isPremium()) return A.paywall('The lesion simulator is part of Premium.', 'محاكي الإصابة ضمن النسخة المميزة.');
+    if (sm[0] === 'face') return faceSim(n);
     const pt = parts(n), mv = sm[0];
     const e = pt.mus.map((q) => P.find((x) => x.baseEn === q.baseEn && x.side === 'r') || q).find((q) => sm[3] ? sm[3].test(q.baseEn) : (q.mv || []).includes(mv));
     if (!e) { A.toast(T('This muscle has no animation yet', 'العضلة دي لسه من غير أنيميشن'), 3000); return; }
@@ -137,6 +138,29 @@
     S.hl = hl; S.focus = new Set([...(S.focus || []), ...hl.keys()]); A.apply();
     if (A.toast) A.toast(T('Grey = paralysed muscle · tap 🩺 to compare with a healthy side', 'الرمادي = عضلة مشلولة · دوس 🩺 تقارن بالسليم'), 4800);
   };
+  /* facial-nerve lesion: no per-muscle animation exists for the face, so the patient is shown as a healthy/lesion comparison (affected side grey) with the signs listed */
+  const GREY = [0.72, 0.72, 0.74, 0.92], WARM = [1, 0.78, 0.18, 0.85];
+  async function faceSim(n) {
+    A.closeModal(); S.sel = -1; A.deselect();
+    await A.ensure('nerve'); await A.ensure('muscle'); try { await A.ensure('bone'); } catch (e) { /* ignore */ }
+    const rx = n.mus.map((r) => new RegExp(r, 'i')), isM = (q) => q.sys === 'muscle' && rx.some((r) => r.test(q.baseEn || q.en));
+    const bad = P.filter((q) => isM(q) && q.side !== 'l'), good = P.filter((q) => isM(q) && q.side === 'l'), tr = P.filter((q) => q.sys === 'nerve' && q.side !== 'l' && new RegExp(n.trunk, 'i').test(q.baseEn));
+    if (!bad.length) { A.toast(T('Facial muscles are not available', 'عضلات الوجه مش متاحة'), 3000); return; }
+    S.layers.nerve = 'on'; S.layers.muscle = 'on'; S.layers.bone = 'ghost'; S.region = null; S.iso = -1; S.moveSet = null;
+    const paint = (lesion) => { const hl = new Map(); good.forEach((q) => hl.set(q.i, WARM)); bad.forEach((q) => hl.set(q.i, lesion ? GREY : WARM)); tr.forEach((q) => hl.set(q.i, [0.2, 0.85, 1, 0.95])); S.hl = hl; S.focus = new Set(hl.keys()); A.apply(); };
+    paint(true);
+    const cs = bad.map((q) => q.c), cen = [0, 1, 2].map((k) => cs.reduce((a, c) => a + c[k], 0) / cs.length);
+    try { window.__anat.cam.flyTo([0, cen[1] + 0.07, cen[2]], 0.85, null, 0.1); } catch (e) { /* ignore */ }
+    const old = document.getElementById('hntbar'); if (old) old.remove();
+    const b = document.createElement('div'); b.id = 'hntbar'; b.dataset.face = '1'; let les = true;
+    b.innerHTML = `<div class="hq">⚡ ${esc(T(n.en, n.ar))} — ${T('patient\'s right side (lower-motor-neuron lesion)', 'الناحية اليمين للمريض (إصابة عصب حركي سفلي)')}</div><div class="hmsg" id="fcmsg"></div><div class="hs">${T('Grey = paralysed muscles · gold = healthy side · cyan = nerve', 'رمادي = عضلات مشلولة · دهبي = السليم · أزرق = العصب')}</div><div class="hr"><button class="p" data-act="fctoggle">🩺 ${T('Lesion / healthy', 'مصاب / سليم')}</button><button data-act="fcend">✕</button></div>`;
+    document.getElementById('app').appendChild(b);
+    const msg = () => { const m = document.getElementById('fcmsg'); if (m) m.textContent = les ? T('Cannot wrinkle the forehead · cannot close the eye (Bell phenomenon) · mouth droops and deviates to the healthy side · cannot whistle or puff the cheek.', 'مش بيعرف يجعّد الجبهة · العين مش بتتقفل (علامة بيل) · الفم بيقع وبيميل للناحية السليمة · مش بيعرف يصفّر ولا ينفخ الخد.') : T('Healthy comparison: symmetric face – both sides contract.', 'مقارنة سليمة: وش متماثل – الناحيتين بيتحركوا.'); };
+    msg(); A._fc = { toggle() { les = !les; paint(les); msg(); } };
+    if (A.toast) A.toast(T('Tap 🩺 to switch between lesion and healthy', 'دوس 🩺 تبدّل بين المصاب والسليم'), 4200);
+  }
+  A.acts.fctoggle = () => { if (A._fc) A._fc.toggle(); };
+  A.acts.fcend = () => { const b = document.getElementById('hntbar'); if (b) b.remove(); A._fc = null; S.hl = null; S.focus = null; A.apply(); };
   A.acts.nlist = list;
   A.acts.nshow = async (el) => {
     const n = NERVES.find((x) => x.id === el.dataset.id); if (!n) return;

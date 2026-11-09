@@ -7,17 +7,17 @@ window.__fprofLoaded = true;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   /* hide = hub items that do not apply; first = items pinned to the top; note = faculty content still being prepared */
   const PROF = {
-    pt: { hide: ['nclin', 'pjourney', 'dent', 'dent3d', 'dentnb'], first: [], color: '#ff9f45' },
-    med: { hide: ['nclin', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc'], first: ['clin'], color: '#5b9dff' },
-    dent: { hide: ['nclin', 'clin', 'pjourney', 'moves', 'tcards', 'calc', 'spinal', 'exam', 'nmap'], first: ['dent', 'dent3d', 'dentnb', 'quiz', 'cards'], color: '#3fd8c8', start: 'head' },
-    nurs: { hide: ['clin', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: ['nclin', 'pjourney'], color: '#5fd68a', note: true },
-    vet: { hide: ['nclin', 'clin', 'pjourney', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: [], color: '#c79a5b', note: true },
-    ahs: { hide: ['nclin', 'clin', 'pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'calc', 'spinal'], first: [], color: '#a68bff', note: true },
-    pe: { hide: ['nclin', 'clin', 'pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'spinal'], first: ['moves'], color: '#ffd23f', note: true },
-    pharm: { hide: ['nclin', 'clin', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: ['pjourney'], color: '#ff7aa8', note: true },
-    other: { hide: ['nclin', 'pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'calc', 'spinal'], first: [], color: '#E3B95B' },
+    pt: { hide: ['nclin', 'pclin', 'vclin', 'pjourney', 'dent', 'dent3d', 'dentnb'], first: ['ptclin'], color: '#ff9f45' },
+    med: { hide: ['nclin', 'pclin', 'ptclin', 'vclin', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc'], first: ['clin'], color: '#5b9dff' },
+    dent: { hide: ['nclin', 'pclin', 'ptclin', 'vclin', 'clin', 'pjourney', 'moves', 'tcards', 'calc', 'spinal', 'exam', 'nmap'], first: ['dent', 'dent3d', 'dentnb', 'quiz', 'cards'], color: '#3fd8c8', start: 'head' },
+    nurs: { hide: ['pclin', 'ptclin', 'vclin', 'clin', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: ['nclin', 'pjourney'], color: '#5fd68a', note: true },
+    vet: { hide: ['nclin', 'pclin', 'ptclin', 'clin', 'pjourney', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: ['vclin'], color: '#c79a5b', note: true },
+    ahs: { hide: ['nclin', 'pclin', 'ptclin', 'vclin', 'clin', 'pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'calc', 'spinal'], first: [], color: '#a68bff', note: true },
+    pe: { hide: ['nclin', 'pclin', 'ptclin', 'vclin', 'clin', 'pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'spinal'], first: ['moves'], color: '#ffd23f', note: true },
+    pharm: { hide: ['nclin', 'ptclin', 'vclin', 'clin', 'dent', 'dent3d', 'dentnb', 'moves', 'tcards', 'calc', 'spinal'], first: ['pclin', 'pjourney'], color: '#ff7aa8', note: true },
+    other: { hide: ['nclin', 'pclin', 'ptclin', 'vclin', 'pjourney', 'dent', 'dent3d', 'dentnb', 'tcards', 'calc', 'spinal'], first: [], color: '#E3B95B' },
   };
-  const FALLBACK = { hide: ['nclin', 'pjourney', 'dent', 'dent3d', 'dentnb'], first: [], color: '#E3B95B' };
+  const FALLBACK = { hide: ['nclin', 'pclin', 'ptclin', 'vclin', 'pjourney', 'dent', 'dent3d', 'dentnb'], first: [], color: '#E3B95B' };
   const LOOK = () => window.ANAT_FACLOOK || {};
   const view = () => ''; // the faculty is fixed by the account — no "view as another faculty" any more
   A.facCode = () => view() || (A.acct && A.acct.fac) || '';
