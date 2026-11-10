@@ -20,7 +20,7 @@
   const HUBICO = {
     daily: 'M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-9z', quiz: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2z',
     cards: 'M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 3 3 3 0 0 0 1 5 3 3 0 0 0 4 4 3 3 0 0 0 3-1V5a2 2 0 0 0-3-1zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 3 3 3 0 0 1-1 5 3 3 0 0 1-4 4V5',
-    nb: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11', lmq: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11zM12 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
+    nb: 'M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11', osce: 'M8 4h8l1 2h3v15H4V6h3zM8 11l2 2 4-4M8 17h8', prac: 'M4 7h9M4 12h9M4 17h6M16 6l2 2 4-4M16 12l2 2 4-4M16 18l2 2 4-4', lmq: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11zM12 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
     splan: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4', ready: 'M5 20V10M12 20V4M19 20v-7', mnem: 'M6 3h9l4 4v14H6zM9 12h7M9 16h7', favs: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z',
     dent: 'M12 5.5C10.5 4 8.5 3.5 7 4.2 4.8 5.2 4.5 8 5.5 10.5c.8 2 .8 4 1.2 6.5.3 1.7 1.2 3 2.1 3 1.2 0 1.3-3.2 1.7-4.4.3-.8 1.6-.8 1.9 0 .4 1.2.5 4.4 1.7 4.4.9 0 1.8-1.3 2.1-3 .4-2.5.4-4.5 1.2-6.5C19.5 8 19.2 5.2 17 4.2c-1.5-.7-3.5-.2-5 1.3z',
     dent3d: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5', pjourney: 'M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11zM9 15a3 3 0 0 0 3 3', dentnb: 'M3 21l5-5M9 15l6-6M13 5l6 6M15 3l6 6M11 7l6 6', play: 'M5 21V4M5 4h12l-2 4 2 4H5', board: 'M4 20h5v-7H4zM9.5 20h5V6h-5zM15 20h5v-10h-5z',
@@ -32,9 +32,9 @@
     moves: 'M13 4a1.5 1.5 0 1 0 0 .01M8 21l3-6 3 2v4M7 12l3-3 4 2 3-1',
   };
   const hubIco = (k) => `<svg viewBox="0 0 24 24"><path d="${HUBICO[k] || HUBICO.about}"/></svg>`;
-  const HUB_GROUP = { daily: 'start', quiz: 'start', cards: 'start', nb: 'study', lmq: 'study', splan: 'study', ready: 'study', mnem: 'study', favs: 'study', dent: 'fac', dent3d: 'fac', dentnb: 'fac', pjourney: 'fac', exam: 'fac', clin: 'fac', nclin: 'fac', pclin: 'fac', ptclin: 'fac', vclin: 'fac', tcards: 'fac', nmap: 'fac', calc: 'fac', spinal: 'fac', moves: 'fac', play: 'track', board: 'track', duel: 'track', badges: 'track', progress: 'track', stats: 'track', tour: 'foot', about: 'foot' };
+  const HUB_GROUP = { daily: 'start', quiz: 'start', cards: 'start', nb: 'study', lmq: 'study', prac: 'study', osce: 'study', splan: 'study', ready: 'study', mnem: 'study', favs: 'study', dent: 'fac', dent3d: 'fac', dentnb: 'fac', pjourney: 'fac', exam: 'fac', clin: 'fac', nclin: 'fac', pclin: 'fac', ptclin: 'fac', vclin: 'fac', tcards: 'fac', nmap: 'fac', calc: 'fac', spinal: 'fac', moves: 'fac', play: 'track', board: 'track', duel: 'track', badges: 'track', progress: 'track', stats: 'track', tour: 'foot', about: 'foot' };
   A.openHub = () => A.modal(() => {
-    let items = ['account', 'daily', 'nb', 'ready', 'quiz', 'dent', 'dent3d', 'dentnb', 'pjourney', 'splan', 'lmq', 'exam', 'clin', 'nclin', 'pclin', 'ptclin', 'vclin', 'tcards', 'nmap', 'calc', 'board', 'duel', 'spinal', 'play', 'badges', 'cards', 'moves', 'progress', 'stats', 'mnem', 'favs', 'tour', 'about'].map((k) => [k, '']);
+    let items = ['account', 'daily', 'nb', 'ready', 'quiz', 'dent', 'dent3d', 'dentnb', 'pjourney', 'splan', 'lmq', 'prac', 'osce', 'exam', 'clin', 'nclin', 'pclin', 'ptclin', 'vclin', 'tcards', 'nmap', 'calc', 'board', 'duel', 'spinal', 'play', 'badges', 'cards', 'moves', 'progress', 'stats', 'mnem', 'favs', 'tour', 'about'].map((k) => [k, '']);
     if (A.facHub) items = A.facHub(items);
     const ac = A.acct || {}, dl = Math.max(0, Math.ceil(((ac.until || 0) - Date.now()) / 864e5)), pr = A.profile ? A.profile() : {};
     const who = pr.name || ac.email || '';

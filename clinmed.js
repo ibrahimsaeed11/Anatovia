@@ -465,6 +465,7 @@ const CL = [
   A.acts.clans = (el) => { if (ans !== null) return; ans = +el.dataset.i; rec(deck[idx], ans === 0); if (ans === 0) score++; A.rerenderModal(); };
   A.acts.clnext = () => { idx++; ans = null; order = shuffle([0, 1, 2, 3]); A.rerenderModal(); };
   A.acts.clrestart = () => { newRound(); A.rerenderModal(); };
+  A.focusParts = (r, sd) => focusOn(r, sd);
   async function focusOn(regs, sd) {
     const res = regs.map((r) => new RegExp(r, 'i'));
     const base = (e) => e.baseEn || e.en;
