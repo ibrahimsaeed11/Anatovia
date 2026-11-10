@@ -178,6 +178,17 @@ if (!window.__boardLoaded) (() => {
     } catch (e) { BS.err = T('Could not load — check your connection.', 'تعذّر التحميل — اتأكد من الإنترنت.'); redraw(); return; }
     redraw(); if (BS.open && B().on) load();
   };
+  /* "you vs your classmates": this week's rank, the top score and the gap to the top 10. Used by the clinical-cases screens. */
+  A.boardCompare = async () => {
+    const b = B(); if (!b.on) return { state: 'join' };
+    const g = await A.getDb(); if (!g || !g.user || !g.verified) return { state: 'auth' };
+    if ((await config(g.db)).open !== true) return { state: 'closed' };
+    await push(true); const w = weekPts(), ref = scoresRef(g.db, wkId());
+    const q = await ref.orderBy('pts', 'desc').limit(10).get(), rows = q.docs.map((d) => d.data()).filter((r) => r.pts > 0), i = rows.findIndex((r) => r.uid === g.uid);
+    let rank = i >= 0 ? i + 1 : null;
+    if (rank === null && w.pts > 0) { try { const c = await ref.where('pts', '>', w.pts).count().get(); rank = c.data().count + 1; } catch (e) { rank = null; } }
+    return { state: 'ok', pts: w.pts, rank, inTop: i >= 0, top1: rows.length ? rows[0].pts : 0, tenth: rows.length >= 10 ? rows[9].pts : 0, n: rows.length };
+  };
   A.acts.board = open;
   A.hubExtra = A.hubExtra || {}; A.hubExtra.board = open;
   A.acts.bdtab = (el) => { BS.tab = +el.dataset.k; BS.rows = null; load(); };

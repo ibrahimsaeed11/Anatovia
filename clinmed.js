@@ -144,7 +144,7 @@ const CL = [
   const newRound = () => { deck = shuffle(CL.map((_, i) => i)).slice(0, ROUND); idx = 0; score = 0; ans = null; order = shuffle([0, 1, 2, 3]); };
   function quizHtml() {
     if (!deck.length) newRound();
-    const head = `<h2>🩻 ${T('Clinical anatomy cases', 'حالات تشريح إكلينيكي')}</h2><div class="row" style="margin:2px 0 8px"><button class="btn" data-act="clstage">🩺 ${T('Stepwise cases', 'حالات بمراحل')}</button><button class="btn" data-act="clrep">📊 ${T('My progress', 'تقدمي')}</button></div><button class="btn p wide" style="margin:2px 0 8px" data-act="clhunt">🎯 ${T('Find the lesion on the 3D model', 'دوّر على الإصابة على المجسم')} ${A.isPremium() ? '' : '🔒'}</button><p class="tiny">${T('Draft content – to be reviewed by a physician before being relied on.', 'محتوى مسودة – محتاج مراجعة دكتور قبل الاعتماد عليه.')}</p>`;
+    const head = `<h2>🩻 ${T('Clinical anatomy cases', 'حالات تشريح إكلينيكي')}</h2><div class="row" style="margin:2px 0 8px"><button class="btn" data-act="clstage">🩺 ${T('Stepwise cases', 'حالات بمراحل')}</button><button class="btn" data-act="clrep">📊 ${T('My progress', 'تقدمي')}</button><button class="btn" data-act="clexam">⏱ ${T('Timed exam', 'امتحان بوقت')}</button></div><button class="btn p wide" style="margin:2px 0 8px" data-act="clhunt">🎯 ${T('Find the lesion on the 3D model', 'دوّر على الإصابة على المجسم')} ${A.isPremium() ? '' : '🔒'}</button><p class="tiny">${T('Draft content – to be reviewed by a physician before being relied on.', 'محتوى مسودة – محتاج مراجعة دكتور قبل الاعتماد عليه.')}</p>`;
     if (idx >= deck.length) {
       const pc = Math.round(score / deck.length * 100);
       return head + `<div class="pjcurve" style="text-align:center;padding:18px 12px"><div dir="ltr" style="font-size:34px;font-weight:800;margin:6px 0">${score} / ${deck.length}</div><p>${pc >= 80 ? T('Excellent!', 'ممتاز!') : pc >= 50 ? T('Good – review the missed ones.', 'كويس – راجع اللي غلطت فيه.') : T('Keep practising.', 'كمّل تدريب.')}</p><button class="btn p" data-act="clrestart">${T('New round', 'جولة جديدة')}</button></div>`;
@@ -165,7 +165,7 @@ const CL = [
   const CATS = [['ul', 'Upper-limb nerves', 'أعصاب الطرف العلوي', [0, 1, 3, 4, 5, 6]], ['ll', 'Lower-limb nerves', 'أعصاب الطرف السفلي', [2, 8, 9, 10, 11]], ['hn', 'Head, neck & cranial nerves', 'الرأس والرقبة والأعصاب القحفية', [12, 15, 16, 17, 18, 19, 20]], ['th', 'Thorax', 'الصدر', [21, 26, 28]], ['ab', 'Abdomen, pelvis & spine', 'البطن والحوض والعمود الفقري', [13, 14, 24, 25, 27]], ['ms', 'Bones, joints & ligaments', 'العظام والمفاصل والأربطة', [7, 22, 23]]];
   const SKEY = 'anat_clin';
   const stats = () => { try { return JSON.parse(localStorage.getItem(SKEY) || '{}'); } catch (e) { return {}; } };
-  const rec = (k, ok) => { try { const s = stats(), r = s[k] || { n: 0, ok: 0 }; r.n++; if (ok) r.ok++; r.t = Date.now(); s[k] = r; localStorage.setItem(SKEY, JSON.stringify(s)); } catch (e) { /* storage may be blocked */ } };
+  const rec = (k, ok) => { try { const s = stats(), r = s[k] || { n: 0, ok: 0 }; r.n++; if (ok) r.ok++; r.l = ok ? 1 : 0; r.t = Date.now(); s[k] = r; localStorage.setItem(SKEY, JSON.stringify(s)); } catch (e) { /* storage may be blocked */ } try { if (A.logAct) A.logAct(1, ok ? 1 : 0); } catch (e) { /* ignore */ } };
   const pct = (r) => (r && r.n ? Math.round(r.ok / r.n * 100) : null);
   let view = 'quiz';
   const repHtml = () => {
@@ -176,7 +176,7 @@ const CL = [
     return `<h2>📊 ${T('My clinical progress', 'تقدمي الإكلينيكي')}</h2><p class="tiny">${T('Saved on this device only.', 'محفوظ على الجهاز ده بس.')}</p>` +
       (tn ? '' : `<p>${T('No attempts yet – answer a few cases first.', 'لسه معملتش محاولات – جاوب كام حالة الأول.')}</p>`) + rows.map(bar).join('') +
       `<h3 style="margin:14px 0 4px">${T('Weakest cases', 'أضعف حالاتك')}</h3><ol style="padding-inline-start:20px">${weak}</ol>` +
-      `<div class="row"><button class="btn p" data-act="clweak">🔁 ${T('Practise my weak spots', 'تدرّب على نقط ضعفي')}</button><button class="btn" data-act="clquiz">${T('Back', 'رجوع')}</button></div>`;
+      `<div class="row"><button class="btn p" data-act="clweak">🔁 ${T('Practise my weak spots', 'تدرّب على نقط ضعفي')}</button><button class="btn" data-act="clcmp">👥 ${T('Compare with classmates', 'قارن بزمايلك')}</button><button class="btn" data-act="clquiz">${T('Back', 'رجوع')}</button></div>`;
   };
   function weakDeck() {   // never-tried first, then the lowest accuracy
     const s = stats(); return CL.map((_, i) => i).sort((a, b) => { const ra = s[a], rb = s[b]; const sa = ra ? (pct(ra) + (ra.n > 3 ? 5 : 0)) : 40, sb = rb ? (pct(rb) + (rb.n > 3 ? 5 : 0)) : 40; return sa - sb || Math.random() - .5; });
@@ -362,29 +362,97 @@ const CL = [
   const SGT_ASK = { nurs: ['What will you assess / do?', 'هتقيّم / تعمل إيه؟'], pharm: ['What will you check?', 'إيه اللي هتراجعه؟'], pt: ['What will you assess?', 'إيه اللي هتقيّمه؟'], vet: ['What will you examine?', 'إيه اللي هتفحصه؟'] };
   const SGT_DEC = { nurs: ['What is the safest action?', 'إيه التصرف الأنسب؟'], pharm: ['What is the best action?', 'إيه التصرف الأنسب؟'], pt: ['What is your assessment and plan?', 'إيه تقييمك وخطتك؟'], vet: ['What is the diagnosis and plan?', 'إيه التشخيص والخطة؟'] };
   let sg = null;   // { i, asked:Set, stage:'ex'|'dx'|'done', order, pick }
+  const wrongOf = (r) => !!r && (r.l === undefined ? r.ok < r.n : r.l === 0);
+  const sgWrong = () => { const s = stats(); return CUR().map((_, i) => i).filter((i) => wrongOf(s[sk(i)])).sort((a, b) => pct(s[sk(a)]) - pct(s[sk(b)])); };
+  const sgSummary = () => {
+    const s = stats(), L = CUR(); let tried = 0, n = 0, ok = 0; L.forEach((_, i) => { const r = s[sk(i)]; if (r) { tried++; n += r.n; ok += r.ok; } });
+    const p = n ? Math.round(ok / n * 100) : null;
+    return `<div class="pjcurve" style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>📊 ${T('My progress', 'تقدمي')}: ${tried} / ${L.length} ${T('cases tried', 'حالة اتجربت')}</span><span dir="ltr">${p === null ? '–' : p + '% · ' + n}</span></div><div style="height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;margin-top:6px"><div style="height:100%;width:${p || 0}%;background:${p === null ? 'transparent' : p >= 80 ? '#3fd67a' : p >= 50 ? '#e9b949' : '#ff6b6b'}"></div></div></div>`;
+  };
   const sgList = () => `<h2>${ICO()} ${T(SGT_TITLE[sgset][0], SGT_TITLE[sgset][1])}</h2><p class="tiny">${T('Take the history, choose your examinations, watch the patient on the 3D model, then decide. Draft content – physician review needed.', 'خد التاريخ المرضي، اختار الفحوصات، شوف المريض على المجسم، وبعدين قرّر. محتوى مسودة – محتاج مراجعة دكتور.')}</p>` +
+    sgSummary() + `<div class="row" style="flex-wrap:wrap;margin:6px 0"><button class="btn" data-act="sgreview">🔁 ${T('Review my missed cases', 'راجع الحالات اللي غلطت فيها')} (${sgWrong().length})</button><button class="btn" data-act="sgexam">⏱ ${T('Timed exam', 'امتحان بوقت')} (${Math.min(10, CUR().length)})</button><button class="btn" data-act="clcmp">👥 ${T('Compare with classmates', 'قارن بزمايلك')}</button></div>` +
     CUR().map((c, i) => { const r = stats()[sk(i)]; return `<button class="btn" style="display:block;width:100%;margin:6px 0;text-align:start" data-act="sgopen" data-i="${i}">${i + 1}. ${esc(tt(c.hx[0]).slice(0, 80))}… ${r ? '<small>(' + pct(r) + '%)</small>' : ''}</button>`; }).join('') +
     `<div class="row">${N_() ? `<button class="btn" data-act="clclose">${T('Close', 'إغلاق')}</button>` : `<button class="btn" data-act="clquiz">${T('Back', 'رجوع')}</button>`}</div>`;
   const sgCase = () => {
     const N = N_(), c = CUR()[sg.i], ex = c.ex.map((e, j) => { const on = sg.asked.has(j); const rs = pair(e[1]); return `<div style="margin:4px 0"><button class="btn" style="width:100%;text-align:start;${on ? 'opacity:.75' : ''}" data-act="sgex" data-j="${j}" ${on ? 'disabled' : ''}>🔎 ${esc(tt(e[0]))}</button>${on ? `<div style="padding:4px 10px;font-size:13px;color:#7fd8a0">→ ${esc(T(rs[0], rs[1]))}</div>` : ''}</div>`; }).join('');
     let tail = '';
-    if (sg.stage === 'ex') tail = `<div class="row" style="margin-top:8px">${c.nerve || c.show ? `<button class="btn" data-act="sgsim">🧍 ${N ? T('Show the structures on the 3D model', 'اعرض التراكيب على المجسم') : T('Watch the patient on the 3D model', 'شوف المريض على المجسم')} ${N || A.isPremium() ? '' : '🔒'}</button>` : ''}<button class="btn p" data-act="sgdx">${N ? T('I am ready to choose', 'جاهز أختار') : T('I am ready to decide', 'جاهز أقرّر')}</button></div>`;
+    if (sg.stage === 'ex') tail = `<div class="row" style="margin-top:8px">${(c.nerve || c.show) && !sg.exam ? `<button class="btn" data-act="sgsim">🧍 ${N ? T('Show the structures on the 3D model', 'اعرض التراكيب على المجسم') : T('Watch the patient on the 3D model', 'شوف المريض على المجسم')} ${N || A.isPremium() ? '' : '🔒'}</button>` : ''}<button class="btn p" data-act="sgdx">${N ? T('I am ready to choose', 'جاهز أختار') : T('I am ready to decide', 'جاهز أقرّر')}</button></div>`;
     else {
       const ok = sg.pick === 0, o = sg.order.map((k) => { const st = sg.stage === 'done' ? (k === 0 ? 'border-color:#3fd67a;background:rgba(63,214,122,.15)' : sg.pick === k ? 'border-color:#ff6b6b;background:rgba(255,107,107,.15)' : '') : ''; return `<button class="btn" style="display:block;width:100%;margin:5px 0;text-align:start;${st}" data-act="sgans" data-k="${k}" ${sg.stage === 'done' ? 'disabled' : ''}>${esc(tt(c.dx[k]))}</button>`; }).join('');
       tail = `<h3 style="margin:10px 0 2px">${N ? T(SGT_DEC[sgset][0], SGT_DEC[sgset][1]) : T('Where is the lesion / what is the diagnosis?', 'فين الإصابة / إيه التشخيص؟')}</h3>${o}`;
-      if (sg.stage === 'done') tail += `<div class="pjcurve" style="margin-top:8px"><b>${ok ? T('Correct!', 'تمام!') : T('Not quite.', 'مش بالظبط.')} ${sg.pts !== undefined ? '+' + sg.pts : ''}</b><p style="font-size:13px;line-height:1.7;margin:4px 0">${esc(tt(c.exp[0]))}</p><div class="row">${c.nerve || c.show ? `<button class="btn" data-act="sgsim">🧍 ${T('See it on the model', 'شوفها على المجسم')}</button>` : ''}<button class="btn p" data-act="clstage">${T('More cases', 'حالات تانية')}</button></div></div>`;
+      if (sg.stage === 'done') tail += `<div class="pjcurve" style="margin-top:8px"><b>${ok ? T('Correct!', 'تمام!') : T('Not quite.', 'مش بالظبط.')} ${sg.pts !== undefined ? '+' + sg.pts : ''}</b><p style="font-size:13px;line-height:1.7;margin:4px 0">${esc(tt(c.exp[0]))}</p><div class="row">${c.nerve || c.show ? `<button class="btn" data-act="sgsim">🧍 ${T('See it on the model', 'شوفها على المجسم')}</button>` : ''}${sg.q && sg.q.length ? `<button class="btn p" data-act="sgnextq">${T('Next missed case', 'الحالة الغلط اللي بعدها')} (${sg.q.length})</button>` : ''}<button class="btn ${sg.q && sg.q.length ? '' : 'p'}" data-act="clstage">${T('More cases', 'حالات تانية')}</button></div></div>`;
     }
-    return `<h2>${ICO()} ${T('Case', 'حالة')} ${sg.i + 1}</h2><div class="pjcurve"><p style="margin:0;line-height:1.8">${esc(tt(c.hx[0]))}</p></div><h3 style="margin:10px 0 2px">${N ? T(SGT_ASK[sgset][0], SGT_ASK[sgset][1]) : T('Examinations', 'الفحوصات')} <small>(${sg.asked.size}/${c.ex.length})</small></h3>${ex}${tail}`;
+    return `<h2>${ICO()} ${sg.exam && EX ? '⏱ ' + T('Exam', 'امتحان') + ' ' + (EX.i + 1) + ' / ' + EX.list.length + ' · <span id="clt" dir="ltr"></span>' : T('Case', 'حالة') + ' ' + (sg.i + 1)}</h2><div class="pjcurve"><p style="margin:0;line-height:1.8">${esc(tt(c.hx[0]))}</p></div><h3 style="margin:10px 0 2px">${N ? T(SGT_ASK[sgset][0], SGT_ASK[sgset][1]) : T('Examinations', 'الفحوصات')} <small>(${sg.asked.size}/${c.ex.length})</small></h3>${ex}${tail}`;
   };
-  const html = () => (view === 'rep' ? repHtml() : view === 'stl' ? sgList() : view === 'stg' && sg ? sgCase() : quizHtml());
-  const show = (v) => { view = v; if (!$('modal') || $('modal').hidden) A.modal(html); else A.rerenderModal(); };
+  const html = () => (view === 'cmp' ? cmpHtml() : view === 'exm' && EX ? mcqExamHtml() : view === 'exr' && EX ? examResultHtml() : view === 'rep' ? repHtml() : view === 'stl' ? sgList() : view === 'stg' && sg ? sgCase() : quizHtml());
+  const show = (v) => { if (v !== 'exm' && v !== 'exr' && !(v === 'stg' && sg && sg.exam)) { stopT(); EX = null; } view = v; if (!$('modal') || $('modal').hidden) A.modal(html); else A.rerenderModal(); };
   A.acts.clrep = () => show('rep'); A.acts.clquiz = () => show('quiz'); A.acts.clclose = () => A.closeModal(); A.acts.clstage = () => show('stl');
   A.acts.clweak = () => { deck = weakDeck().slice(0, ROUND); idx = 0; score = 0; ans = null; order = shuffle([0, 1, 2, 3]); show('quiz'); };
+  /* ── timer + exam mode + review + comparison ── */
+  let tmr = null, EX = null, CMP = null, cmpBack = 'quiz';
+  const stopT = () => { if (tmr) { clearInterval(tmr); tmr = null; } };
+  const startT = (sec, onEnd) => {
+    stopT(); const dl = Date.now() + sec * 1000;
+    setTimeout(() => { tmr = setInterval(() => { const el = $('clt'); if (!el) { stopT(); EX = null; return; } const r = Math.max(0, Math.ceil((dl - Date.now()) / 1000)); el.textContent = Math.floor(r / 60) + ':' + String(r % 60).padStart(2, '0'); el.style.color = r <= 10 ? '#ff6b6b' : ''; if (r <= 0) { stopT(); onEnd(); } }, 300); }, 80);
+  };
+  const MCQ_SEC = 45, STG_SEC = 150;
+  A.acts.clexam = () => { EX = { kind: 'mcq', list: shuffle(CL.map((_, i) => i)).slice(0, 10), i: 0, res: [] }; order = shuffle([0, 1, 2, 3]); show('exm'); startT(MCQ_SEC, () => mcqAdv(-1)); };
+  const mcqExamHtml = () => {
+    if (EX.i >= EX.list.length) return examResultHtml();
+    const c = CL[EX.list[EX.i]], q = pair(c[0]);
+    const opts = order.map((i) => `<button class="btn" style="display:block;width:100%;margin:5px 0;text-align:start" data-act="exmans" data-i="${i}">${esc(tt(c[1][i]))}</button>`).join('');
+    return `<h2>⏱ ${T('Timed exam', 'امتحان بوقت')}</h2><div class="pjcurve"><small>${T('Case', 'حالة')} ${EX.i + 1} / ${EX.list.length} · ⏱ <b id="clt" dir="ltr"></b></small><p style="margin:8px 0;font-size:14px;line-height:1.8">${esc(T(q[0], q[1]))}</p>${opts}</div><p class="tiny">${T('No feedback until the end. Unanswered when the time runs out counts as wrong.', 'مفيش إجابات صح/غلط لحد النهاية. لو الوقت خلص من غير إجابة بتتحسب غلط.')}</p>`;
+  };
+  function mcqAdv(a) {
+    if (!EX || EX.kind !== 'mcq') return; stopT(); const k = EX.list[EX.i], ok = a === 0;
+    EX.res.push({ k, a, ok }); rec(k, ok); EX.i++; order = shuffle([0, 1, 2, 3]);
+    A.rerenderModal(); if (EX.i < EX.list.length) startT(MCQ_SEC, () => mcqAdv(-1));
+  }
+  A.acts.exmans = (el) => mcqAdv(+el.dataset.i);
+  A.acts.sgexam = () => { const L = CUR(); EX = { kind: 'stg', list: shuffle(L.map((_, i) => i)).slice(0, 10), i: 0, res: [] }; stgExamNext(); };
+  function stgExamNext() {
+    sg = { i: EX.list[EX.i], asked: new Set(), stage: 'ex', order: shuffle([0, 1, 2, 3]), exam: true }; show('stg');
+    startT(STG_SEC, () => { if (sg && sg.exam && sg.stage !== 'done') { sg.pick = -1; sg.pts = 0; sg.stage = 'done'; rec(sk(sg.i), false); stgExamAdvance(); } });
+  }
+  function stgExamAdvance() {
+    stopT(); EX.res.push({ i: sg.i, ok: sg.pick === 0, pts: sg.pts || 0 }); EX.i++;
+    if (EX.i >= EX.list.length) { sg = null; show('exr'); } else stgExamNext();
+  }
+  const examResultHtml = () => {
+    const mcq = EX.kind === 'mcq', n = EX.list.length, L = CUR();
+    const tot = mcq ? EX.res.filter((r) => r.ok).length : EX.res.reduce((a, r) => a + r.pts, 0), mx = mcq ? n : n * 3, pc = Math.round(tot / mx * 100);
+    const rows = EX.res.map((r, j) => { const txt = mcq ? pair(CL[r.k][0]) : pair(L[r.i].hx[0]), right = mcq ? tt(CL[r.k][1][0]) : tt(L[r.i].dx[0]); return `<li style="margin:6px 0;font-size:13px;line-height:1.6">${r.ok ? '✅' : r.a === -1 ? '⌛' : '❌'} ${esc(T(txt[0], txt[1]).slice(0, 70))}…${r.ok ? '' : `<div style="opacity:.8;font-size:12px">→ ${esc(right)}</div>`}</li>`; }).join('');
+    return `<h2>⏱ ${T('Exam result', 'نتيجة الامتحان')}</h2><div class="pjcurve" style="text-align:center;padding:16px 12px"><div dir="ltr" style="font-size:34px;font-weight:800;margin:4px 0">${tot} / ${mx}</div><p>${pc >= 80 ? T('Excellent!', 'ممتاز!') : pc >= 50 ? T('Good – review the missed ones.', 'كويس – راجع اللي غلطت فيه.') : T('Keep practising.', 'كمّل تدريب.')}</p></div><ol style="padding-inline-start:20px">${rows}</ol><div class="row" style="flex-wrap:wrap"><button class="btn p" data-act="${mcq ? 'clexam' : 'sgexam'}">🔁 ${T('New exam', 'امتحان جديد')}</button><button class="btn" data-act="clcmp">👥 ${T('Compare with classmates', 'قارن بزمايلك')}</button><button class="btn" data-act="${mcq ? 'clquiz' : 'clstage'}">${T('Back', 'رجوع')}</button></div>`;
+  };
+  A.acts.sgreview = () => {
+    const w = sgWrong(); if (!w.length) { A.toast(T('No missed cases – great!', 'مفيش حالات غلط – ممتاز!'), 3000); return; }
+    sg = { i: w[0], asked: new Set(), stage: 'ex', order: shuffle([0, 1, 2, 3]), q: w.slice(1) }; show('stg');
+  };
+  A.acts.sgnextq = () => { if (!sg || !sg.q || !sg.q.length) return; const q = sg.q.slice(), i = q.shift(); sg = { i, asked: new Set(), stage: 'ex', order: shuffle([0, 1, 2, 3]), q }; A.rerenderModal(); };
+  const cmpHtml = () => {
+    const r = CMP; let h = `<h2>👥 ${T('You vs your classmates', 'إنت وزمايلك')}</h2>`;
+    if (!r) h += `<p class="lead">${T('Loading…', 'جارِ التحميل…')}</p>`;
+    else if (r.state === 'ok') {
+      h += `<div class="pjcurve" style="text-align:center;padding:16px 12px"><div style="font-size:13px;opacity:.8">${T('This week', 'الأسبوع ده')}</div><div dir="ltr" style="font-size:34px;font-weight:800;margin:4px 0">${r.rank ? '#' + r.rank : '—'}</div><div>${T('Your points', 'نقاطك')}: <b>${r.pts}</b></div></div>`;
+      if (r.n) h += `<p style="font-size:14px;line-height:1.8">🥇 ${T('Top score', 'أعلى نقاط')}: <b>${r.top1}</b>` + (r.inTop ? ` · ${T('you are in the top 10 🎉', 'إنت في أول 10 🎉')}` : r.tenth ? ` · ${T('to enter the top 10 you need', 'علشان تدخل أول 10 محتاج')} <b>${Math.max(1, r.tenth - r.pts + 1)}</b> ${T('more points', 'نقطة زيادة')}` : '') + '</p>';
+      else h += `<p class="lead">${T('Nobody has points yet this week – be the first!', 'لسه محدش معاه نقط الأسبوع ده – كن الأول!')}</p>`;
+      h += `<p class="tiny">${T('Every case you answer here counts as points (max 40 a day).', 'كل حالة بتجاوب عليها هنا بتتحسب نقاط (حد أقصى 40 في اليوم).')}</p>`;
+    } else if (r.state === 'closed') h += `<p class="lead">${T('The leaderboard is not open yet.', 'لوحة الصدارة لسه ما اتفتحتش.')}</p>`;
+    else if (r.state === 'error') h += `<p class="lead">${T('Could not load – check your connection.', 'تعذّر التحميل – اتأكد من الإنترنت.')}</p>`;
+    else h += `<p class="lead">${r.state === 'auth' ? T('Sign in with a verified account, then join the leaderboard to compare yourself.', 'سجّل دخول بحساب متأكد منه، وانضم للمتصدرين علشان تقارن نفسك.') : T('Join the weekly leaderboard to compare yourself with your classmates.', 'انضم لمتصدرين الأسبوع علشان تقارن نفسك بزمايلك.')}</p><button class="btn p wide" data-act="board">🏅 ${T('Open the leaderboard', 'افتح المتصدرين')}</button>`;
+    return h + `<div class="row" style="margin-top:8px"><button class="btn" data-act="clcmpback">${T('Back', 'رجوع')}</button></div>`;
+  };
+  A.acts.clcmp = () => {
+    cmpBack = view === 'exr' ? 'exr' : view === 'rep' ? 'rep' : view === 'stl' ? 'stl' : 'quiz'; const keep = EX; CMP = null; show('cmp'); EX = keep;
+    const f = A.boardCompare; if (!f) { CMP = { state: 'join' }; return A.rerenderModal(); }
+    f().then((r) => { CMP = r; if (view === 'cmp') A.rerenderModal(); }).catch(() => { CMP = { state: 'error' }; if (view === 'cmp') A.rerenderModal(); });
+  };
+  A.acts.clcmpback = () => show(cmpBack === 'exr' && !EX ? 'quiz' : cmpBack);
   A.acts.sgopen = (el) => { sg = { i: +el.dataset.i, asked: new Set(), stage: 'ex', order: shuffle([0, 1, 2, 3]) }; show('stg'); };
   A.acts.sgex = (el) => { if (sg && sg.stage === 'ex') { sg.asked.add(+el.dataset.j); A.rerenderModal(); } };
   A.acts.sgdx = () => { if (sg) { sg.stage = 'dx'; A.rerenderModal(); } };
   A.acts.sgans = (el) => { if (!sg || sg.stage === 'done') return; sg.pick = +el.dataset.k; const c = CUR()[sg.i], key = c.ex.filter((e) => e[2] === 2).length, got = [...sg.asked].filter((j) => c.ex[j][2] === 2).length, waste = [...sg.asked].filter((j) => c.ex[j][2] === 0).length;
-    sg.pts = sg.pick === 0 ? Math.max(1, 3 - (got < Math.min(2, key) ? 1 : 0) - (waste > 1 ? 1 : 0)) : 0; sg.stage = 'done'; rec(sk(sg.i), sg.pick === 0); A.rerenderModal(); };
+    sg.pts = sg.pick === 0 ? Math.max(1, 3 - (got < Math.min(2, key) ? 1 : 0) - (waste > 1 ? 1 : 0)) : 0; sg.stage = 'done'; rec(sk(sg.i), sg.pick === 0); if (sg.exam) return stgExamAdvance(); A.rerenderModal(); };
   const retBar = () => { const ob = $('hntbar'); if (ob && ob.dataset.face) { ob.querySelector('.hr').insertAdjacentHTML('afterbegin', `<button class="p" data-act="sgreturn">⬅ ${T('Back to the case', 'رجوع للحالة')}</button>`); return; } const b = document.createElement('div'); b.id = 'hntbar'; b.innerHTML = `<div class="hr"><button class="p" data-act="sgreturn">⬅ ${T('Back to the case', 'رجوع للحالة')}</button></div>`; const old = $('hntbar'); if (old) old.remove(); $('app').appendChild(b); };
   A.acts.sgsim = async () => {
     if (!sg) return; const c = CUR()[sg.i];
