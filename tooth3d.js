@@ -59,10 +59,10 @@ window.__tooth3dLoaded = true;
   /* ───────── viewer ───────── */
   const VS = 'attribute vec3 aPos;attribute vec3 aNor;attribute vec2 aUv;uniform mat4 uVP;uniform mat3 uM;uniform float uMir;varying vec3 vN;varying vec2 vUv;varying vec3 vP;void main(){vec3 p=aPos;p.x*=uMir;vN=uM*(aNor*vec3(uMir,1.0,1.0));vUv=aUv;vP=p;gl_Position=uVP*vec4(p,1.0);}';
   const FS = 'precision mediump float;varying vec3 vN;varying vec2 vUv;varying vec3 vP;uniform sampler2D uTex;uniform float uUseTex;uniform vec3 uCol;uniform vec3 uEye;' +
-    'void main(){vec3 base=uUseTex>0.5?texture2D(uTex,vUv).rgb:uCol;vec3 n=normalize(vN);vec3 v=normalize(uEye-vP);if(dot(n,v)<0.0)n=-n;' +
-    'vec3 l1=normalize(vec3(.45,.8,.55));vec3 l2=normalize(vec3(-.6,.2,.5));float d=max(dot(n,l1),0.0)*.78+max(dot(n,l2),0.0)*.28;float h=.5+.5*n.y;' +
-    'vec3 hv=normalize(l1+v);float sp=pow(max(dot(n,hv),0.0),48.0)*.22;float rim=pow(1.0-max(dot(n,v),0.0),3.0)*.12;' +
-    'vec3 c=base*(.30+.18*h+d)+vec3(sp)+vec3(rim);gl_FragColor=vec4(pow(c,vec3(.95)),1.0);}';
+    'void main(){vec3 base=uUseTex>0.5?texture2D(uTex,vUv).rgb:uCol;' +
+    'vec3 n=normalize(vN);vec3 v=normalize(uEye-vP);if(dot(n,v)<0.0)n=-n;vec3 l=normalize(v+vec3(-.25,.45,0.));' +
+    'float d=max(dot(n,l),0.0);float f=max(dot(n,v),0.0);vec3 hv=normalize(l+v);float sp=pow(max(dot(n,hv),0.0),48.0)*.18;float rim=pow(1.0-f,3.0)*.10;' +
+    'vec3 c=base*(.50+.30*d+.24*f)+vec3(sp)+vec3(rim);gl_FragColor=vec4(pow(min(c,vec3(1.0)),vec3(.95)),1.0);}';
 
   let cur = null; // current viewer
   function stop() { if (window.ToothParts) ToothParts.detach(); if (cur) { cur.dead = true; try { const x = cur.gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } catch (e) { /* ignore */ } cur = null; } }
