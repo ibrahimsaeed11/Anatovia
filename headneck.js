@@ -25,6 +25,8 @@ window.__hnLoaded = true;
     ['eyear', 'Eye & ear', 'العين والأذن', [0.40, 0.80, 0.60], 0],
     ['muscle', 'Muscles', 'العضلات', [0.78, 0.30, 0.28], 0],
     ['brain', 'Brain', 'المخ', [0.93, 0.74, 0.74], 0],
+    ['nerve', 'Nerves', 'الأعصاب', [0.98, 0.85, 0.25], 0],
+    ['vessel', 'Vessels', 'الأوعية الدموية', [0.35, 0.50, 0.95], 0],
     ['misc', 'Other', 'تراكيب أخرى', [0.88, 0.76, 0.42], 0],
   ];
   const LKEY = LAYERS.map((l) => l[0]);
@@ -170,8 +172,8 @@ window.__hnLoaded = true;
       `<div class="hncard" id="hncard"><small>${T('Tap any structure to see its name. Drag to rotate, pinch or scroll to zoom.', 'اضغط على أي تركيب تعرف اسمه. اسحب للتدوير، وقرّب بإصبعين أو بالعجلة.')}</small></div>` +
       `<div class="hnlay" id="hnlay">${chips()}</div>` +
       `<div class="hnsec"><button class="btn" id="hnsecb" data-act="hnsec">✂️ ${T('Section', 'مقطع')}</button><input type="range" id="hnsecr" min="-60" max="60" value="0" aria-label="section" hidden></div>` +
-      `<div class="row" style="margin-top:4px"><button class="btn" data-act="hnreset">⟲ ${T('Reset view', 'رجّع الزاوية')}</button><button class="btn" id="hniso" data-act="hniso" disabled>${T('Isolate', 'اعزله')}</button></div>` +
-      `<p class="tiny">${T('Full-resolution meshes from Z-Anatomy (CC BY-SA 4.0). Names are a draft until reviewed by a specialist.', 'مجسمات بالدقة الكاملة من Z-Anatomy (CC BY-SA 4.0). الأسماء مسودة لحد ما يراجعها متخصص.')}</p>`);
+      `<div class="row" style="margin-top:4px"><button class="btn" data-act="hnreset">⟲ ${T('Reset view', 'رجّع الزاوية')}</button><button class="btn" id="hniso" data-act="hniso" disabled>${T('Isolate', 'اعزله')}</button><button class="btn" data-act="hnbody">🧍 ${T('Whole body', 'الجسم كامل')}</button></div>` +
+      `<p class="tiny">${T('Full-resolution meshes from Z-Anatomy (CC BY-SA 4.0). Names are a draft until reviewed by a specialist. The maxillary sinus is derived from the bone cavities (approximate); nerves and vessels are standard resolution.', 'مجسمات بالدقة الكاملة من Z-Anatomy (CC BY-SA 4.0). الأسماء مسودة لحد ما يراجعها متخصص. الجيب الفكي مشتق من تجاويف العظم (تقريبي)، والأعصاب والأوعية بدقة عادية.')}</p>`);
     const msg = $('hnmsg'), cv = $('hncv');
     try { cur = viewer(cv); } catch (e) { msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); return; }
     const me = cur;
@@ -203,9 +205,11 @@ window.__hnLoaded = true;
     if (b) b.classList.toggle('primary', cur.clip); if (r) { r.hidden = !cur.clip; if (cur.clip) { cur.clipX = 0; r.value = 0; cur.yaw = Math.PI / 2 * 0.0 - 0.0; cur.yaw = -1.2; } }
     if (!cur.clip) cur.clipX = 0;
   };
+  A.acts.hnbody = () => { stop(); A.closeModal && A.closeModal(); };
   A.acts.hnreset = () => { if (cur) cur.reset(); };
   A.acts.hniso = () => { if (cur && cur.sel) { cur.iso = !cur.iso; const b = $('hniso'); if (b) b.classList.toggle('primary', cur.iso); } };
   document.addEventListener('input', (e) => { if (e.target && e.target.id === 'hnsecr' && cur) cur.clipX = (+e.target.value) / 1000; });
 
+  A.hn3dState = () => cur;
   waitFor(() => A.hubExtra && A.modal, () => { A.hubExtra.hn3d = () => { stop(); open(); }; });
 })();

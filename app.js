@@ -288,6 +288,7 @@ function renderChips() {
   h += tl('regions', ICON.regions, S.region ? t(S.region) : t('regions'), !!S.region);
   h += tl('explode', ICON.explode, t('explode'), S.explode > 0);
   if (S.layers.bone !== 'off') h += tl('dent', '<svg viewBox="0 0 24 24" class="ico"><path d="M12 5.5C10.5 4 8.5 3.5 7 4.2 4.8 5.2 4.5 8 5.5 10.5c.8 2 .8 4 1.2 6.5.3 1.7 1.2 3 2.1 3 1.2 0 1.3-3.2 1.7-4.4.3-.8 1.6-.8 1.9 0 .4 1.2.5 4.4 1.7 4.4.9 0 1.8-1.3 2.1-3 .4-2.5.4-4.5 1.2-6.5C19.5 8 19.2 5.2 17 4.2c-1.5-.7-3.5-.2-5 1.3z"/></svg>', S.dent === 'dec' ? t('dentDec') : t('dentPerm'), S.dent === 'dec');
+  if (A.facCode && A.facCode() === 'dent' && A.hubExtra && A.hubExtra.hn3d) h += tl('hnopen', '<svg viewBox="0 0 24 24" class="ico"><path d="M8 20v-3C5 16 4 12 5 9c1-4 5-6 9-5 3 1 5 4 4 8l-1 2v2M12 20h4M10 10l3 2"/></svg>', ar ? 'الرأس والرقبة 3D' : 'Head & neck 3D', false);
   h += tl('spin', ICON.spin, t('spin'), !!S.spin);
   h += tl('resetview', ICON.reset, t('resetView'), false);
   if (S.hideStack.length) h += tl('undo', ICON.undo, t('undo'), false);
@@ -300,6 +301,7 @@ function renderChips() {
   nav.innerHTML = h;
 }
 document.addEventListener('click', (ev) => { if (S.moreOpen && ev.target.closest('.more .chip')) setTimeout(() => { S.moreOpen = false; renderChips(); }, 0); });
+A.acts.hnopen = () => { if (A.hubExtra && A.hubExtra.hn3d) A.hubExtra.hn3d(); };
 A.acts.more = () => { S.moreOpen = !S.moreOpen; renderChips(); };
 A.acts.layer = async (el) => {
   const s = el.dataset.s, order = ['on', 'ghost', 'off'];
