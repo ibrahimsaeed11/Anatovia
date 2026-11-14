@@ -1,7 +1,7 @@
 /* Service worker: caches the whole app on first visit so it works offline.
    Updates are installed in the background and only take over when the student taps "Update now". */
-const VERSION = 'anatovia-v122';
-const FILES = ['./', 'index.html', 'style.css', 'i18n.js', 'catalog.js', 'gl.js', 'packs.js', 'store.js', 'app.js', 'study.js', 'features.js', 'clinic-data.js', 'clinic.js', 'spinal-data.js', 'play.js', 'clinmed.js', 'practical.js', 'osce.js', 'firebase-config.js', 'account.js', 'tour.js', 'tests.js', 'nerves.js', 'calc.js', 'board.js', 'faculty.js', 'gate.js', 'fonts/cairo.woff', 'dental.js', 'tooth3d.js','nblock.js','pjourney.js','tooth-lm.js','tooth-parts.js', 'fprof.js', 'voice.js', 'notebook.js','extras.js','motion.js', 'bono.js', 'duel.js', 'share.js', 'report.js', 'landmarks.js', 'models/bones.js', 'manifest.webmanifest', 'icons/favicon.svg',
+const VERSION = 'anatovia-v123';
+const FILES = ['./', 'index.html', 'style.css', 'i18n.js', 'catalog.js', 'gl.js', 'packs.js', 'store.js', 'app.js', 'study.js', 'features.js', 'clinic-data.js', 'clinic.js', 'spinal-data.js', 'play.js', 'clinmed.js', 'practical.js', 'osce.js', 'firebase-config.js', 'account.js', 'tour.js', 'tests.js', 'nerves.js', 'calc.js', 'board.js', 'faculty.js', 'gate.js', 'fonts/cairo.woff', 'dental.js', 'tooth3d.js','headneck.js','nblock.js','pjourney.js','tooth-lm.js','tooth-parts.js', 'fprof.js', 'voice.js', 'notebook.js','extras.js','motion.js', 'bono.js', 'duel.js', 'share.js', 'report.js', 'landmarks.js', 'models/bones.js', 'manifest.webmanifest', 'icons/favicon.svg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
@@ -18,7 +18,7 @@ self.addEventListener('activate', (e) => {
       // keep the big lazily-downloaded files (3D models, tooth scans) so "download for offline" survives an update
       const old = await caches.open(k);
       for (const r of await old.keys()) {
-        if (/\/(models|teeth3d)\//.test(r.url) && !(await cur.match(r))) { const res = await old.match(r); if (res) await cur.put(r, res); }
+        if (/\/(models|teeth3d|hn3d)\//.test(r.url) && !(await cur.match(r))) { const res = await old.match(r); if (res) await cur.put(r, res); }
       }
       await caches.delete(k);
     }
