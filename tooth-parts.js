@@ -5,8 +5,8 @@ window.__toothPartsLoaded = true;
 (function () {
   const T = (en, ar) => (S.lang === 'ar' ? ar : en);
   const $ = (id) => document.getElementById(id);
-  const GN = { cusp: ['Cusps & edges', 'الحدبات والحواف'], ridge: ['Ridges & fossa', 'الأعراف والحفرة'], neck: ['Neck', 'العنق'], root: ['Roots', 'الجذور'], surf: ['Surfaces', 'الأسطح'] };
-  const GC = { cusp: '#E3B95B', ridge: '#7FD1AE', neck: '#E58AA0', root: '#8FB4F0', surf: '#C9A0F0' };
+  const GN = { cusp: ['Cusps & edges', 'الحدبات والحواف'], ridge: ['Ridges & fossa', 'الأعراف والحفرة'], groove: ['Grooves & pits', 'الأخاديد والحفر'], neck: ['Neck', 'العنق'], root: ['Roots', 'الجذور'], surf: ['Surfaces', 'الأسطح'] };
+  const GC = { cusp: '#E3B95B', ridge: '#7FD1AE', groove: '#4FC3D9', neck: '#E58AA0', root: '#8FB4F0', surf: '#C9A0F0' };
   const css = document.createElement('style');
   css.textContent = '.tpd{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border:0;background:none;padding:0;display:grid;place-items:center;cursor:pointer;z-index:3;-webkit-tap-highlight-color:transparent}' +
     '.tpd i{width:13px;height:13px;border-radius:50%;background:var(--c);border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.45),0 2px 6px rgba(0,0,0,.4);transition:transform .15s}' +
