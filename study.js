@@ -34,7 +34,7 @@
   const hubIco = (k) => `<svg viewBox="0 0 24 24"><path d="${HUBICO[k] || HUBICO.about}"/></svg>`;
   const HUB_GROUP = { daily: 'start', quiz: 'start', cards: 'start', nb: 'study', lmq: 'study', prac: 'study', osce: 'study', splan: 'study', ready: 'study', mnem: 'study', favs: 'study', dent: 'fac', dent3d: 'fac', hn3d: 'fac', dentnb: 'fac', pjourney: 'fac', exam: 'fac', clin: 'fac', nclin: 'fac', pclin: 'fac', ptclin: 'fac', vclin: 'fac', tcards: 'fac', nmap: 'fac', calc: 'fac', spinal: 'fac', moves: 'fac', play: 'track', board: 'track', duel: 'track', badges: 'track', progress: 'track', stats: 'track', tour: 'foot', about: 'foot' };
   A.openHub = () => A.modal(() => {
-    let items = ['account', 'daily', 'nb', 'ready', 'quiz', 'dent', 'dent3d', 'hn3d', 'dentnb', 'pjourney', 'splan', 'lmq', 'prac', 'osce', 'exam', 'clin', 'nclin', 'pclin', 'ptclin', 'vclin', 'tcards', 'nmap', 'calc', 'board', 'duel', 'spinal', 'play', 'badges', 'cards', 'moves', 'progress', 'stats', 'mnem', 'favs', 'tour', 'about'].map((k) => [k, '']);
+    let items = ['account', 'daily', 'nb', 'ready', 'quiz', 'dent', 'dent3d', 'dentnb', 'pjourney', 'splan', 'lmq', 'prac', 'osce', 'exam', 'clin', 'nclin', 'pclin', 'ptclin', 'vclin', 'tcards', 'nmap', 'calc', 'board', 'duel', 'spinal', 'play', 'badges', 'cards', 'moves', 'progress', 'stats', 'mnem', 'favs', 'tour', 'about'].map((k) => [k, '']);
     if (A.facHub) items = A.facHub(items);
     const ac = A.acct || {}, dl = Math.max(0, Math.ceil(((ac.until || 0) - Date.now()) / 864e5)), pr = A.profile ? A.profile() : {};
     const who = pr.name || ac.email || '';

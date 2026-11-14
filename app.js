@@ -274,6 +274,7 @@ const SHORT = { ligament: { en: 'Ligaments', ar: 'الأربطة' } };
 const MORE_ICO = '<svg viewBox="0 0 24 24" class="ico"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
 function renderChips() {
   const nav = $('chips'), ar = S.lang === 'ar'; let h = '';
+  if (A.hnMode && A.hnChips) { nav.innerHTML = A.hnChips(); return; }
   const premium = A.isPremium && A.isPremium();
   /* layers dock (bottom) */
   h += '<div class="dock">';

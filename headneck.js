@@ -84,7 +84,7 @@ window.__hnLoaded = true;
     gl.enableVertexAttribArray(aPos); gl.enableVertexAttribArray(aNor);
     gl.enable(gl.DEPTH_TEST); gl.disable(gl.CULL_FACE); gl.clearColor(0, 0, 0, 0);
     const mk = (target, arr) => { const b = gl.createBuffer(); gl.bindBuffer(target, b); gl.bufferData(target, arr, gl.STATIC_DRAW); return b; };
-    const st = { gl, dead: false, yaw: 0, pitch: 0.05, dist: 0.6, tx: 0, ty: 1.53, tz: 0.08, vx: 0, vy: 0, drag: false, auto: false, layers: {}, parts: [], sel: null, clip: false, clipX: 0, nextId: 1, byId: {}, lo: [9, 9, 9], hi: [-9, -9, -9] };
+    const st = { gl, dead: false, yaw: 0, pitch: 0.05, dist: 0.8, tx: 0, ty: 1.53, tz: 0.08, vx: 0, vy: 0, drag: false, auto: false, layers: {}, parts: [], sel: null, clip: false, clipX: 0, nextId: 1, byId: {}, lo: [9, 9, 9], hi: [-9, -9, -9] };
     st.addLayer = (key, data) => {
       const lay = LAYERS.find((l) => l[0] === key), col = lay[3], list = [];
       data.parts.forEach((p) => {
@@ -151,65 +151,95 @@ window.__hnLoaded = true;
     cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', (e) => { pts.delete(e.pointerId); pd = 0; if (!pts.size) st.drag = false; });
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
     cv.addEventListener('wheel', (e) => { e.preventDefault(); st.dist = Math.max(0.18, Math.min(2.4, st.dist * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
-    st.reset = () => { st.yaw = 0; st.pitch = 0.05; st.dist = 0.6; st.tx = 0; st.ty = 1.53; st.tz = 0.08; st.vx = st.vy = 0; };
+    st.reset = () => { st.yaw = 0; st.pitch = 0.05; st.dist = 0.8; st.tx = 0; st.ty = 1.53; st.tz = 0.08; st.vx = st.vy = 0; };
     requestAnimationFrame(frame);
     return st;
   }
 
-  /* ───────── page ───────── */
+  /* ───────── mode: the head & neck replaces the body inside the main view (same screen, same dock/tools) ───────── */
   const on = {}; LAYERS.forEach((l) => { on[l[0]] = !!l[4]; });
   const busy = {};
   const nm = (p) => (S.lang === 'ar' && p.ar ? p.ar : p.en);
   const sideTxt = (p) => (p.side === 'l' ? T('Left', 'أيسر') : p.side === 'r' ? T('Right', 'أيمن') : '');
+  const mcss = document.createElement('style');
+  mcss.textContent = 'body.hnm #panel{display:none!important}#hncv{position:absolute;inset:0;width:100%;height:100%;z-index:6;touch-action:none;background:radial-gradient(circle at 50% 42%,var(--surface2),var(--bg2))}' +
+    '.dock.hnd{overflow-x:auto;scrollbar-width:none;justify-content:flex-start;gap:4px}.dock.hnd::-webkit-scrollbar{display:none}.dock.hnd .dk{flex:0 0 auto;min-width:58px;padding:8px 8px 7px}' +
+    '.dock.hnd .dk i{position:static;inset:auto;font-size:0;width:18px;height:18px;border-radius:50%;background:var(--c);opacity:.4;display:block;margin:2px 0}.dock.hnd .dk.on{background:var(--accent);color:var(--accent-ink)}.dock.hnd .dk.on i{opacity:1;box-shadow:0 0 0 2px #fff7}.dock.hnd .dk.busy{opacity:.55}' +
+    '#hnname{position:absolute;z-index:7;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom));max-width:calc(100% - 100px);background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--line);border-radius:14px;padding:8px 14px;text-align:center;backdrop-filter:blur(8px)}#hnname b{display:block;font-size:16px}#hnname small{color:var(--muted)}' +
+    '#hnsecw{position:absolute;z-index:7;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom));width:min(320px,calc(100% - 110px))}#hnsecw input{width:100%}' +
+    '#hnmsg{position:absolute;inset:0;z-index:8;display:grid;place-items:center;text-align:center;padding:20px;color:var(--muted);font-size:14px;pointer-events:none}';
+  document.head.appendChild(mcss);
 
-  function chips() {
-    return LAYERS.map((l) => `<button class="${on[l[0]] ? 'on' : ''} ${busy[l[0]] ? 'busy' : ''}" data-act="hnlay" data-k="${l[0]}" style="--c:rgb(${l[3].map((v) => Math.round(v * 255)).join(',')})"><i></i>${T(l[1], l[2])}</button>`).join('');
+  const dockHtml = () => '<div class="dock hnd">' + LAYERS.map((l) => `<button class="dk ${on[l[0]] ? 'on' : ''} ${busy[l[0]] ? 'busy' : ''}" data-act="hnlay" data-k="${l[0]}" style="--c:rgb(${l[3].map((v) => Math.round(v * 255)).join(',')})"><i></i><span>${T(l[1], l[2])}</span></button>`).join('') + '</div>';
+  const ICO = {
+    body: '<svg viewBox="0 0 24 24" class="ico"><circle cx="12" cy="5" r="2.5"/><path d="M12 8v7M8 10l4-1 4 1M9 21l3-6 3 6"/></svg>',
+    sec: '<svg viewBox="0 0 24 24" class="ico"><path d="M12 3v18M5 7l14 10M5 17L19 7" stroke-dasharray="0"/></svg>',
+    iso: '<svg viewBox="0 0 24 24" class="ico"><circle cx="12" cy="12" r="3.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>',
+  };
+  A.hnChips = () => {
+    const tl = (act, icon, label, onn, dis) => `<button class="tl ${onn ? 'on' : ''}" data-act="${act}" title="${label}" aria-label="${label}" ${dis ? 'disabled style="opacity:.4"' : ''}>${icon}</button>`;
+    const c = cur;
+    return dockHtml() + '<div class="tools">' +
+      tl('hnbody', ICO.body, T('Whole body', 'الجسم كامل'), false) +
+      tl('hnsec', ICO.sec, T('Section', 'مقطع'), !!(c && c.clip)) +
+      tl('hniso', ICO.iso, T('Isolate', 'اعزله'), !!(c && c.iso), !(c && c.sel)) +
+      tl('hnreset', ICON.reset, T('Reset view', 'رجّع الزاوية'), false) + '</div>';
+  };
+  const refresh = () => { if (A.renderChips) A.renderChips(); };
+
+  function showName(p) {
+    let c = $('hnname');
+    if (!p) { if (c) c.remove(); return; }
+    if (!c) { c = document.createElement('div'); c.id = 'hnname'; $('view').appendChild(c); }
+    const L = LAYERS.find((l) => l[0] === p.layer), alt = S.lang === 'ar' ? p.en : (p.ar || '');
+    c.innerHTML = `<b>${esc(nm(p))}</b><small>${alt && alt !== nm(p) ? esc(alt) + ' · ' : ''}${sideTxt(p) ? sideTxt(p) + ' · ' : ''}${T(L[1], L[2])}</small>`;
   }
-  function open() {
-    stop();
-    A.modal(() => `<h2>🦴 ${T('Head & neck 3D', 'الرأس والرقبة 3D')}</h2>` +
-      `<div class="hnstage" id="hnstage"><canvas id="hncv"></canvas><div class="hnmsg" id="hnmsg">${T('Loading…', 'جارِ التحميل…')}</div></div>` +
-      `<div class="hncard" id="hncard"><small>${T('Tap any structure to see its name. Drag to rotate, pinch or scroll to zoom.', 'اضغط على أي تركيب تعرف اسمه. اسحب للتدوير، وقرّب بإصبعين أو بالعجلة.')}</small></div>` +
-      `<div class="hnlay" id="hnlay">${chips()}</div>` +
-      `<div class="hnsec"><button class="btn" id="hnsecb" data-act="hnsec">✂️ ${T('Section', 'مقطع')}</button><input type="range" id="hnsecr" min="-60" max="60" value="0" aria-label="section" hidden></div>` +
-      `<div class="row" style="margin-top:4px"><button class="btn" data-act="hnreset">⟲ ${T('Reset view', 'رجّع الزاوية')}</button><button class="btn" id="hniso" data-act="hniso" disabled>${T('Isolate', 'اعزله')}</button><button class="btn" data-act="hnbody">🧍 ${T('Whole body', 'الجسم كامل')}</button></div>` +
-      `<p class="tiny">${T('Full-resolution meshes from Z-Anatomy (CC BY-SA 4.0). Names are a draft until reviewed by a specialist. The maxillary sinus is derived from the bone cavities (approximate); nerves and vessels are standard resolution.', 'مجسمات بالدقة الكاملة من Z-Anatomy (CC BY-SA 4.0). الأسماء مسودة لحد ما يراجعها متخصص. الجيب الفكي مشتق من تجاويف العظم (تقريبي)، والأعصاب والأوعية بدقة عادية.')}</p>`);
-    const msg = $('hnmsg'), cv = $('hncv');
-    try { cur = viewer(cv); } catch (e) { msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); return; }
-    const me = cur;
-    me.onpick = (p) => {
-      me.sel = p || null; const c = $('hncard'), b = $('hniso'); if (b) b.disabled = !p;
-      if (!p) { me.iso = false; if (c) c.innerHTML = `<small>${T('Nothing here — tap a structure.', 'مفيش تركيب هنا — اضغط على تركيب.')}</small>`; return; }
-      const L = LAYERS.find((l) => l[0] === p.layer);
-      const alt = S.lang === 'ar' ? p.en : (p.ar || ''); if (c) c.innerHTML = `<b>${esc(nm(p))}</b><small>${alt && alt !== nm(p) ? esc(alt) + ' · ' : ''}${sideTxt(p) ? sideTxt(p) + ' · ' : ''}${T(L[1], L[2])}</small>`;
-    };
+
+  function enter() {
+    if (A.hnMode) return; stop();
+    const view = $('view'), cv = document.createElement('canvas'); cv.id = 'hncv'; view.appendChild(cv);
+    const msg = document.createElement('div'); msg.id = 'hnmsg'; msg.textContent = T('Loading…', 'جارِ التحميل…'); view.appendChild(msg);
+    try { cur = viewer(cv); } catch (e) { cv.remove(); msg.textContent = T('Your device could not start the 3D view.', 'جهازك مقدرش يشغّل العرض 3D.'); setTimeout(() => msg.remove(), 3000); return; }
+    const me = cur; A.hnMode = true; document.body.classList.add('hnm');
+    ['gl', 'lm'].forEach((id) => { const e = $(id); if (e) e.style.visibility = 'hidden'; });
+    me.onpick = (p) => { me.sel = p || null; if (!p) me.iso = false; showName(p); refresh(); };
+    refresh();
     const first = LKEY.filter((k) => on[k]);
-    msg.textContent = T('Loading…', 'جارِ التحميل…');
     Promise.all(first.map((k) => loadLayer(k).then((d) => { if (cur === me && !me.layers[k]) me.addLayer(k, d); })))
-      .then(() => { if (cur === me && msg.isConnected) msg.remove(); })
+      .then(() => { if (msg.isConnected) msg.remove(); })
       .catch(() => { if (msg.isConnected) msg.textContent = T('Could not load the model — it needs an internet connection the first time.', 'مقدرناش نحمّل المجسم — أول مرة بيحتاج إنترنت.'); });
   }
+  function leave() {
+    if (!A.hnMode) return; stop(); A.hnMode = false; document.body.classList.remove('hnm');
+    ['hncv', 'hnname', 'hnsecw', 'hnmsg'].forEach((id) => { const e = $(id); if (e) e.remove(); });
+    ['gl', 'lm'].forEach((id) => { const e = $(id); if (e) e.style.visibility = ''; });
+    refresh(); window.dispatchEvent(new Event('resize'));
+  }
+  A.hnLeave = leave;
   A.acts.hnlay = async (el) => {
     const k = el.dataset.k; if (!cur || busy[k]) return;
     on[k] = !on[k];
     if (on[k] && !cur.layers[k]) {
-      busy[k] = true; el.classList.add('busy');
+      busy[k] = true; refresh();
       try { const d = await loadLayer(k); if (cur) cur.addLayer(k, d); } catch (e) { on[k] = false; A.toast && A.toast(T('Needs an internet connection the first time', 'محتاج إنترنت أول مرة')); }
       busy[k] = false;
     }
     if (cur && cur.layers[k]) cur.layers[k].on = on[k];
-    const w = $('hnlay'); if (w) w.innerHTML = chips();
+    refresh();
   };
   A.acts.hnsec = () => {
-    if (!cur) return; cur.clip = !cur.clip; const r = $('hnsecr'), b = $('hnsecb');
-    if (b) b.classList.toggle('primary', cur.clip); if (r) { r.hidden = !cur.clip; if (cur.clip) { cur.clipX = 0; r.value = 0; cur.yaw = Math.PI / 2 * 0.0 - 0.0; cur.yaw = -1.2; } }
-    if (!cur.clip) cur.clipX = 0;
+    if (!cur) return; cur.clip = !cur.clip; let w = $('hnsecw');
+    if (cur.clip) {
+      cur.clipX = 0; cur.yaw = -1.2;
+      if (!w) { w = document.createElement('div'); w.id = 'hnsecw'; w.innerHTML = '<input type="range" id="hnsecr" min="-60" max="60" value="0" aria-label="section">'; $('view').appendChild(w); }
+    } else { cur.clipX = 0; if (w) w.remove(); }
+    refresh();
   };
-  A.acts.hnbody = () => { stop(); A.closeModal && A.closeModal(); };
   A.acts.hnreset = () => { if (cur) cur.reset(); };
-  A.acts.hniso = () => { if (cur && cur.sel) { cur.iso = !cur.iso; const b = $('hniso'); if (b) b.classList.toggle('primary', cur.iso); } };
+  A.acts.hniso = () => { if (cur && cur.sel) { cur.iso = !cur.iso; refresh(); } };
+  A.acts.hnbody = leave;
   document.addEventListener('input', (e) => { if (e.target && e.target.id === 'hnsecr' && cur) cur.clipX = (+e.target.value) / 1000; });
 
   A.hn3dState = () => cur;
-  waitFor(() => A.hubExtra && A.modal, () => { A.hubExtra.hn3d = () => { stop(); open(); }; });
+  waitFor(() => A.hubExtra && A.modal, () => { A.hubExtra.hn3d = () => { A.closeModal && A.closeModal(); enter(); }; });
 })();
